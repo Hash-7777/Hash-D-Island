@@ -93,6 +93,14 @@ Every capability is a self-contained module. Adding or removing one touches a
 single manifest line and never the core — see
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Privacy & security
+
+Everything runs and stays on your Mac — no accounts, no analytics, no servers.
+The only network request HashNotch can ever make is fetching album artwork
+from Spotify's own image server while Spotify is playing. Exactly what the app
+reads, why, and the one permission it may ask for are spelled out in
+[SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE) © 2026 Seif Hashish
