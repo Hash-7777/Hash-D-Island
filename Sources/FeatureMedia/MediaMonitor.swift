@@ -34,7 +34,6 @@ public final class MediaMonitor: ObservableObject {
     private let reader = MediaRemoteReader()
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
-    private var volumeWork: DispatchWorkItem?
     private var lastVolumeTouch = Date.distantPast
 
     public init() {}
@@ -76,18 +75,13 @@ public final class MediaMonitor: ObservableObject {
         scheduleRefresh()
     }
 
-    /// Slider input: update instantly, push to the system coalesced so a drag
-    /// becomes a handful of writes instead of hundreds.
+    /// Slider input: CoreAudio is a direct call, so every tick of the drag is
+    /// applied immediately — zero latency, perfectly smooth.
     public func setVolume(_ volume: Int) {
         let clamped = min(max(volume, 0), 100)
         systemVolume = clamped
         lastVolumeTouch = Date()
-        volumeWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.reader?.setSystemVolume(clamped) }
-        }
-        volumeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
+        SystemVolume.set(clamped)
     }
 
     private func setPlaying(_ playing: Bool) {
@@ -102,7 +96,6 @@ public final class MediaMonitor: ObservableObject {
                 source: media.source,
                 elapsed: progress?.current(now: now) ?? media.elapsed,
                 duration: media.duration,
-                volume: media.volume,
                 fetchedAt: now
             )
         }
@@ -155,10 +148,10 @@ public final class MediaMonitor: ObservableObject {
             progress = nil
         }
 
-        // Adopt the polled system volume unless the user just moved the
-        // slider — their hand wins over a stale sample.
-        if let volume = snapshot?.volume,
-           Date().timeIntervalSince(lastVolumeTouch) > 2,
+        // Track the system volume (changed via keys, Control Center, etc.)
+        // unless the user just moved our slider — their hand wins.
+        if Date().timeIntervalSince(lastVolumeTouch) > 2,
+           let volume = SystemVolume.read(),
            volume != systemVolume {
             systemVolume = volume
         }

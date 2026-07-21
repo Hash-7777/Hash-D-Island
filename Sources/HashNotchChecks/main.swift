@@ -191,6 +191,16 @@ MainActor.assumeIsolated {
     check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday, seen: &bigSeen).io == 4000)
     try? FileManager.default.removeItem(at: bigFile)
 
+    // System volume via CoreAudio: readable in range, and a same-value write
+    // round-trips (harmless — it sets the volume it already has).
+    if let volume = SystemVolume.read() {
+        check("volume read in range", (0...100).contains(volume))
+        SystemVolume.set(volume)
+        check("volume same-value write round-trips", SystemVolume.read() == volume)
+    } else {
+        print("  note volume unavailable on this output device (skipped)")
+    }
+
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashnotch.checks.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!

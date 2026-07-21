@@ -111,13 +111,11 @@ struct MediaDetailView: View {
                 .frame(maxWidth: .infinity)
 
                 if let volume = monitor.systemVolume {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 9) {
                         Image(systemName: "speaker.fill")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(theme.subtitleColor)
-                        Slider(value: volumeBinding(volume), in: 0...100)
-                            .controlSize(.mini)
-                            .tint(.white)
+                        PremiumVolumeSlider(value: volume) { monitor.setVolume($0) }
                         Image(systemName: "speaker.wave.3.fill")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(theme.subtitleColor)
@@ -126,13 +124,6 @@ struct MediaDetailView: View {
             }
             .frame(width: Panel.rowWidth, alignment: .leading)
         }
-    }
-
-    private func volumeBinding(_ current: Int) -> Binding<Double> {
-        Binding(
-            get: { Double(current) },
-            set: { monitor.setVolume(Int($0.rounded())) }
-        )
     }
 
     private func progressBar(_ progress: MediaProgress) -> some View {
@@ -189,6 +180,54 @@ struct MediaDetailView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .shadow(color: .black.opacity(0.45), radius: 4, y: 2)
+    }
+}
+
+/// An iPhone-style volume slider: thin capsule track, white fill, and a knob
+/// that grows under the pointer. Values apply on every drag tick — the
+/// backing call is direct CoreAudio, so movement is instant.
+private struct PremiumVolumeSlider: View {
+    let value: Int
+    let onChange: (Int) -> Void
+
+    @State private var dragging = false
+    @State private var hovering = false
+
+    private var knobSize: CGFloat { dragging ? 17 : (hovering ? 14 : 11) }
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let fraction = CGFloat(min(max(value, 0), 100)) / 100
+            let knob = knobSize
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(0.18))
+                    .frame(height: 4)
+                Capsule(style: .continuous)
+                    .fill(Color.white)
+                    .frame(width: max(4, width * fraction), height: 4)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: knob, height: knob)
+                    .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
+                    .offset(x: min(max(width * fraction - knob / 2, 0), width - knob))
+            }
+            .frame(width: width, height: geo.size.height)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        dragging = true
+                        let fraction = min(max(gesture.location.x / width, 0), 1)
+                        onChange(Int((fraction * 100).rounded()))
+                    }
+                    .onEnded { _ in dragging = false }
+            )
+        }
+        .frame(height: 20)
+        .onHover { hovering = $0 }
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: knobSize)
     }
 }
 

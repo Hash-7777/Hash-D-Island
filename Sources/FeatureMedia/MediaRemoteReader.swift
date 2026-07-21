@@ -24,8 +24,6 @@ public struct NowPlaying {
     public let source: MediaSource
     public let elapsed: Double?
     public let duration: Double?
-    /// System output volume (0–100) sampled with this fetch.
-    public let volume: Int?
     public let fetchedAt: Date
 }
 
@@ -154,14 +152,6 @@ final class MediaRemoteReader {
         }
       } catch (e) {}
 
-      // System output volume for the panel's slider.
-      let volume = null;
-      try {
-        const std = Application.currentApplication();
-        std.includeStandardAdditions = true;
-        volume = std.getVolumeSettings().outputVolume;
-      } catch (e) {}
-
       // Web video (YouTube in a browser): find the playing tab's address and
       // derive the video thumbnail. Only runs when nothing else provided
       // artwork, and only re-scans when the title changed (argv carries the
@@ -215,7 +205,7 @@ final class MediaRemoteReader {
         return fallback;
       }
 
-      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration, volume: volume });
+      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration });
     }
     """
 
@@ -253,7 +243,6 @@ final class MediaRemoteReader {
         let source: String?
         let elapsed: Double?
         let duration: Double?
-        let volume: Int?
     }
 
     /// Title → thumbnail cache so the browser is only asked again when the
@@ -296,13 +285,6 @@ final class MediaRemoteReader {
             """]
         }
         runCommand(arguments)
-    }
-
-    /// Sets the system output volume (0–100) via the standard scripting
-    /// addition — the same thing the volume keys do.
-    func setSystemVolume(_ volume: Int) {
-        let clamped = min(max(volume, 0), 100)
-        runCommand(["-e", "set volume output volume \(clamped)"])
     }
 
     private func runCommand(_ arguments: [String]) {
@@ -368,7 +350,6 @@ final class MediaRemoteReader {
             source: source,
             elapsed: payload.elapsed,
             duration: payload.duration,
-            volume: payload.volume,
             fetchedAt: Date()
         )
     }
