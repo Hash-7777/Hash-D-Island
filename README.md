@@ -59,9 +59,11 @@ activities disappear on their own. Post one quickly:
 ## Now Playing
 
 Whatever is playing (music, video) shows in the notch — artwork, a scrolling
-title for long names, and audio bars that dance while sound is playing. Open
-the panel and you get iPhone-style media controls: play/pause, skip, and a
-live progress bar for Spotify and Apple Music.
+title for long names, and audio bars that dance while sound is playing.
+Spotify and Apple Music show their album art; a YouTube video playing in your
+browser shows its video thumbnail. Open the panel and you get iPhone-style
+media controls that work for all of it: play/pause, skip, a live progress
+bar, and a system volume slider.
 
 Apple locked the direct MediaRemote call behind an entitlement on macOS
 15.4+/26, so HashNotch reads it through a tiny `osascript` (JavaScript for

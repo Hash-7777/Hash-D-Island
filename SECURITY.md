@@ -8,12 +8,14 @@ source. This page says exactly what the app reads, what it never does, and why.
 No accounts. No analytics. No telemetry. No servers. HashNotch never uploads
 anything, anywhere.
 
-There is exactly **one** network request the app can ever make: while Spotify
-is playing, it downloads the album artwork from Spotify's own image servers.
-That request is HTTPS-only, restricted to Spotify's CDN hosts (`scdn.co`,
-`spotifycdn.com`), and capped at 5 MB — any other URL is refused outright (see
-`ArtworkPolicy` in `Sources/FeatureMedia/MediaRemoteReader.swift`, covered by
-the automated checks). Nothing else in the app touches the network.
+There is exactly **one** kind of network request the app can ever make:
+fetching the picture for what's playing — album art from Spotify's own image
+servers, or a web video's thumbnail from YouTube's thumbnail server. Those
+requests are HTTPS-only, restricted to exactly those hosts (`scdn.co`,
+`spotifycdn.com`, `ytimg.com`), and capped at 5 MB — any other URL is refused
+outright (see `ArtworkPolicy` in
+`Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
+checks). Nothing else in the app touches the network.
 
 ## What it reads, and why
 
@@ -22,7 +24,8 @@ the automated checks). Nothing else in the app touches the network.
 | Network speed | Kernel per-interface byte counters (`getifaddrs`) | The up/down readout. It counts bytes only — it can never see what you send or receive. |
 | Battery | IOKit power-source info | Level, charging state, time remaining. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position | The media display. The play/pause/skip buttons send the matching command to Spotify or Music the same way — fixed commands only, nothing dynamic. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it asks your browser only for the playing tab's address, to derive the thumbnail | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| System volume | The standard scripting addition (`get`/`set volume`) | The panel's volume slider — read with each media poll, written only when you drag it. The same channel your volume keys use. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Live activities | `~/.hashnotch/activities.json`, written by your own scripts or Shortcuts | The activity strip. Treated as untrusted input: capped at 256 KB and 8 activities, text length-limited, progress clamped. |
 | Mouse position | A global observe-only position monitor | So the island opens when you hover the notch. It never captures keystrokes. The overlay is fully click-through except while the panel is open — only then does the panel itself receive clicks (for the media buttons), and it turns click-through again the moment it closes. |
@@ -32,6 +35,9 @@ the automated checks). Nothing else in the app touches the network.
 - **Automation (control Spotify / Music)** — macOS shows this prompt the first
   time Now Playing asks Spotify or Music for the current track. Deny it and
   every other feature keeps working.
+- **Automation (control your browser)** — asked only if a web video is playing
+  and only to read the playing tab's address so the video's thumbnail can be
+  shown. Deny it and Now Playing simply shows a placeholder tile instead.
 
 That is the complete list. HashNotch never asks for Accessibility, Input
 Monitoring, Screen Recording, or Full Disk Access.

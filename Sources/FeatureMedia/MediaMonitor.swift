@@ -28,10 +28,14 @@ public struct MediaProgress: Equatable {
 public final class MediaMonitor: ObservableObject {
     @Published public private(set) var nowPlaying: NowPlaying?
     @Published public private(set) var progress: MediaProgress?
+    /// System output volume 0–100, shown as the panel's slider.
+    @Published public private(set) var systemVolume: Int?
 
     private let reader = MediaRemoteReader()
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
+    private var volumeWork: DispatchWorkItem?
+    private var lastVolumeTouch = Date.distantPast
 
     public init() {}
 
@@ -52,7 +56,7 @@ public final class MediaMonitor: ObservableObject {
     // MARK: Controls
 
     public func togglePlayPause() {
-        guard let media = nowPlaying, media.source != .other else { return }
+        guard let media = nowPlaying else { return }
         // Optimistic flip so the button feels instant; the follow-up refresh
         // (and every poll after) corrects us if the player disagreed.
         setPlaying(!media.isPlaying)
@@ -61,15 +65,29 @@ public final class MediaMonitor: ObservableObject {
     }
 
     public func next() {
-        guard let media = nowPlaying, media.source != .other else { return }
+        guard let media = nowPlaying else { return }
         reader?.send(.next, to: media.source)
         scheduleRefresh()
     }
 
     public func previous() {
-        guard let media = nowPlaying, media.source != .other else { return }
+        guard let media = nowPlaying else { return }
         reader?.send(.previous, to: media.source)
         scheduleRefresh()
+    }
+
+    /// Slider input: update instantly, push to the system coalesced so a drag
+    /// becomes a handful of writes instead of hundreds.
+    public func setVolume(_ volume: Int) {
+        let clamped = min(max(volume, 0), 100)
+        systemVolume = clamped
+        lastVolumeTouch = Date()
+        volumeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.reader?.setSystemVolume(clamped) }
+        }
+        volumeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 
     private func setPlaying(_ playing: Bool) {
@@ -84,6 +102,7 @@ public final class MediaMonitor: ObservableObject {
                 source: media.source,
                 elapsed: progress?.current(now: now) ?? media.elapsed,
                 duration: media.duration,
+                volume: media.volume,
                 fetchedAt: now
             )
         }
@@ -134,6 +153,14 @@ public final class MediaMonitor: ObservableObject {
             )
         } else {
             progress = nil
+        }
+
+        // Adopt the polled system volume unless the user just moved the
+        // slider — their hand wins over a stale sample.
+        if let volume = snapshot?.volume,
+           Date().timeIntervalSince(lastVolumeTouch) > 2,
+           volume != systemVolume {
+            systemVolume = volume
         }
 
         presence?.setActive("media", shown?.isPlaying == true)

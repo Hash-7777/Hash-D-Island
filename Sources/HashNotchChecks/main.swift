@@ -90,6 +90,8 @@ MainActor.assumeIsolated {
     // network access must never fetch an arbitrary or non-HTTPS URL.
     check("artwork allows Spotify CDN", ArtworkPolicy.isTrustedURL("https://i.scdn.co/image/abc123"))
     check("artwork allows Spotify CDN alt", ArtworkPolicy.isTrustedURL("https://images.spotifycdn.com/x.jpg"))
+    check("artwork allows YouTube thumbs", ArtworkPolicy.isTrustedURL("https://i.ytimg.com/vi/abc123/hqdefault.jpg"))
+    check("artwork refuses ytimg lookalike", !ArtworkPolicy.isTrustedURL("https://evilytimg.com/vi/abc123/x.jpg"))
     check("artwork refuses http", !ArtworkPolicy.isTrustedURL("http://i.scdn.co/image/abc123"))
     check("artwork refuses other hosts", !ArtworkPolicy.isTrustedURL("https://example.com/a.jpg"))
     check("artwork refuses lookalike host", !ArtworkPolicy.isTrustedURL("https://evilscdn.co/a.jpg"))

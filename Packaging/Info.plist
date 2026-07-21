@@ -29,7 +29,7 @@
 	<!-- Shown by macOS in the Automation permission prompt. Without this key,
 	     hardened-runtime builds are denied Apple Events silently. -->
 	<key>NSAppleEventsUsageDescription</key>
-	<string>HashNotch asks Spotify or Music for the current track and artwork so it can show Now Playing around the notch, and controls playback when you use the media buttons. Deny this and everything else still works.</string>
+	<string>HashNotch asks your media apps for the current track and artwork — and, for web videos, asks your browser for the playing tab's address to show its thumbnail — so Now Playing can appear around the notch. Playback and volume are controlled only when you use the panel's buttons. Deny this and everything else still works.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Seif Hashish. MIT License.</string>
 </dict>

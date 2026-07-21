@@ -91,27 +91,48 @@ struct MediaDetailView: View {
                     progressBar(progress)
                 }
 
-                if media.source != .other {
-                    HStack(spacing: 26) {
-                        MediaControlButton(symbol: "backward.fill", size: 12, theme: theme) {
-                            monitor.previous()
-                        }
-                        MediaControlButton(
-                            symbol: media.isPlaying ? "pause.fill" : "play.fill",
-                            size: 17,
-                            theme: theme
-                        ) {
-                            monitor.togglePlayPause()
-                        }
-                        MediaControlButton(symbol: "forward.fill", size: 12, theme: theme) {
-                            monitor.next()
-                        }
+                // Controls work for every source: Spotify/Music via their own
+                // scripting, everything else through the system media channel.
+                HStack(spacing: 26) {
+                    MediaControlButton(symbol: "backward.fill", size: 12, theme: theme) {
+                        monitor.previous()
                     }
-                    .frame(maxWidth: .infinity)
+                    MediaControlButton(
+                        symbol: media.isPlaying ? "pause.fill" : "play.fill",
+                        size: 17,
+                        theme: theme
+                    ) {
+                        monitor.togglePlayPause()
+                    }
+                    MediaControlButton(symbol: "forward.fill", size: 12, theme: theme) {
+                        monitor.next()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                if let volume = monitor.systemVolume {
+                    HStack(spacing: 8) {
+                        Image(systemName: "speaker.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(theme.subtitleColor)
+                        Slider(value: volumeBinding(volume), in: 0...100)
+                            .controlSize(.mini)
+                            .tint(.white)
+                        Image(systemName: "speaker.wave.3.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(theme.subtitleColor)
+                    }
                 }
             }
             .frame(width: Panel.rowWidth, alignment: .leading)
         }
+    }
+
+    private func volumeBinding(_ current: Int) -> Binding<Double> {
+        Binding(
+            get: { Double(current) },
+            set: { monitor.setVolume(Int($0.rounded())) }
+        )
     }
 
     private func progressBar(_ progress: MediaProgress) -> some View {

@@ -24,6 +24,8 @@ public struct NowPlaying {
     public let source: MediaSource
     public let elapsed: Double?
     public let duration: Double?
+    /// System output volume (0–100) sampled with this fetch.
+    public let volume: Int?
     public let fetchedAt: Date
 }
 
@@ -48,8 +50,9 @@ extension NowPlaying: Equatable {
 /// is the app's only network access, so the policy is deliberately narrow and
 /// covered by HashNotchChecks.
 package enum ArtworkPolicy {
-    /// Hosts Spotify serves album art from.
-    private static let trustedSuffixes = ["scdn.co", "spotifycdn.com"]
+    /// Hosts artwork may come from: Spotify's album-art CDNs and YouTube's
+    /// thumbnail server (for web videos).
+    private static let trustedSuffixes = ["scdn.co", "spotifycdn.com", "ytimg.com"]
 
     package static func isTrustedURL(_ string: String) -> Bool {
         guard let url = URL(string: string),
@@ -90,7 +93,7 @@ final class MediaRemoteReader {
     private static let fetchTimeout: TimeInterval = 10
 
     private static let script = """
-    function run() {
+    function run(argv) {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
       let source = 'other', elapsed = null, duration = null;
@@ -151,7 +154,68 @@ final class MediaRemoteReader {
         }
       } catch (e) {}
 
-      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration });
+      // System output volume for the panel's slider.
+      let volume = null;
+      try {
+        const std = Application.currentApplication();
+        std.includeStandardAdditions = true;
+        volume = std.getVolumeSettings().outputVolume;
+      } catch (e) {}
+
+      // Web video (YouTube in a browser): find the playing tab's address and
+      // derive the video thumbnail. Only runs when nothing else provided
+      // artwork, and only re-scans when the title changed (argv carries the
+      // previous title -> thumbnail pair as a cache).
+      if (source === 'other' && title && !artworkUrl && !artwork) {
+        if (argv.length >= 2 && argv[0] === title && argv[1]) {
+          artworkUrl = argv[1];
+        } else {
+          try { artworkUrl = youtubeThumb(browserTabs(), title); } catch (e) {}
+        }
+      }
+
+      function browserTabs() {
+        const found = [];
+        try {
+          const sf = Application('Safari');
+          if (sf.running()) {
+            for (const w of sf.windows()) {
+              for (const t of w.tabs()) {
+                try { found.push({ url: t.url(), title: t.name() }); } catch (e) {}
+              }
+            }
+          }
+        } catch (e) {}
+        for (const name of ['Google Chrome', 'Brave Browser', 'Microsoft Edge', 'Arc']) {
+          try {
+            const br = Application(name);
+            if (br.running()) {
+              for (const w of br.windows()) {
+                for (const t of w.tabs()) {
+                  try { found.push({ url: t.url(), title: t.title() }); } catch (e) {}
+                }
+              }
+            }
+          } catch (e) {}
+        }
+        return found;
+      }
+
+      function youtubeThumb(tabs, wanted) {
+        const re = /(?:youtube\\.com\\/watch[^\\s]*[?&]v=|youtu\\.be\\/|youtube\\.com\\/shorts\\/)([A-Za-z0-9_-]{6,20})/;
+        let fallback = null;
+        for (const t of tabs) {
+          const m = String(t.url || '').match(re);
+          if (!m) continue;
+          const thumb = 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg';
+          // The playing tab's title starts with the video title.
+          if (wanted && String(t.title || '').indexOf(wanted) === 0) return thumb;
+          if (!fallback) fallback = thumb;
+        }
+        return fallback;
+      }
+
+      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration, volume: volume });
     }
     """
 
@@ -189,31 +253,63 @@ final class MediaRemoteReader {
         let source: String?
         let elapsed: Double?
         let duration: Double?
+        let volume: Int?
     }
 
-    /// Sends a playback command to Spotify or Music. Fixed verbs only — no
-    /// user-controlled text ever reaches the script. Runs on the same serial
-    /// queue as fetches so osascript calls never overlap, with the same
-    /// watchdog so a stalled permission dialog cannot wedge the queue.
-    func send(_ command: MediaCommand, to source: MediaSource) {
-        let app: String
-        switch source {
-        case .spotify: app = "Spotify"
-        case .music: app = "Music"
-        case .other: return
-        }
-        let verb: String
-        switch command {
-        case .playPause: verb = "playpause"
-        case .next: verb = "next track"
-        case .previous: verb = "previous track"
-        }
-        let script = "tell application \"\(app)\" to \(verb)"
+    /// Title → thumbnail cache so the browser is only asked again when the
+    /// video actually changes (passed into the script as arguments).
+    private var cachedThumbTitle = ""
+    private var cachedThumbURL = ""
 
+    /// Sends a playback command. Spotify and Music get their exact scripting
+    /// verb; everything else (browser video, any app) goes through the
+    /// system's MediaRemote command channel — the same one the keyboard's
+    /// media keys use. Fixed commands only — no user-controlled text ever
+    /// reaches a script. Runs on the same serial queue as fetches so osascript
+    /// calls never overlap, with the same watchdog so a stalled permission
+    /// dialog cannot wedge the queue.
+    func send(_ command: MediaCommand, to source: MediaSource) {
+        let arguments: [String]
+        switch source {
+        case .spotify, .music:
+            let app = source == .spotify ? "Spotify" : "Music"
+            let verb: String
+            switch command {
+            case .playPause: verb = "playpause"
+            case .next: verb = "next track"
+            case .previous: verb = "previous track"
+            }
+            arguments = ["-e", "tell application \"\(app)\" to \(verb)"]
+        case .other:
+            // kMRTogglePlayPause = 2, kMRNextTrack = 4, kMRPreviousTrack = 5.
+            let code: Int
+            switch command {
+            case .playPause: code = 2
+            case .next: code = 4
+            case .previous: code = 5
+            }
+            arguments = ["-l", "JavaScript", "-e", """
+            ObjC.import('Foundation');
+            $.NSBundle.bundleWithPath('/System/Library/PrivateFrameworks/MediaRemote.framework/').load;
+            ObjC.bindFunction('MRMediaRemoteSendCommand', ['bool', ['int', 'id']]);
+            $.MRMediaRemoteSendCommand(\(code), $());
+            """]
+        }
+        runCommand(arguments)
+    }
+
+    /// Sets the system output volume (0–100) via the standard scripting
+    /// addition — the same thing the volume keys do.
+    func setSystemVolume(_ volume: Int) {
+        let clamped = min(max(volume, 0), 100)
+        runCommand(["-e", "set volume output volume \(clamped)"])
+    }
+
+    private func runCommand(_ arguments: [String]) {
         queue.async {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: Self.osascript)
-            process.arguments = ["-e", script]
+            process.arguments = arguments
             process.qualityOfService = .userInitiated
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
@@ -232,7 +328,7 @@ final class MediaRemoteReader {
     private func run() -> NowPlaying? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: Self.osascript)
-        process.arguments = ["-l", "JavaScript", "-e", Self.script]
+        process.arguments = ["-l", "JavaScript", "-e", Self.script, cachedThumbTitle, cachedThumbURL]
         process.qualityOfService = .utility
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -257,15 +353,22 @@ final class MediaRemoteReader {
             return nil
         }
 
+        let source = payload.source.flatMap(MediaSource.init(rawValue:)) ?? .other
+        if source == .other, let thumb = payload.artworkUrl, !thumb.isEmpty {
+            cachedThumbTitle = title
+            cachedThumbURL = thumb
+        }
+
         let artwork = resolveArtwork(url: payload.artworkUrl, base64: payload.artwork)
         return NowPlaying(
             title: title,
             artist: payload.artist,
             isPlaying: payload.playing ?? false,
             artwork: artwork,
-            source: payload.source.flatMap(MediaSource.init(rawValue:)) ?? .other,
+            source: source,
             elapsed: payload.elapsed,
             duration: payload.duration,
+            volume: payload.volume,
             fetchedAt: Date()
         )
     }
