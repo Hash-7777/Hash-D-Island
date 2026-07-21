@@ -7,6 +7,11 @@ public final class NotchState: ObservableObject {
     /// Whether the expanded panel below the notch is showing.
     @Published public var isExpanded: Bool = false
 
+    /// Free horizontal space (points) between the frontmost app's menus and the
+    /// left edge of the notch. `.infinity` means "not measured / no limit", so
+    /// nothing is relocated. Updated by the window controller from Accessibility.
+    @Published public var leftFreeWidth: CGFloat = .infinity
+
     public let totalWidth: CGFloat
     public let notchWidth: CGFloat
     public let notchHeight: CGFloat

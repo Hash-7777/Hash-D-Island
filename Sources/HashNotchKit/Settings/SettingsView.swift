@@ -33,7 +33,13 @@ public struct SettingsView: View {
                 }
             }
 
-            Section("Spacing") {
+            Section("Position") {
+                Toggle("Automatically avoid menu-bar items", isOn: autoAvoidBinding)
+                if settings.layout.autoAvoidMenus, !AccessibilityMenuProbe.isTrusted {
+                    Text("Grant Accessibility permission in System Settings › Privacy & Security › Accessibility for this to work.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 slider("Gap on the left", value: insetBinding(\.leadingInset), range: 0...80)
                 slider("Gap on the right", value: insetBinding(\.trailingInset), range: 0...80)
                 slider("Space between items", value: insetBinding(\.itemSpacing), range: 4...40)
@@ -115,6 +121,18 @@ public struct SettingsView: View {
         Binding(
             get: { settings.layout[keyPath: keyPath] },
             set: { value in settings.layout[keyPath: keyPath] = value }
+        )
+    }
+
+    private var autoAvoidBinding: Binding<Bool> {
+        Binding(
+            get: { settings.layout.autoAvoidMenus },
+            set: { value in
+                settings.layout.autoAvoidMenus = value
+                if value, !AccessibilityMenuProbe.isTrusted {
+                    AccessibilityMenuProbe.requestPermission()
+                }
+            }
         )
     }
 

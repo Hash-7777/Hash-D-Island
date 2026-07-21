@@ -25,8 +25,30 @@ public struct LayoutConfig: Codable, Equatable {
     public var trailingInset: Double
     /// Space between individual readouts.
     public var itemSpacing: Double
+    /// Automatically move the left readout out of the way of the frontmost app's
+    /// menus (needs Accessibility permission).
+    public var autoAvoidMenus: Bool
 
-    public static let `default` = LayoutConfig(leadingInset: 8, trailingInset: 8, itemSpacing: 12)
+    public init(leadingInset: Double, trailingInset: Double, itemSpacing: Double, autoAvoidMenus: Bool) {
+        self.leadingInset = leadingInset
+        self.trailingInset = trailingInset
+        self.itemSpacing = itemSpacing
+        self.autoAvoidMenus = autoAvoidMenus
+    }
+
+    // Decode defensively so an older saved document (without newer fields) still
+    // loads instead of resetting everything.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        leadingInset = try container.decodeIfPresent(Double.self, forKey: .leadingInset) ?? 8
+        trailingInset = try container.decodeIfPresent(Double.self, forKey: .trailingInset) ?? 8
+        itemSpacing = try container.decodeIfPresent(Double.self, forKey: .itemSpacing) ?? 12
+        autoAvoidMenus = try container.decodeIfPresent(Bool.self, forKey: .autoAvoidMenus) ?? true
+    }
+
+    public static let `default` = LayoutConfig(
+        leadingInset: 8, trailingInset: 8, itemSpacing: 12, autoAvoidMenus: true
+    )
 }
 
 /// The whole persisted document.

@@ -37,6 +37,11 @@ Settings…**, where you can:
   just a symbol), and
 - nudge the spacing so nothing overlaps your other menu-bar items.
 
+**Automatically avoid menus:** with Accessibility permission granted, HashNotch
+measures where the frontmost app's menus end and moves the left readout out of
+the way — so it never sits on top of File / Edit / Window. Grant it in System
+Settings › Privacy & Security › Accessibility.
+
 Turn on **Open at Login** to have it come back every time you start your Mac.
 
 ## Develop
