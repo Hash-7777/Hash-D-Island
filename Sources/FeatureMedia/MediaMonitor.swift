@@ -17,7 +17,7 @@ public final class MediaMonitor: ObservableObject {
 
     public func start(presence: LivePresence) {
         self.presence = presence
-        sampler = PollingSampler(interval: 2.0) { [weak self] in self?.refresh() }
+        sampler = PollingSampler(interval: 3.0) { [weak self] in self?.refresh() }
         sampler?.start()
     }
 

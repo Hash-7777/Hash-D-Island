@@ -56,10 +56,13 @@ activities disappear on their own. Post one quickly:
 ./scripts/post-activity.sh --clear
 ```
 
-> **Now Playing (music/video):** Apple restricted the private MediaRemote API on
-> recent macOS (15.4+/26), so the simple read is disabled to avoid crashing. The
-> feature is wired up and returns to life via a signed media-remote adapter —
-> planned.
+## Now Playing
+
+Whatever is playing (music, video) shows in the notch. Apple locked the direct
+MediaRemote call behind an entitlement on macOS 15.4+/26, so HashNotch reads it
+through a tiny `osascript` (JavaScript for Automation) subprocess using
+`MRNowPlayingRequest` — which still works on those versions, and runs out of
+process so it can never crash the app.
 
 ## Customize it
 
