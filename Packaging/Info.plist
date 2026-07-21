@@ -13,16 +13,24 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
 	<!-- Agent app: no Dock icon, no app-switcher entry — just the notch overlay
 	     and the menu-bar item. -->
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<!-- Shown by macOS in the Automation permission prompt. Without this key,
+	     hardened-runtime builds are denied Apple Events silently. -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>HashNotch asks Spotify or Music for the current track and artwork so it can show Now Playing around the notch. Deny this and everything else still works.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Seif Hashish. MIT License.</string>
 </dict>
 </plist>
