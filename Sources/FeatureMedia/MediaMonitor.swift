@@ -35,9 +35,11 @@ public final class MediaMonitor: ObservableObject {
     }
 
     private func apply(_ snapshot: NowPlaying?) {
-        if snapshot != nowPlaying {
-            withAnimation(.snappy) { nowPlaying = snapshot }
+        // Only show while actually playing, so stopping/pausing hides it.
+        let shown = (snapshot?.isPlaying == true) ? snapshot : nil
+        if shown != nowPlaying {
+            withAnimation(.snappy) { nowPlaying = shown }
         }
-        presence?.setActive("media", snapshot != nil)
+        presence?.setActive("media", shown != nil)
     }
 }

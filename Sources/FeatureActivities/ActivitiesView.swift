@@ -1,32 +1,41 @@
 import SwiftUI
 import HashNotchKit
 
-/// Compact-live view: the top activity's icon, title, and time left — shown in
-/// the slim strip below the notch while an activity is running.
-struct ActivitiesCompactView: View {
+/// Leading compact-live: the top activity's icon, to the left of the notch.
+struct ActivitiesIconView: View {
+    @ObservedObject var monitor: ActivitiesMonitor
+    let theme: Theme
+
+    var body: some View {
+        if let activity = monitor.activities.first {
+            Image(systemName: activity.icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(theme.accent)
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+}
+
+/// Trailing compact-live: the top activity's title and time left, to the right.
+struct ActivitiesTitleView: View {
     @ObservedObject var monitor: ActivitiesMonitor
     let theme: Theme
 
     var body: some View {
         if let activity = monitor.activities.first {
             HStack(spacing: 6) {
-                Image(systemName: activity.icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.accent)
                 Text(activity.title)
                     .foregroundStyle(theme.textColor)
                     .lineLimit(1)
-                if let text = timeLeft(activity) {
+                if let text = Formatters2.timeLeft(activity.secondsLeft(now: monitor.now)) {
                     Text(text)
                         .foregroundStyle(theme.subtitleColor)
                         .monospacedDigit()
                 }
             }
+            .frame(maxWidth: 150, alignment: .leading)
+            .transition(.move(edge: .trailing).combined(with: .opacity))
         }
-    }
-
-    private func timeLeft(_ activity: LiveActivity) -> String? {
-        Formatters2.timeLeft(activity.secondsLeft(now: monitor.now))
     }
 }
 

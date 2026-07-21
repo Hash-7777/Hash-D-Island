@@ -24,8 +24,12 @@ public final class ActivitiesFeature: NotchFeature {
         AnyView(EmptyView())
     }
 
-    public func makeCompactLiveView(context: FeatureContext) -> AnyView? {
-        AnyView(ActivitiesCompactView(monitor: monitor, theme: context.theme))
+    public func makeCompactLeadingView(context: FeatureContext) -> AnyView? {
+        AnyView(ActivitiesIconView(monitor: monitor, theme: context.theme))
+    }
+
+    public func makeCompactTrailingView(context: FeatureContext) -> AnyView? {
+        AnyView(ActivitiesTitleView(monitor: monitor, theme: context.theme))
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {

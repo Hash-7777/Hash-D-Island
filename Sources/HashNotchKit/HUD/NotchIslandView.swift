@@ -4,11 +4,12 @@ import SwiftUI
 ///
 /// Three states:
 ///   • idle    — a black shape the size of the notch (looks like the notch).
-///   • live    — a slim strip drops just below the notch showing always-on media
-///               or activity, like the iPhone's compact Dynamic Island.
-///   • expanded — on hover, a rounded black panel drops down with the readouts.
+///   • live    — content flanks the notch (art on the left, title on the right)
+///               like the iPhone's compact Dynamic Island.
+///   • expanded — on hover, a rounded black panel drops down with the details.
 ///
-/// Everything appears below the menu bar, so it never overlaps menus or icons.
+/// Expanded content is padded below the physical notch and inside the panel, so
+/// nothing hides under the notch or clips at the edges.
 struct NotchIslandView: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: SettingsStore
@@ -43,15 +44,13 @@ struct NotchIslandView: View {
 
             if showExpanded {
                 expandedContent
-                    .padding(.top, state.notchHeight + 12)
-                    .padding(.horizontal, 20)
+                    .padding(.top, state.notchHeight + 14)
+                    .padding(.horizontal, 18)
                     .padding(.bottom, 16)
-                    .transition(.opacity.combined(with: .offset(y: -10)))
+                    .frame(width: state.expandedWidth, alignment: .leading)
+                    .transition(.opacity)
             } else if showLive {
                 liveContent
-                    .padding(.top, state.notchHeight + 3)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 5)
                     .transition(.opacity)
             }
         }
@@ -69,7 +68,7 @@ struct NotchIslandView: View {
     }
 
     private var cornerRadius: CGFloat {
-        showExpanded ? 26 : (showLive ? 18 : 10)
+        showExpanded ? 26 : (showLive ? 14 : 10)
     }
 
     private var shape: some InsettableShape {
@@ -82,37 +81,48 @@ struct NotchIslandView: View {
         )
     }
 
-    // MARK: State content
+    // MARK: Live (flanks the notch)
 
     private var liveContent: some View {
-        HStack(spacing: 12) {
-            ForEach(enabledFeatures, id: \.id) { feature in
-                if let view = feature.makeCompactLiveView(context: context) {
-                    view
+        HStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                ForEach(enabledFeatures, id: \.id) { feature in
+                    if let view = feature.makeCompactLeadingView(context: context) { view }
                 }
             }
+            .frame(width: state.liveSideWidth, alignment: .trailing)
+            .padding(.trailing, 8)
+
+            Color.clear.frame(width: state.notchWidth, height: state.notchHeight)
+
+            HStack(spacing: 8) {
+                ForEach(enabledFeatures, id: \.id) { feature in
+                    if let view = feature.makeCompactTrailingView(context: context) { view }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(width: state.liveSideWidth, alignment: .leading)
+            .padding(.leading, 8)
         }
+        .frame(height: state.notchHeight)
         .font(.system(size: 11, weight: .semibold, design: .rounded))
-        .frame(maxWidth: .infinity)
     }
 
-    private var expandedContent: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 14) {
-                ForEach(enabledFeatures, id: \.id) { feature in
-                    feature.makeView(context: context)
-                }
-            }
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
+    // MARK: Expanded (clean vertical list, below the notch)
 
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(enabledFeatures, id: \.id) { feature in
                 if let detail = feature.makeExpandedView(context: context) {
                     detail
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    feature.makeView(context: context)
                 }
             }
         }
+        .font(.system(size: 11, weight: .medium, design: .rounded))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var enabledFeatures: [NotchFeature] {

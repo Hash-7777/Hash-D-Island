@@ -62,10 +62,12 @@ public protocol NotchFeature: AnyObject {
     /// hover. Return `nil` (the default) to show nothing extra when expanded.
     func makeExpandedView(context: FeatureContext) -> AnyView?
 
-    /// Optional always-on view shown in the slim strip below the notch while
-    /// something is live (media playing, an activity running) — like the
-    /// iPhone's compact Dynamic Island. Return `nil` (the default) for none.
-    func makeCompactLiveView(context: FeatureContext) -> AnyView?
+    /// Optional always-on views shown flanking the notch while something is live
+    /// (media playing, an activity running) — like the iPhone's compact Dynamic
+    /// Island. Leading sits to the left of the notch, trailing to the right.
+    /// Return `nil` (the default) for none.
+    func makeCompactLeadingView(context: FeatureContext) -> AnyView?
+    func makeCompactTrailingView(context: FeatureContext) -> AnyView?
 
     /// Begin sampling / observing. Called when the HUD starts. The context gives
     /// access to shared services (e.g. `presence` for signalling live content).
@@ -78,7 +80,8 @@ public protocol NotchFeature: AnyObject {
 public extension NotchFeature {
     var displayOptions: [FeatureOption] { [] }
     func makeExpandedView(context: FeatureContext) -> AnyView? { nil }
-    func makeCompactLiveView(context: FeatureContext) -> AnyView? { nil }
+    func makeCompactLeadingView(context: FeatureContext) -> AnyView? { nil }
+    func makeCompactTrailingView(context: FeatureContext) -> AnyView? { nil }
     func start(context: FeatureContext) {}
     func stop() {}
 }
