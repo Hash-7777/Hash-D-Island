@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var registry: FeatureRegistry?
     private var context: FeatureContext?
     private var controller: NotchWindowController?
-    private var menuBar: MenuBarController?
+    private var settingsWindow: SettingsWindowController?
     private var power: PowerCoordinator?
     private var screenObserver: NSObjectProtocol?
     private var rebuildWork: DispatchWorkItem?
@@ -21,19 +21,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.seed(features: registry.features)
 
         let context = FeatureContext(settings: settings)
+
+        // No menu-bar item: the island's gear button is the settings entry.
+        let settingsWindow = SettingsWindowController(settings: settings, registry: registry)
+        context.openSettings = { [weak settingsWindow] in settingsWindow?.show() }
+
         registry.startAll(context: context)
 
         let controller = NotchWindowController(registry: registry, context: context)
         controller.show()
 
-        let menuBar = MenuBarController(settings: settings, registry: registry)
         let power = PowerCoordinator(registry: registry, context: context)
         power.begin()
 
         self.registry = registry
         self.context = context
         self.controller = controller
-        self.menuBar = menuBar
+        self.settingsWindow = settingsWindow
         self.power = power
 
         // Displays change under us (resolution switch, monitor plug/unplug,
@@ -50,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // First launch: show the settings window so the app is easy to find.
         if settings.isFirstRun {
-            menuBar.showSettings()
+            settingsWindow.show()
         }
     }
 

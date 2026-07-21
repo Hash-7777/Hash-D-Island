@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Lightweight description of a feature for the settings list, so the view never
 /// holds the live feature objects.
@@ -40,6 +41,13 @@ public struct SettingsView: View {
                     Text("Available once HashNotch is installed as an app.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            // With no menu-bar item, this window is also where you quit.
+            Section {
+                Button("Quit HashNotch", role: .destructive) {
+                    NSApp.terminate(nil)
                 }
             }
         }

@@ -77,25 +77,19 @@ struct NotchIslandView: View {
 
     // MARK: Background
 
-    /// Collapsed and live states are SOLID BLACK so the island reads as one
-    /// piece with the physical notch. Only the expanded panel — which drops
-    /// clear of the notch — gets the Control-Center frosted glass.
+    /// SOLID BLACK in every state — the island must read as one piece with the
+    /// physical notch, exactly like the iPhone's Dynamic Island. Depth comes
+    /// from the shadow alone; a faint hairline appears only on the open panel
+    /// so it stays legible over black wallpapers.
     @ViewBuilder
     private var islandBackground: some View {
-        ZStack {
-            if showExpanded {
-                VisualEffectView(material: .hudWindow)
-                Color.black.opacity(0.22)
-            } else {
-                Color.black
-            }
-        }
-        .clipShape(shape)
-        .overlay(
-            shape.strokeBorder(Color.white.opacity(showExpanded ? 0.12 : 0), lineWidth: 0.7)
-        )
-        .shadow(color: .black.opacity(showExpanded ? 0.45 : (showLive ? 0.30 : 0)),
-                radius: showExpanded ? 20 : 9, y: showExpanded ? 12 : 5)
+        Color.black
+            .clipShape(shape)
+            .overlay(
+                shape.strokeBorder(Color.white.opacity(showExpanded ? 0.09 : 0), lineWidth: 0.7)
+            )
+            .shadow(color: .black.opacity(showExpanded ? 0.55 : (showLive ? 0.35 : 0)),
+                    radius: showExpanded ? 22 : 9, y: showExpanded ? 14 : 5)
     }
 
     // MARK: Live (flanks the notch)
@@ -139,6 +133,14 @@ struct NotchIslandView: View {
             }
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))
+        .overlay(alignment: .topTrailing) { settingsButton }
+    }
+
+    /// The app's only settings entry point — a quiet gear in the panel corner
+    /// (there is no menu-bar item).
+    private var settingsButton: some View {
+        SettingsGearButton { context.openSettings() }
+            .offset(x: 6, y: -2)
     }
 
     private var enabledFeatures: [NotchFeature] {
@@ -147,5 +149,25 @@ struct NotchIslandView: View {
             .filter { $0.config.enabled }
             .sorted { $0.config.order < $1.config.order }
             .map { $0.feature }
+    }
+}
+
+/// A quiet gear that brightens on hover.
+private struct SettingsGearButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(hovering ? 0.85 : 0.35))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.white.opacity(hovering ? 0.12 : 0)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }
