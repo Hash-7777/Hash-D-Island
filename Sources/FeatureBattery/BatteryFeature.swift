@@ -27,7 +27,7 @@ public final class BatteryFeature: NotchFeature {
 
     public init() {}
 
-    public func start() { monitor.start() }
+    public func start(context: FeatureContext) { monitor.start() }
     public func stop() { monitor.stop() }
 
     public func makeView(context: FeatureContext) -> AnyView {

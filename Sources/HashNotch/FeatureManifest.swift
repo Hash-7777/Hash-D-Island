@@ -3,6 +3,8 @@ import FeatureNetwork
 import FeatureBattery
 import FeatureThermal
 import FeatureTokens
+import FeatureMedia
+import FeatureActivities
 
 /// The one and only place features are turned on or off.
 ///
@@ -20,6 +22,8 @@ enum FeatureManifest {
     @MainActor
     static func enabledFeatures() -> [NotchFeature] {
         [
+            MediaFeature(),
+            ActivitiesFeature(),
             TokensFeature(),
             NetworkFeature(),
             BatteryFeature(),

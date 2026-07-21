@@ -62,8 +62,14 @@ public protocol NotchFeature: AnyObject {
     /// hover. Return `nil` (the default) to show nothing extra when expanded.
     func makeExpandedView(context: FeatureContext) -> AnyView?
 
-    /// Begin sampling / observing. Called once when the HUD starts.
-    func start()
+    /// Optional always-on view shown in the slim strip below the notch while
+    /// something is live (media playing, an activity running) — like the
+    /// iPhone's compact Dynamic Island. Return `nil` (the default) for none.
+    func makeCompactLiveView(context: FeatureContext) -> AnyView?
+
+    /// Begin sampling / observing. Called when the HUD starts. The context gives
+    /// access to shared services (e.g. `presence` for signalling live content).
+    func start(context: FeatureContext)
 
     /// Stop sampling / observing and release resources.
     func stop()
@@ -72,6 +78,7 @@ public protocol NotchFeature: AnyObject {
 public extension NotchFeature {
     var displayOptions: [FeatureOption] { [] }
     func makeExpandedView(context: FeatureContext) -> AnyView? { nil }
-    func start() {}
+    func makeCompactLiveView(context: FeatureContext) -> AnyView? { nil }
+    func start(context: FeatureContext) {}
     func stop() {}
 }

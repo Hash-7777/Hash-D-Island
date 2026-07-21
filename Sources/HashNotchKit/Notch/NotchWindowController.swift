@@ -15,6 +15,7 @@ public final class NotchWindowController {
     private let registry: FeatureRegistry
     private let context: FeatureContext
     private let collapsedHoverRect: CGRect
+    private let liveHoverRect: CGRect
     private let expandedHoverRect: CGRect
     private var hoverMonitor: Any?
 
@@ -48,6 +49,12 @@ public final class NotchWindowController {
             width: state.collapsedWidth + 28,
             height: state.collapsedHeight + 6
         )
+        self.liveHoverRect = CGRect(
+            x: midX - (state.liveWidth / 2 + 8),
+            y: top - (state.liveHeight + 6),
+            width: state.liveWidth + 16,
+            height: state.liveHeight + 6
+        )
         self.expandedHoverRect = CGRect(
             x: midX - (state.expandedWidth / 2 + 6),
             y: top - (state.expandedHeight + 6),
@@ -58,6 +65,7 @@ public final class NotchWindowController {
         let root = NotchIslandView(
             state: state,
             settings: context.settings,
+            presence: context.presence,
             registry: registry,
             context: context
         )
@@ -97,10 +105,17 @@ public final class NotchWindowController {
     }
 
     private func updateHover() {
-        // While collapsed, only the tight notch zone opens it; while expanded,
-        // the whole panel keeps it open. This hysteresis stops it flickering and
-        // stops it opening when the cursor is merely near the top of the screen.
-        let zone = state.isExpanded ? expandedHoverRect : collapsedHoverRect
+        // Hysteresis: expanded keeps the whole panel open; otherwise use the tight
+        // notch zone (or the slightly larger live-strip zone when something is
+        // live). This stops it opening when the cursor is merely near the top.
+        let zone: CGRect
+        if state.isExpanded {
+            zone = expandedHoverRect
+        } else if context.presence.hasLive {
+            zone = liveHoverRect
+        } else {
+            zone = collapsedHoverRect
+        }
         state.setExpanded(zone.contains(NSEvent.mouseLocation))
     }
 }

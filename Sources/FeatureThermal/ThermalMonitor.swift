@@ -54,14 +54,39 @@ public final class ThermalMonitor: ObservableObject {
 
     private func refresh() {
         let readings = reader?.read() ?? []
-        let newSensors = readings
-            .map { TempSensor(name: $0.name, celsius: $0.celsius) }
+
+        // Group cryptic sensor names (e.g. "PMU tdie7") into friendly
+        // categories and keep the hottest reading per category.
+        var byCategory: [String: Double] = [:]
+        for reading in readings {
+            let category = Self.friendlyCategory(for: reading.name)
+            byCategory[category] = max(byCategory[category] ?? 0, reading.celsius)
+        }
+
+        let newSensors = byCategory
+            .map { TempSensor(name: $0.key, celsius: $0.value) }
             .sorted { $0.celsius > $1.celsius }
 
         // Publish only on change so steady temperatures cause no redraws.
         if newSensors != sensors { sensors = newSensors }
         let newHottest = newSensors.first?.celsius
         if newHottest != hottestCelsius { hottestCelsius = newHottest }
+    }
+
+    /// Maps a raw sensor name to a friendly, human category.
+    private static func friendlyCategory(for rawName: String) -> String {
+        let name = rawName.lowercased()
+        if name.contains("gas gauge") || name.contains("batt") { return "Battery" }
+        if name.contains("gpu") { return "Graphics" }
+        if name.contains("cpu") || name.contains("acc") { return "Processor" }
+        if name.contains("ssd") || name.contains("nand") || name.contains("flash") { return "Storage" }
+        // PMU / SOC / die / calibration sensors are the main chip — call it the processor.
+        if name.contains("soc") || name.contains("pmu") || name.contains("tdie")
+            || name.contains("tcal") || name.contains("tdev") || name.contains("die") {
+            return "Processor"
+        }
+        if name.contains("air") || name.contains("ambient") || name.contains("prox") { return "System" }
+        return "System"
     }
 
     /// True when we have real sensor values (not just the pressure label).

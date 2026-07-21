@@ -1,0 +1,17 @@
+[
+  {
+    "id": "delivery-1",
+    "icon": "bicycle",
+    "title": "Food delivery",
+    "subtitle": "Rider on the way",
+    "progress": 0.6,
+    "endsAt": "2030-01-01T00:12:00Z"
+  },
+  {
+    "id": "timer-1",
+    "icon": "timer",
+    "title": "Focus timer",
+    "subtitle": "Deep work",
+    "endsAt": "2030-01-01T00:25:00Z"
+  }
+]

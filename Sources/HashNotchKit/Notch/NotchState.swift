@@ -16,6 +16,8 @@ public final class NotchState: ObservableObject {
 
     public let collapsedWidth: CGFloat
     public let collapsedHeight: CGFloat
+    public let liveWidth: CGFloat
+    public let liveHeight: CGFloat
     public let expandedWidth: CGFloat
     public let expandedHeight: CGFloat
 
@@ -32,13 +34,16 @@ public final class NotchState: ObservableObject {
         // Expanded: a panel wide/tall enough for the readouts, dropped below.
         self.expandedWidth = max(width + 120, 420)
         self.expandedHeight = 190
+
+        // Compact-live: a slim strip below the notch for always-on media /
+        // activity — a touch wider, dropping a small amount below the menu bar.
+        self.liveWidth = min(self.expandedWidth, width + 240)
+        self.liveHeight = height + 30
     }
 
     public func setExpanded(_ expanded: Bool) {
+        // The island view animates the size change via `.animation(value:)`.
         guard expanded != isExpanded else { return }
-        // A lively spring with a touch of overshoot for a smooth, premium drop.
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) {
-            isExpanded = expanded
-        }
+        isExpanded = expanded
     }
 }

@@ -18,13 +18,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.seed(features: registry.features)
 
         let context = FeatureContext(settings: settings)
-        registry.startAll()
+        registry.startAll(context: context)
 
         let controller = NotchWindowController(registry: registry, context: context)
         controller.show()
 
         let menuBar = MenuBarController(settings: settings, registry: registry)
-        let power = PowerCoordinator(registry: registry)
+        let power = PowerCoordinator(registry: registry, context: context)
         power.begin()
 
         self.registry = registry

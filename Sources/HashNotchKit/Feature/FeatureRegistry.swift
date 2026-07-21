@@ -24,8 +24,8 @@ public final class FeatureRegistry {
         features.filter { $0.placement == placement }
     }
 
-    public func startAll() {
-        features.forEach { $0.start() }
+    public func startAll(context: FeatureContext) {
+        features.forEach { $0.start(context: context) }
     }
 
     public func stopAll() {

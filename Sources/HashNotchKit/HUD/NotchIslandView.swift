@@ -2,16 +2,22 @@ import SwiftUI
 
 /// The black interactive notch.
 ///
-/// Collapsed, it is a black shape the size of the physical notch with a small
-/// rounded lip — it looks like the notch itself. On hover it grows into a
-/// rounded black panel that drops down below the menu bar and reveals the
-/// readouts. Everything appears below the menu bar, so it never overlaps menus
-/// or status items.
+/// Three states:
+///   • idle    — a black shape the size of the notch (looks like the notch).
+///   • live    — a slim strip drops just below the notch showing always-on media
+///               or activity, like the iPhone's compact Dynamic Island.
+///   • expanded — on hover, a rounded black panel drops down with the readouts.
+///
+/// Everything appears below the menu bar, so it never overlaps menus or icons.
 struct NotchIslandView: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var presence: LivePresence
     let registry: FeatureRegistry
     let context: FeatureContext
+
+    private var showExpanded: Bool { state.isExpanded }
+    private var showLive: Bool { !state.isExpanded && presence.hasLive }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,33 +38,65 @@ struct NotchIslandView: View {
                     )
                 )
                 .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 0.6))
-                .shadow(color: .black.opacity(state.isExpanded ? 0.6 : 0), radius: 16, y: 10)
+                .shadow(color: .black.opacity(showExpanded ? 0.6 : (showLive ? 0.4 : 0)),
+                        radius: showExpanded ? 16 : 10, y: showExpanded ? 10 : 6)
 
-            if state.isExpanded {
-                content
+            if showExpanded {
+                expandedContent
                     .padding(.top, state.notchHeight + 12)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
                     .transition(.opacity.combined(with: .offset(y: -10)))
+            } else if showLive {
+                liveContent
+                    .padding(.top, state.notchHeight + 3)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 5)
+                    .transition(.opacity)
             }
         }
-        .frame(
-            width: state.isExpanded ? state.expandedWidth : state.collapsedWidth,
-            height: state.isExpanded ? state.expandedHeight : state.collapsedHeight
-        )
+        .frame(width: islandWidth, height: islandHeight)
+        .animation(.spring(response: 0.42, dampingFraction: 0.72), value: showExpanded)
+        .animation(.spring(response: 0.40, dampingFraction: 0.82), value: showLive)
+    }
+
+    private var islandWidth: CGFloat {
+        showExpanded ? state.expandedWidth : (showLive ? state.liveWidth : state.collapsedWidth)
+    }
+
+    private var islandHeight: CGFloat {
+        showExpanded ? state.expandedHeight : (showLive ? state.liveHeight : state.collapsedHeight)
+    }
+
+    private var cornerRadius: CGFloat {
+        showExpanded ? 26 : (showLive ? 18 : 10)
     }
 
     private var shape: some InsettableShape {
         UnevenRoundedRectangle(
             topLeadingRadius: 0,
-            bottomLeadingRadius: state.isExpanded ? 26 : 10,
-            bottomTrailingRadius: state.isExpanded ? 26 : 10,
+            bottomLeadingRadius: cornerRadius,
+            bottomTrailingRadius: cornerRadius,
             topTrailingRadius: 0,
             style: .continuous
         )
     }
 
-    private var content: some View {
+    // MARK: State content
+
+    private var liveContent: some View {
+        HStack(spacing: 12) {
+            ForEach(enabledFeatures, id: \.id) { feature in
+                if let view = feature.makeCompactLiveView(context: context) {
+                    view
+                }
+            }
+        }
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .frame(maxWidth: .infinity)
+    }
+
+    private var expandedContent: some View {
         VStack(spacing: 12) {
             HStack(spacing: 14) {
                 ForEach(enabledFeatures, id: \.id) { feature in

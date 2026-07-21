@@ -30,8 +30,36 @@ accounts, no cloud, no data collection.
 
 The notch stays a clean black shape at the top of your screen. **Hover it** and
 it smoothly drops down into a rounded black panel — like the iPhone's Dynamic
-Island — showing your internet speed, battery, and temperatures. Because the
-panel opens *below* the menu bar, it never overlaps your menus or status icons.
+Island — showing your internet speed, battery, temperatures, and AI token usage.
+When something is live (a running activity), a slim strip appears below the notch
+even without hovering. Because everything opens *below* the menu bar, it never
+overlaps your menus or status icons.
+
+## Live activities
+
+Since macOS has no system API to read another app's live activity (that only
+exists on iPhone), HashNotch instead reads a small local feed that any app,
+script, or Apple Shortcut can write:
+
+`~/.hashnotch/activities.json` — an array of:
+
+```json
+{ "id": "order-1", "icon": "bicycle", "title": "Food delivery",
+  "subtitle": "Rider on the way", "progress": 0.6, "endsAt": "2026-07-21T21:30:00Z" }
+```
+
+`icon` is any SF Symbol name; `endsAt` (ISO 8601) drives a live countdown; expired
+activities disappear on their own. Post one quickly:
+
+```sh
+./scripts/post-activity.sh "Food delivery" "Rider on the way" bicycle 12
+./scripts/post-activity.sh --clear
+```
+
+> **Now Playing (music/video):** Apple restricted the private MediaRemote API on
+> recent macOS (15.4+/26), so the simple read is disabled to avoid crashing. The
+> feature is wired up and returns to life via a signed media-remote adapter —
+> planned.
 
 ## Customize it
 

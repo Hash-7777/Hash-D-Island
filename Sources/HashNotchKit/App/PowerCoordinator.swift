@@ -9,11 +9,13 @@ import AppKit
 @MainActor
 public final class PowerCoordinator {
     private let registry: FeatureRegistry
+    private let context: FeatureContext
     private var observers: [NSObjectProtocol] = []
     private var isPaused = false
 
-    public init(registry: FeatureRegistry) {
+    public init(registry: FeatureRegistry, context: FeatureContext) {
         self.registry = registry
+        self.context = context
     }
 
     public func begin() {
@@ -45,6 +47,6 @@ public final class PowerCoordinator {
     private func resume() {
         guard isPaused else { return }
         isPaused = false
-        registry.startAll()
+        registry.startAll(context: context)
     }
 }
