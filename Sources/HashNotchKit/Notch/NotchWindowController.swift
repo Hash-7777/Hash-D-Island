@@ -1,13 +1,23 @@
 import AppKit
 import SwiftUI
+import Combine
+
+/// Lets SwiftUI buttons in the panel react to the very first click, without
+/// the window having to become key first.
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
 
 /// Owns the overlay window and hosts the black notch island inside it.
 ///
-/// The window is fully click-through, so it never interferes with the menu bar.
-/// Hover is detected by a global mouse-position monitor that only observes the
-/// cursor — it never swallows events. The hover zone is tight: while collapsed
-/// it is just the notch, so the island only opens when the cursor is actually on
-/// the notch; while expanded it covers the dropped panel so it stays open.
+/// While collapsed or live the window is fully click-through, so it can never
+/// interfere with the menu bar or anything else. Only while the panel is open
+/// does it accept clicks (for the media controls); the instant the cursor
+/// leaves the panel it collapses and turns click-through again. Hover is
+/// detected by mouse-position monitors that only observe the cursor — they
+/// never swallow events. The hover zone is tight: while collapsed it is just
+/// the notch, so the island only opens when the cursor is actually on the
+/// notch; while expanded it covers the dropped panel so it stays open.
 @MainActor
 public final class NotchWindowController {
     private let window: NotchWindow
@@ -18,6 +28,8 @@ public final class NotchWindowController {
     private let liveHoverRect: CGRect
     private let expandedHoverRect: CGRect
     private var hoverMonitor: Any?
+    private var localHoverMonitor: Any?
+    private var expandCancellable: AnyCancellable?
 
     /// Height of the top strip the overlay reserves — generous so the expanded
     /// panel is never clipped. The window is click-through, so extra height costs
@@ -81,10 +93,20 @@ public final class NotchWindowController {
         )
         .frame(width: frame.width, height: frame.height, alignment: .top)
 
-        let hosting = NSHostingView(rootView: root)
+        let hosting = FirstMouseHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: frame.size)
         hosting.autoresizingMask = [.width, .height]
         window.contentView = hosting
+        window.acceptsMouseMovedEvents = true
+
+        // Clicks reach the panel only while it is open; everywhere else — and
+        // whenever the island is collapsed or live — the overlay stays fully
+        // click-through.
+        expandCancellable = state.$isExpanded
+            .removeDuplicates()
+            .sink { [weak window] expanded in
+                window?.ignoresMouseEvents = !expanded
+            }
     }
 
     public func show() {
@@ -104,6 +126,12 @@ public final class NotchWindowController {
         hoverMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
             MainActor.assumeIsolated { self?.updateHover() }
         }
+        // Global monitors never see our own app's events — while the panel is
+        // open and interactive, moves over it arrive here instead.
+        localHoverMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+            MainActor.assumeIsolated { self?.updateHover() }
+            return event
+        }
         updateHover()
     }
 
@@ -111,6 +139,10 @@ public final class NotchWindowController {
         if let hoverMonitor {
             NSEvent.removeMonitor(hoverMonitor)
             self.hoverMonitor = nil
+        }
+        if let localHoverMonitor {
+            NSEvent.removeMonitor(localHoverMonitor)
+            self.localHoverMonitor = nil
         }
     }
 

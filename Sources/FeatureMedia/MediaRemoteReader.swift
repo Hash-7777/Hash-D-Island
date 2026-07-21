@@ -1,11 +1,44 @@
 import Foundation
 
+/// Which app owns the current track — controls only exist for apps we can
+/// script (Spotify and Music); everything else is display-only.
+public enum MediaSource: String {
+    case spotify
+    case music
+    case other
+}
+
+/// A playback command the user can send from the panel.
+public enum MediaCommand {
+    case playPause
+    case next
+    case previous
+}
+
 /// The current track/video playing anywhere on the Mac.
-public struct NowPlaying: Equatable {
+public struct NowPlaying {
     public let title: String
     public let artist: String?
     public let isPlaying: Bool
     public let artwork: Data?
+    public let source: MediaSource
+    public let elapsed: Double?
+    public let duration: Double?
+    public let fetchedAt: Date
+}
+
+extension NowPlaying: Equatable {
+    /// `elapsed`/`fetchedAt` advance on every poll; excluding them means a
+    /// steadily playing track publishes no UI churn. Progress is delivered
+    /// separately by the monitor.
+    public static func == (lhs: NowPlaying, rhs: NowPlaying) -> Bool {
+        lhs.title == rhs.title
+            && lhs.artist == rhs.artist
+            && lhs.isPlaying == rhs.isPlaying
+            && lhs.artwork == rhs.artwork
+            && lhs.source == rhs.source
+            && Int(lhs.duration ?? -1) == Int(rhs.duration ?? -1)
+    }
 }
 
 /// Decides which artwork URLs the app is willing to download. Spotify's
@@ -60,6 +93,7 @@ final class MediaRemoteReader {
     function run() {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
+      let source = 'other', elapsed = null, duration = null;
 
       const bundle = $.NSBundle.bundleWithPath('/System/Library/PrivateFrameworks/MediaRemote.framework/');
       bundle.load;
@@ -74,31 +108,50 @@ final class MediaRemoteReader {
             artist = s('kMRMediaRemoteNowPlayingInfoArtist');
             const rate = s('kMRMediaRemoteNowPlayingInfoPlaybackRate');
             playing = rate ? (rate > 0) : false;
+            elapsed = s('kMRMediaRemoteNowPlayingInfoElapsedTime');
+            duration = s('kMRMediaRemoteNowPlayingInfoDuration');
           }
         }
       }
 
+      // A playing Spotify/Music always claims the slot (artwork, position,
+      // controls). A PAUSED one claims it only when nothing else is playing,
+      // so the panel can keep showing the track with a resume button.
       try {
         const sp = Application('Spotify');
-        if (sp.running() && String(sp.playerState()) === 'playing') {
-          artworkUrl = sp.currentTrack.artworkUrl();
-          if (!title) { title = sp.currentTrack.name(); artist = sp.currentTrack.artist(); playing = true; }
+        if (sp.running()) {
+          const st = String(sp.playerState());
+          if (st === 'playing' || (st === 'paused' && !title)) {
+            source = 'spotify';
+            artworkUrl = sp.currentTrack.artworkUrl();
+            elapsed = sp.playerPosition();
+            duration = sp.currentTrack.duration() / 1000;
+            if (!title) { title = sp.currentTrack.name(); artist = sp.currentTrack.artist(); }
+            playing = (st === 'playing');
+          }
         }
       } catch (e) {}
 
       try {
         const mu = Application('Music');
-        if (mu.running() && String(mu.playerState()) === 'playing') {
-          if (!title) { title = mu.currentTrack.name(); artist = mu.currentTrack.artist(); playing = true; }
-          const arts = mu.currentTrack.artworks;
-          if (arts.length > 0) {
-            const raw = arts[0].rawData();
-            artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+        if (source === 'other' && mu.running()) {
+          const st = String(mu.playerState());
+          if (st === 'playing' || (st === 'paused' && !title)) {
+            source = 'music';
+            elapsed = mu.playerPosition();
+            duration = mu.currentTrack.duration();
+            if (!title) { title = mu.currentTrack.name(); artist = mu.currentTrack.artist(); }
+            playing = (st === 'playing');
+            const arts = mu.currentTrack.artworks;
+            if (arts.length > 0) {
+              const raw = arts[0].rawData();
+              artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+            }
           }
         }
       } catch (e) {}
 
-      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork });
+      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration });
     }
     """
 
@@ -133,6 +186,47 @@ final class MediaRemoteReader {
         let playing: Bool?
         let artworkUrl: String?
         let artwork: String?
+        let source: String?
+        let elapsed: Double?
+        let duration: Double?
+    }
+
+    /// Sends a playback command to Spotify or Music. Fixed verbs only — no
+    /// user-controlled text ever reaches the script. Runs on the same serial
+    /// queue as fetches so osascript calls never overlap, with the same
+    /// watchdog so a stalled permission dialog cannot wedge the queue.
+    func send(_ command: MediaCommand, to source: MediaSource) {
+        let app: String
+        switch source {
+        case .spotify: app = "Spotify"
+        case .music: app = "Music"
+        case .other: return
+        }
+        let verb: String
+        switch command {
+        case .playPause: verb = "playpause"
+        case .next: verb = "next track"
+        case .previous: verb = "previous track"
+        }
+        let script = "tell application \"\(app)\" to \(verb)"
+
+        queue.async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: Self.osascript)
+            process.arguments = ["-e", script]
+            process.qualityOfService = .userInitiated
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            do { try process.run() } catch { return }
+
+            let watchdog = DispatchWorkItem {
+                if process.isRunning { process.terminate() }
+            }
+            DispatchQueue.global(qos: .utility)
+                .asyncAfter(deadline: .now() + Self.fetchTimeout, execute: watchdog)
+            process.waitUntilExit()
+            watchdog.cancel()
+        }
     }
 
     private func run() -> NowPlaying? {
@@ -168,7 +262,11 @@ final class MediaRemoteReader {
             title: title,
             artist: payload.artist,
             isPlaying: payload.playing ?? false,
-            artwork: artwork
+            artwork: artwork,
+            source: payload.source.flatMap(MediaSource.init(rawValue:)) ?? .other,
+            elapsed: payload.elapsed,
+            duration: payload.duration,
+            fetchedAt: Date()
         )
     }
 

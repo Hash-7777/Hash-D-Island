@@ -58,11 +58,15 @@ activities disappear on their own. Post one quickly:
 
 ## Now Playing
 
-Whatever is playing (music, video) shows in the notch. Apple locked the direct
-MediaRemote call behind an entitlement on macOS 15.4+/26, so HashNotch reads it
-through a tiny `osascript` (JavaScript for Automation) subprocess using
-`MRNowPlayingRequest` — which still works on those versions, and runs out of
-process so it can never crash the app.
+Whatever is playing (music, video) shows in the notch — artwork, a scrolling
+title for long names, and audio bars that dance while sound is playing. Open
+the panel and you get iPhone-style media controls: play/pause, skip, and a
+live progress bar for Spotify and Apple Music.
+
+Apple locked the direct MediaRemote call behind an entitlement on macOS
+15.4+/26, so HashNotch reads it through a tiny `osascript` (JavaScript for
+Automation) subprocess using `MRNowPlayingRequest` — which still works on
+those versions, and runs out of process so it can never crash the app.
 
 ## Customize it
 

@@ -22,10 +22,10 @@ the automated checks). Nothing else in the app touches the network.
 | Network speed | Kernel per-interface byte counters (`getifaddrs`) | The up/down readout. It counts bytes only — it can never see what you send or receive. |
 | Battery | IOKit power-source info | Level, charging state, time remaining. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track | The media display. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position | The media display. The play/pause/skip buttons send the matching command to Spotify or Music the same way — fixed commands only, nothing dynamic. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Live activities | `~/.hashnotch/activities.json`, written by your own scripts or Shortcuts | The activity strip. Treated as untrusted input: capped at 256 KB and 8 activities, text length-limited, progress clamped. |
-| Mouse position | A global observe-only position monitor | So the island opens when you hover the notch. It never captures clicks or keystrokes, and the overlay window is fully click-through — it cannot intercept anything. |
+| Mouse position | A global observe-only position monitor | So the island opens when you hover the notch. It never captures keystrokes. The overlay is fully click-through except while the panel is open — only then does the panel itself receive clicks (for the media buttons), and it turns click-through again the moment it closes. |
 
 ## Permissions it may ask for
 
