@@ -40,8 +40,10 @@ public final class NotchState: ObservableObject {
 
         // Compact-live: content hugs the notch — a small art tile on the left,
         // a title on the right — like the iPhone's compact Dynamic Island.
-        self.liveLeadingWidth = 46
-        self.liveTrailingWidth = 172
+        // These widths INCLUDE the 12pt clearance beside the physical notch, so
+        // content can never slide underneath it.
+        self.liveLeadingWidth = 56
+        self.liveTrailingWidth = 184
         self.liveWidth = width + self.liveLeadingWidth + self.liveTrailingWidth
         self.liveHeight = height
     }

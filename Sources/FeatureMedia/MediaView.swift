@@ -39,24 +39,21 @@ struct MediaArtworkView: View {
     }
 }
 
-/// Trailing compact-live: the track title to the right of the notch, with a
-/// small animated playing indicator.
+/// Trailing compact-live: the track title to the right of the notch — long
+/// titles scroll like on the iPhone — with the audio bars at the far end,
+/// away from the notch so the text never disappears under it.
 struct MediaTitleView: View {
     @ObservedObject var monitor: MediaMonitor
     let theme: Theme
 
     var body: some View {
         if let media = monitor.nowPlaying {
-            HStack(spacing: 6) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .symbolEffect(.variableColor.iterative, isActive: media.isPlaying)
-                Text(media.title)
+            HStack(spacing: 7) {
+                MarqueeText(media.title)
                     .foregroundStyle(theme.textColor)
-                    .lineLimit(1)
+                AudioBarsView(isActive: media.isPlaying, tint: theme.accent)
             }
-            .frame(maxWidth: 150, alignment: .leading)
+            .frame(maxWidth: 158, alignment: .leading)
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
@@ -72,10 +69,9 @@ struct MediaDetailView: View {
             HStack(spacing: 12) {
                 artwork(media)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(media.title)
+                    MarqueeText(media.title)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.textColor)
-                        .lineLimit(1)
                     if let artist = media.artist {
                         Text(artist)
                             .font(.system(size: 10))
@@ -84,10 +80,7 @@ struct MediaDetailView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                Image(systemName: "waveform")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .symbolEffect(.variableColor.iterative, isActive: media.isPlaying)
+                AudioBarsView(isActive: media.isPlaying, tint: theme.accent)
             }
             .frame(width: Panel.rowWidth, alignment: .leading)
         }

@@ -102,14 +102,16 @@ struct NotchIslandView: View {
 
     private var liveContent: some View {
         HStack(spacing: 0) {
+            // Clearance paddings live INSIDE the fixed side widths, so content
+            // stays within the island's black pill and clear of the notch.
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
                 ForEach(enabledFeatures, id: \.id) { feature in
                     if let view = feature.makeCompactLeadingView(context: context) { view }
                 }
             }
+            .padding(.trailing, 12)
             .frame(width: state.liveLeadingWidth, alignment: .trailing)
-            .padding(.trailing, 8)
 
             Color.clear.frame(width: state.notchWidth, height: state.notchHeight)
 
@@ -119,8 +121,8 @@ struct NotchIslandView: View {
                 }
                 Spacer(minLength: 0)
             }
+            .padding(.leading, 12)
             .frame(width: state.liveTrailingWidth, alignment: .leading)
-            .padding(.leading, 8)
         }
         .frame(height: state.notchHeight)
         .font(.system(size: 11, weight: .semibold, design: .rounded))
