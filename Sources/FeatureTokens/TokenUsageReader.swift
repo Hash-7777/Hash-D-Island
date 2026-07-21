@@ -1,9 +1,10 @@
 import Foundation
 
 /// Today's token totals, per source. `claude` / `hashCortx` / `hashCerebrum`
-/// count input + output tokens (the headline number, matching HashMeterAi).
-/// `cached` is the much larger cache read/write total, kept separate so it never
-/// inflates the headline.
+/// count PROCESSED tokens — input + cache-write + output — exactly the number
+/// HashMeterAi's day view shows, so the two apps always agree. `cached` is the
+/// much larger cache-READ total, kept separate so it never inflates the
+/// headline.
 public struct TokenTotals: Equatable {
     public var claude: Int64 = 0
     public var hashCortx: Int64 = 0
@@ -106,7 +107,8 @@ package enum TokenUsageReader {
                 guard seen.insert(id).inserted else { return }
             }
             io += int(usage["input_tokens"]) + int(usage["output_tokens"])
-            cache += int(usage["cache_read_input_tokens"]) + int(usage["cache_creation_input_tokens"])
+                + int(usage["cache_creation_input_tokens"])
+            cache += int(usage["cache_read_input_tokens"])
         }
         return (io, cache)
     }
@@ -120,7 +122,8 @@ package enum TokenUsageReader {
             guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   isToday(object["ts"] as? String, since: since) else { return }
             io += int(object["input_tokens"]) + int(object["output_tokens"])
-            cache += int(object["cache_read"]) + int(object["cache_write"])
+                + int(object["cache_write"])
+            cache += int(object["cache_read"])
         }
         return (io, cache)
     }

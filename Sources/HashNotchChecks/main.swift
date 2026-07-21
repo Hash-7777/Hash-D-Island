@@ -155,8 +155,10 @@ MainActor.assumeIsolated {
     """)
     var seenIDs = Set<String>()
     let claudeCounted = TokenUsageReader.tokens(inClaudeFile: claudeFile, since: startOfToday, seen: &seenIDs)
-    check("claude counts today's io once per message", claudeCounted.io == 183)
-    check("claude separates cache", claudeCounted.cache == 1200)
+    // Processed tokens (input + cache-write + output), each message once:
+    // m1 = 100+200+50, the no-id line = 1+2, m3 = 10+20.
+    check("claude counts processed tokens once per message", claudeCounted.io == 383)
+    check("claude separates cache reads", claudeCounted.cache == 1000)
     check("claude ignores non-assistant lines", seenIDs == ["m1", "m3"])
 
     // The same message id appearing in ANOTHER file (continued session) must
@@ -173,8 +175,9 @@ MainActor.assumeIsolated {
     {"ts":"\(oldStamp)","input_tokens":7,"output_tokens":7}
     """)
     let ecosystemCounted = TokenUsageReader.tokens(inEcosystemFile: ecosystemFile, since: startOfToday)
-    check("ecosystem counts today's io", ecosystemCounted.io == 15)
-    check("ecosystem separates cache", ecosystemCounted.cache == 120)
+    // Processed = 10+5+20 (cache_write counts, cache_read does not).
+    check("ecosystem counts processed tokens", ecosystemCounted.io == 35)
+    check("ecosystem separates cache reads", ecosystemCounted.cache == 100)
     try? FileManager.default.removeItem(at: ecosystemFile)
 
     // A file larger than one read chunk (1 MB) exercises the streaming path's
