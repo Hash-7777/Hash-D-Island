@@ -136,22 +136,35 @@ MainActor.assumeIsolated {
     check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
     try? FileManager.default.removeItem(at: fractional)
 
-    // Token files: counts only today's lines, ignores malformed ones, and
-    // keeps cache tokens out of the headline number.
+    // Token files: counts only today's assistant lines, each message id once,
+    // ignores malformed ones, and keeps cache tokens out of the headline.
     let startOfToday = Calendar.current.startOfDay(for: Date())
     let todayStamp = ISO8601DateFormatter().string(from: Date())
     let oldStamp = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-172_800))
 
     let claudeFile = tempFile("""
-    {"timestamp":"\(todayStamp)","message":{"usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":1000,"cache_creation_input_tokens":200}}}
-    {"timestamp":"\(oldStamp)","message":{"usage":{"input_tokens":999,"output_tokens":999}}}
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"m1","usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":1000,"cache_creation_input_tokens":200}}}
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"m1","usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":1000,"cache_creation_input_tokens":200}}}
+    {"type":"assistant","timestamp":"\(oldStamp)","message":{"id":"m2","usage":{"input_tokens":999,"output_tokens":999}}}
     not json at all
-    {"timestamp":"\(todayStamp)","message":{"usage":{"input_tokens":1,"output_tokens":2}}}
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"usage":{"input_tokens":1,"output_tokens":2}}}
+    {"type":"user","timestamp":"\(todayStamp)","message":{"id":"m9","usage":{"input_tokens":500,"output_tokens":500}}}
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"m3","usage":{"input_tokens":10,"output_tokens":20}}}
     """)
-    let claudeCounted = TokenUsageReader.tokens(inClaudeFile: claudeFile, since: startOfToday)
-    check("claude counts today's io", claudeCounted.io == 153)
+    var seenIDs = Set<String>()
+    let claudeCounted = TokenUsageReader.tokens(inClaudeFile: claudeFile, since: startOfToday, seen: &seenIDs)
+    check("claude counts today's io once per message", claudeCounted.io == 183)
     check("claude separates cache", claudeCounted.cache == 1200)
+    check("claude ignores non-assistant lines", seenIDs == ["m1", "m3"])
+
+    // The same message id appearing in ANOTHER file (continued session) must
+    // also be skipped — the seen-set spans the whole scan.
+    let continuedFile = tempFile("""
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"m1","usage":{"input_tokens":100,"output_tokens":50}}}
+    """)
+    check("claude dedups across files", TokenUsageReader.tokens(inClaudeFile: continuedFile, since: startOfToday, seen: &seenIDs).io == 0)
     try? FileManager.default.removeItem(at: claudeFile)
+    try? FileManager.default.removeItem(at: continuedFile)
 
     let ecosystemFile = tempFile("""
     {"ts":"\(todayStamp)","input_tokens":10,"output_tokens":5,"cache_read":100,"cache_write":20}
@@ -165,9 +178,12 @@ MainActor.assumeIsolated {
     // A file larger than one read chunk (1 MB) exercises the streaming path's
     // carry-over of partial lines across chunk boundaries.
     let padding = String(repeating: "x", count: 400)
-    let bigLine = "{\"timestamp\":\"\(todayStamp)\",\"pad\":\"\(padding)\",\"message\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}"
-    let bigFile = tempFile(Array(repeating: bigLine, count: 4000).joined(separator: "\n"))
-    check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday).io == 4000)
+    let bigLines = (0..<4000).map {
+        "{\"type\":\"assistant\",\"timestamp\":\"\(todayStamp)\",\"pad\":\"\(padding)\",\"message\":{\"id\":\"big-\($0)\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}"
+    }
+    let bigFile = tempFile(bigLines.joined(separator: "\n"))
+    var bigSeen = Set<String>()
+    check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday, seen: &bigSeen).io == 4000)
     try? FileManager.default.removeItem(at: bigFile)
 
     // Settings: defaults, updates, and persistence round-trip.

@@ -71,24 +71,40 @@ package enum TokenUsageReader {
 
         var io: Int64 = 0
         var cache: Int64 = 0
+        // Shared across ALL files: continued/branched sessions repeat the same
+        // assistant message in more than one transcript.
+        var seenMessageIDs = Set<String>()
         for case let url as URL in enumerator where url.pathExtension == "jsonl" {
             let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if let modified, modified < since { continue }
-            let file = tokens(inClaudeFile: url, since: since)
+            let file = tokens(inClaudeFile: url, since: since, seen: &seenMessageIDs)
             io += file.io
             cache += file.cache
         }
         return (io, cache)
     }
 
-    package static func tokens(inClaudeFile url: URL, since: Date) -> (io: Int64, cache: Int64) {
+    /// Claude Code rewrites the same assistant message to the transcript many
+    /// times while it streams (well over half of a day's lines are duplicates),
+    /// so summing every line badly overcounts. Matching HashMeterAi: count only
+    /// `type == "assistant"` lines and count each `message.id` once. Lines
+    /// without an id (rare) are counted — there is nothing to dedup them by.
+    package static func tokens(
+        inClaudeFile url: URL,
+        since: Date,
+        seen: inout Set<String>
+    ) -> (io: Int64, cache: Int64) {
         var io: Int64 = 0
         var cache: Int64 = 0
         forEachLine(of: url) { data in
             guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  object["type"] as? String == "assistant",
                   isToday(object["timestamp"] as? String, since: since),
                   let message = object["message"] as? [String: Any],
                   let usage = message["usage"] as? [String: Any] else { return }
+            if let id = message["id"] as? String, !id.isEmpty {
+                guard seen.insert(id).inserted else { return }
+            }
             io += int(usage["input_tokens"]) + int(usage["output_tokens"])
             cache += int(usage["cache_read_input_tokens"]) + int(usage["cache_creation_input_tokens"])
         }
