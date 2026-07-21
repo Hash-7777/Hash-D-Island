@@ -33,8 +33,8 @@ struct NotchIslandView: View {
             .frame(width: islandWidth, alignment: .top)
             .frame(height: showExpanded ? nil : nonExpandedHeight, alignment: .top)
             .background(islandBackground)
-            .animation(.spring(response: 0.42, dampingFraction: 0.74), value: showExpanded)
-            .animation(.spring(response: 0.40, dampingFraction: 0.82), value: showLive)
+            .animation(.spring(response: 0.46, dampingFraction: 0.80), value: showExpanded)
+            .animation(.spring(response: 0.38, dampingFraction: 0.86), value: showLive)
     }
 
     @ViewBuilder
@@ -44,9 +44,10 @@ struct NotchIslandView: View {
                 .padding(.top, state.notchHeight + 16)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 18)
-                .transition(.opacity)
+                .transition(.opacity.combined(with: .offset(y: -10)).combined(with: .scale(0.97, anchor: .top)))
         } else if showLive {
-            liveContent.transition(.opacity)
+            liveContent
+                .transition(.opacity.combined(with: .scale(0.92, anchor: .top)))
         } else {
             Color.clear
         }
@@ -76,20 +77,25 @@ struct NotchIslandView: View {
 
     // MARK: Background
 
+    /// Collapsed and live states are SOLID BLACK so the island reads as one
+    /// piece with the physical notch. Only the expanded panel — which drops
+    /// clear of the notch — gets the Control-Center frosted glass.
     @ViewBuilder
     private var islandBackground: some View {
         ZStack {
-            if showExpanded || showLive {
+            if showExpanded {
                 VisualEffectView(material: .hudWindow)
-                Color.black.opacity(0.30)
+                Color.black.opacity(0.22)
             } else {
                 Color.black
             }
         }
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7))
-        .shadow(color: .black.opacity(showExpanded ? 0.5 : (showLive ? 0.35 : 0)),
-                radius: showExpanded ? 18 : 10, y: showExpanded ? 12 : 6)
+        .overlay(
+            shape.strokeBorder(Color.white.opacity(showExpanded ? 0.12 : 0), lineWidth: 0.7)
+        )
+        .shadow(color: .black.opacity(showExpanded ? 0.45 : (showLive ? 0.30 : 0)),
+                radius: showExpanded ? 20 : 9, y: showExpanded ? 12 : 5)
     }
 
     // MARK: Live (flanks the notch)
