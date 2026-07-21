@@ -28,7 +28,18 @@ public struct LiveActivity: Identifiable, Equatable {
 ///
 /// Feed: `~/.hashnotch/activities.json`, an array of objects:
 ///   {"id","icon","title","subtitle"?,"progress"?,"endsAt"? (ISO8601)}
-enum ActivitiesReader {
+///
+/// The feed is written by other processes, so everything is bounded before it
+/// reaches the UI: the file itself, the number of activities, text lengths,
+/// and the progress range. Duplicate ids keep their first occurrence (SwiftUI
+/// list identity requires unique ids).
+package enum ActivitiesReader {
+    /// A feed is a handful of small objects; refuse anything absurdly larger.
+    package static let maxFeedBytes = 262_144
+    /// The notch is a glanceable surface, not a task manager.
+    package static let maxActivities = 8
+    private static let maxTextLength = 200
+
     static var feedURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".hashnotch/activities.json")
@@ -44,22 +55,45 @@ enum ActivitiesReader {
     }
 
     static func read() -> [LiveActivity] {
-        guard let data = try? Data(contentsOf: feedURL),
+        read(from: feedURL)
+    }
+
+    package static func read(from url: URL) -> [LiveActivity] {
+        guard let data = try? Data(contentsOf: url),
+              data.count <= maxFeedBytes,
               let items = try? JSONDecoder().decode([ActivityDTO].self, from: data) else {
             return []
         }
 
-        let formatter = ISO8601DateFormatter()
-        return items.map { dto in
-            LiveActivity(
-                id: dto.id,
+        var seen = Set<String>()
+        var result: [LiveActivity] = []
+        for dto in items {
+            guard result.count < maxActivities else { break }
+            let id = String(dto.id.prefix(maxTextLength))
+            let title = String(dto.title.prefix(maxTextLength))
+            guard !id.isEmpty, !title.isEmpty, seen.insert(id).inserted else { continue }
+
+            let activity = LiveActivity(
+                id: id,
                 icon: dto.icon ?? "app.badge",
-                title: dto.title,
-                subtitle: dto.subtitle,
-                progress: dto.progress,
-                endsAt: dto.endsAt.flatMap { formatter.date(from: $0) }
+                title: title,
+                subtitle: dto.subtitle.map { String($0.prefix(maxTextLength)) },
+                progress: dto.progress.map { min(max($0, 0), 1) },
+                endsAt: dto.endsAt.flatMap(parseDate)
             )
+            if !activity.isExpired { result.append(activity) }
         }
-        .filter { !$0.isExpired }
+        return result
+    }
+
+    private static let isoFormatter = ISO8601DateFormatter()
+    private static let isoFormatterFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static func parseDate(_ string: String) -> Date? {
+        isoFormatter.date(from: string) ?? isoFormatterFractional.date(from: string)
     }
 }

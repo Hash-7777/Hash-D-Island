@@ -21,10 +21,26 @@ if [ "${1:-}" = "--clear" ]; then
   exit 0
 fi
 
-TITLE="${1:-Activity}"
-SUBTITLE="${2:-}"
-ICON="${3:-app.badge}"
+# Escape a value for use inside a JSON string literal, so titles containing
+# quotes, backslashes, or newlines produce a valid feed instead of breaking it.
+json_escape() {
+  local s="$1"
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/ }
+  s=${s//$'\t'/ }
+  printf '%s' "$s"
+}
+
+TITLE="$(json_escape "${1:-Activity}")"
+SUBTITLE="$(json_escape "${2:-}")"
+ICON="$(json_escape "${3:-app.badge}")"
 MINUTES="${4:-15}"
+
+if ! [[ "$MINUTES" =~ ^[0-9]+$ ]]; then
+  echo "minutes must be a whole number (got: $MINUTES)" >&2
+  exit 1
+fi
 
 ENDS_AT="$(date -u -v +"${MINUTES}"M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
            date -u -d "+${MINUTES} minutes" +"%Y-%m-%dT%H:%M:%SZ")"

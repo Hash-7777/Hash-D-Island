@@ -3,6 +3,15 @@ import SwiftUI
 import CoreGraphics
 import HashNotchKit
 import FeatureMedia
+import FeatureActivities
+
+/// Writes `content` to a fresh temp file and returns its URL.
+func tempFile(_ content: String) -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("hashnotch-check-\(UUID().uuidString).json")
+    try? content.write(to: url, atomically: true, encoding: .utf8)
+    return url
+}
 
 // A tiny, dependency-free check runner. Prints one line per check and exits
 // non-zero if any fails, so it works as a pre-push gate under the Command Line
@@ -85,6 +94,46 @@ MainActor.assumeIsolated {
     check("artwork refuses lookalike host", !ArtworkPolicy.isTrustedURL("https://evilscdn.co/a.jpg"))
     check("artwork refuses file scheme", !ArtworkPolicy.isTrustedURL("file:///etc/passwd"))
     check("artwork refuses garbage", !ArtworkPolicy.isTrustedURL("not a url"))
+
+    // Activities feed: other processes write it, so every field is bounded
+    // before it reaches the UI.
+    let future = ISO8601DateFormatter().string(from: Date().addingTimeInterval(600))
+    let past = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-600))
+
+    let feed = tempFile("""
+    [
+      {"id": "a", "title": "First", "progress": 2.5},
+      {"id": "a", "title": "Duplicate of first"},
+      {"id": "b", "title": "Second", "progress": -1, "endsAt": "\(future)"},
+      {"id": "", "title": "No id"},
+      {"id": "c", "title": ""},
+      {"id": "d", "title": "Expired", "endsAt": "\(past)"}
+    ]
+    """)
+    let parsed = ActivitiesReader.read(from: feed)
+    check("feed keeps first of duplicate ids", parsed.map(\.id) == ["a", "b"])
+    check("feed keeps titles", parsed.first?.title == "First")
+    check("feed clamps progress high", parsed.first?.progress == 1)
+    check("feed clamps progress low", parsed.last?.progress == 0)
+    check("feed drops expired", !parsed.contains { $0.id == "d" })
+    try? FileManager.default.removeItem(at: feed)
+
+    let overflowing = (0..<20).map { "{\"id\": \"x\($0)\", \"title\": \"Item \($0)\"}" }
+    let bigFeed = tempFile("[\(overflowing.joined(separator: ","))]")
+    check("feed caps activity count", ActivitiesReader.read(from: bigFeed).count == ActivitiesReader.maxActivities)
+    try? FileManager.default.removeItem(at: bigFeed)
+
+    let hugeFeed = tempFile("[{\"id\": \"a\", \"title\": \"\(String(repeating: "x", count: ActivitiesReader.maxFeedBytes))\"}]")
+    check("feed refuses oversized file", ActivitiesReader.read(from: hugeFeed).isEmpty)
+    try? FileManager.default.removeItem(at: hugeFeed)
+
+    let badFeed = tempFile("this is not json")
+    check("feed tolerates invalid JSON", ActivitiesReader.read(from: badFeed).isEmpty)
+    try? FileManager.default.removeItem(at: badFeed)
+
+    let fractional = tempFile("[{\"id\": \"f\", \"title\": \"Fractional\", \"endsAt\": \"2099-01-01T12:00:00.500Z\"}]")
+    check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
+    try? FileManager.default.removeItem(at: fractional)
 
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashnotch.checks.\(UUID().uuidString)"
