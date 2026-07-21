@@ -16,23 +16,26 @@ struct MediaArtworkView: View {
 
     @ViewBuilder
     private func artwork(_ media: NowPlaying) -> some View {
-        let size: CGFloat = 22
-        if let data = media.artwork, let image = NSImage(data: data) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-        } else {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(Color.white.opacity(0.12))
-                .frame(width: size, height: size)
-                .overlay(
-                    Image(systemName: "music.note")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(theme.subtitleColor)
-                )
+        let size: CGFloat = 26
+        Group {
+            if let data = media.artwork, let image = NSImage(data: data) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+            } else {
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: size, height: size)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(theme.subtitleColor)
+                    )
+            }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
     }
 }
 
@@ -66,22 +69,23 @@ struct MediaDetailView: View {
 
     var body: some View {
         if let media = monitor.nowPlaying {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 artwork(media)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(media.title)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.textColor)
                         .lineLimit(1)
                     if let artist = media.artist {
                         Text(artist)
-                            .font(.system(size: 9))
+                            .font(.system(size: 10))
                             .foregroundStyle(theme.subtitleColor)
                             .lineLimit(1)
                     }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "waveform")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .symbolEffect(.variableColor.iterative, isActive: media.isPlaying)
             }
@@ -91,21 +95,25 @@ struct MediaDetailView: View {
 
     @ViewBuilder
     private func artwork(_ media: NowPlaying) -> some View {
-        if let data = media.artwork, let image = NSImage(data: data) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 38, height: 38)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        } else {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 38, height: 38)
-                .overlay(
-                    Image(systemName: "music.note")
-                        .font(.system(size: 14))
-                        .foregroundStyle(theme.subtitleColor)
-                )
+        let size: CGFloat = 46
+        Group {
+            if let data = media.artwork, let image = NSImage(data: data) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+            } else {
+                Rectangle()
+                    .fill(Color.white.opacity(0.10))
+                    .frame(width: size, height: size)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.system(size: 16))
+                            .foregroundStyle(theme.subtitleColor)
+                    )
+            }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .shadow(color: .black.opacity(0.45), radius: 4, y: 2)
     }
 }

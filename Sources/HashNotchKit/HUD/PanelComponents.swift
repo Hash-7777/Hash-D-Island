@@ -4,7 +4,7 @@ import SwiftUI
 /// consistent list — a section header and an aligned label/value row.
 public enum Panel {
     /// Standard width for a detail row, so values line up across features.
-    public static let rowWidth: CGFloat = 250
+    public static let rowWidth: CGFloat = 260
 }
 
 /// Uppercase, muted section title.

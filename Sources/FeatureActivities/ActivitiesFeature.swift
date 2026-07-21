@@ -33,6 +33,7 @@ public final class ActivitiesFeature: NotchFeature {
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(ActivitiesDetailView(monitor: monitor, theme: context.theme))
+        guard !monitor.activities.isEmpty else { return nil }
+        return AnyView(ActivitiesDetailView(monitor: monitor, theme: context.theme))
     }
 }

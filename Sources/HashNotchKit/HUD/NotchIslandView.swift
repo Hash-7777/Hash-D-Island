@@ -44,10 +44,10 @@ struct NotchIslandView: View {
 
             if showExpanded {
                 expandedContent
-                    .padding(.top, state.notchHeight + 14)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 16)
-                    .frame(width: state.expandedWidth, alignment: .leading)
+                    .padding(.top, state.notchHeight + 16)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 18)
+                    .frame(width: state.expandedWidth, alignment: .center)
                     .transition(.opacity)
             } else if showLive {
                 liveContent
@@ -85,24 +85,24 @@ struct NotchIslandView: View {
 
     private var liveContent: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Spacer(minLength: 0)
                 ForEach(enabledFeatures, id: \.id) { feature in
                     if let view = feature.makeCompactLeadingView(context: context) { view }
                 }
             }
-            .frame(width: state.liveSideWidth, alignment: .trailing)
+            .frame(width: state.liveLeadingWidth, alignment: .trailing)
             .padding(.trailing, 8)
 
             Color.clear.frame(width: state.notchWidth, height: state.notchHeight)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(enabledFeatures, id: \.id) { feature in
                     if let view = feature.makeCompactTrailingView(context: context) { view }
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: state.liveSideWidth, alignment: .leading)
+            .frame(width: state.liveTrailingWidth, alignment: .leading)
             .padding(.leading, 8)
         }
         .frame(height: state.notchHeight)
@@ -112,17 +112,14 @@ struct NotchIslandView: View {
     // MARK: Expanded (clean vertical list, below the notch)
 
     private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 13) {
             ForEach(enabledFeatures, id: \.id) { feature in
                 if let detail = feature.makeExpandedView(context: context) {
                     detail
-                } else {
-                    feature.makeView(context: context)
                 }
             }
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var enabledFeatures: [NotchFeature] {

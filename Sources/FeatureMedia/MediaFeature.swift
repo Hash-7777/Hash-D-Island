@@ -33,6 +33,7 @@ public final class MediaFeature: NotchFeature {
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(MediaDetailView(monitor: monitor, theme: context.theme))
+        guard monitor.nowPlaying != nil else { return nil }
+        return AnyView(MediaDetailView(monitor: monitor, theme: context.theme))
     }
 }

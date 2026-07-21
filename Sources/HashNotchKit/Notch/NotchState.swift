@@ -16,6 +16,8 @@ public final class NotchState: ObservableObject {
 
     public let collapsedWidth: CGFloat
     public let collapsedHeight: CGFloat
+    public let liveLeadingWidth: CGFloat
+    public let liveTrailingWidth: CGFloat
     public let liveWidth: CGFloat
     public let liveHeight: CGFloat
     public let expandedWidth: CGFloat
@@ -31,19 +33,17 @@ public final class NotchState: ObservableObject {
         self.collapsedWidth = width
         self.collapsedHeight = height + 6
 
-        // Expanded: a panel wide/tall enough for the readouts, dropped below.
-        self.expandedWidth = max(width + 240, 440)
+        // Expanded: sized to the content (a column of rows) plus padding, so the
+        // panel hugs its content instead of leaving a big empty margin.
+        self.expandedWidth = max(width + 120, 300)
         self.expandedHeight = 380
 
-        // Compact-live: flanks the notch at menu-bar height (art on the left,
-        // title on the right), like the iPhone's compact Dynamic Island.
-        self.liveWidth = width + 320
+        // Compact-live: content hugs the notch — a small art tile on the left,
+        // a title on the right — like the iPhone's compact Dynamic Island.
+        self.liveLeadingWidth = 46
+        self.liveTrailingWidth = 172
+        self.liveWidth = width + self.liveLeadingWidth + self.liveTrailingWidth
         self.liveHeight = height
-    }
-
-    /// Width available on each side of the notch in the compact-live state.
-    public var liveSideWidth: CGFloat {
-        max(0, (liveWidth - notchWidth) / 2)
     }
 
     public func setExpanded(_ expanded: Bool) {
