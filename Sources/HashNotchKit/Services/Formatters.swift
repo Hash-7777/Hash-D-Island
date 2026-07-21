@@ -35,4 +35,22 @@ public enum Formatters {
     public static func megabytesPerSecond(_ bytesPerSecond: Double) -> String {
         String(format: "%.2f", max(0, bytesPerSecond) / 1_048_576)
     }
+
+    /// Compact count for large token totals, e.g. 812, 12.3K, 4.5M, 1.28B.
+    public static func compactCount(_ count: Int64) -> String {
+        let value = Double(max(0, count))
+        switch count {
+        case ..<1_000: return "\(max(0, count))"
+        case ..<1_000_000: return trimmed(value / 1_000) + "K"
+        case ..<1_000_000_000: return trimmed(value / 1_000_000) + "M"
+        default: return trimmed(value / 1_000_000_000, decimals: 2) + "B"
+        }
+    }
+
+    private static func trimmed(_ value: Double, decimals: Int = 1) -> String {
+        let rounded = (value * pow(10, Double(decimals))).rounded() / pow(10, Double(decimals))
+        return rounded == rounded.rounded()
+            ? String(format: "%.0f", rounded)
+            : String(format: "%.\(decimals)f", rounded)
+    }
 }

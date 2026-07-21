@@ -2,6 +2,7 @@ import HashNotchKit
 import FeatureNetwork
 import FeatureBattery
 import FeatureThermal
+import FeatureTokens
 
 /// The one and only place features are turned on or off.
 ///
@@ -19,6 +20,7 @@ enum FeatureManifest {
     @MainActor
     static func enabledFeatures() -> [NotchFeature] {
         [
+            TokensFeature(),
             NetworkFeature(),
             BatteryFeature(),
             ThermalFeature(),

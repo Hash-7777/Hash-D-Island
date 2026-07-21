@@ -36,7 +36,8 @@ public final class NotchState: ObservableObject {
 
     public func setExpanded(_ expanded: Bool) {
         guard expanded != isExpanded else { return }
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.78)) {
+        // A lively spring with a touch of overshoot for a smooth, premium drop.
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) {
             isExpanded = expanded
         }
     }

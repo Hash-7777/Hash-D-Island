@@ -19,6 +19,8 @@ struct BatteryView: View {
                 Text(text)
                     .foregroundStyle(theme.textColor)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: monitor.percentage)
             }
         }
         .padding(.horizontal, 12)

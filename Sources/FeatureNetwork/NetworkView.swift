@@ -42,6 +42,8 @@ struct NetworkView: View {
             Text(Formatters.megabytesPerSecond(rate))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.snappy, value: rate)
                 .frame(width: valueWidth, alignment: .trailing)
             Text(Formatters.megabytesUnit)
                 .font(.system(size: 9, weight: .semibold))

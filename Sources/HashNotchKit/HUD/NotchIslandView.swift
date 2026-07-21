@@ -24,17 +24,22 @@ struct NotchIslandView: View {
     private var island: some View {
         ZStack(alignment: .top) {
             shape
-                .fill(Color.black)
-                .overlay(shape.strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
-                .shadow(color: .black.opacity(state.isExpanded ? 0.55 : 0),
-                        radius: 14, y: 8)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(white: 0.10), Color.black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 0.6))
+                .shadow(color: .black.opacity(state.isExpanded ? 0.6 : 0), radius: 16, y: 10)
 
             if state.isExpanded {
                 content
                     .padding(.top, state.notchHeight + 12)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .offset(y: -10)))
             }
         }
         .frame(

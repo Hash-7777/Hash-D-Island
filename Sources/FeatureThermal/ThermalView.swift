@@ -19,6 +19,8 @@ struct ThermalView: View {
                 Text(text)
                     .foregroundStyle(theme.textColor)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: monitor.hottestCelsius)
             }
         }
         .padding(.horizontal, 12)

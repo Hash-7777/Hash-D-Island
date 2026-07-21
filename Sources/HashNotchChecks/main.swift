@@ -69,6 +69,12 @@ MainActor.assumeIsolated {
     check("mbps small", Formatters.megabytesPerSecond(12_288) == "0.01")
     check("mbps whole", Formatters.megabytesPerSecond(5_242_880) == "5.00")
 
+    // Compact token counts.
+    check("count small", Formatters.compactCount(812) == "812")
+    check("count K", Formatters.compactCount(12_300) == "12.3K")
+    check("count M", Formatters.compactCount(4_500_000) == "4.5M")
+    check("count B", Formatters.compactCount(1_280_000_000) == "1.28B")
+
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashnotch.checks.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
