@@ -1,0 +1,27 @@
+# Local-only notes, handoffs, and rules — never committed (see COMMIT_RULES.local.md §8)
+*.local.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+*.xcconfig.local
+
+# Xcode / Swift build output
+build/
+DerivedData/
+.build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+xcuserdata/
+
+# macOS junk
+.DS_Store
+*.swp
+* 2.*
+*.icloud
