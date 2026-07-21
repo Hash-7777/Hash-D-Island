@@ -16,45 +16,10 @@ public struct FeatureConfig: Codable, Equatable {
     }
 }
 
-/// Saved layout tuning so the HUD can be nudged clear of the menu bar's app
-/// menus (left) and status items (right).
-public struct LayoutConfig: Codable, Equatable {
-    /// Extra gap (points) between the left content and the notch.
-    public var leadingInset: Double
-    /// Extra gap (points) between the right content and the notch.
-    public var trailingInset: Double
-    /// Space between individual readouts.
-    public var itemSpacing: Double
-    /// Automatically move the left readout out of the way of the frontmost app's
-    /// menus (needs Accessibility permission).
-    public var autoAvoidMenus: Bool
-
-    public init(leadingInset: Double, trailingInset: Double, itemSpacing: Double, autoAvoidMenus: Bool) {
-        self.leadingInset = leadingInset
-        self.trailingInset = trailingInset
-        self.itemSpacing = itemSpacing
-        self.autoAvoidMenus = autoAvoidMenus
-    }
-
-    // Decode defensively so an older saved document (without newer fields) still
-    // loads instead of resetting everything.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        leadingInset = try container.decodeIfPresent(Double.self, forKey: .leadingInset) ?? 8
-        trailingInset = try container.decodeIfPresent(Double.self, forKey: .trailingInset) ?? 8
-        itemSpacing = try container.decodeIfPresent(Double.self, forKey: .itemSpacing) ?? 12
-        autoAvoidMenus = try container.decodeIfPresent(Bool.self, forKey: .autoAvoidMenus) ?? true
-    }
-
-    public static let `default` = LayoutConfig(
-        leadingInset: 8, trailingInset: 8, itemSpacing: 12, autoAvoidMenus: true
-    )
-}
-
-/// The whole persisted document.
+/// The whole persisted document. Unknown keys in an older saved document (e.g.
+/// the removed layout block) are ignored on decode.
 private struct SettingsDocument: Codable {
     var features: [String: FeatureConfig]
-    var layout: LayoutConfig
     var launchAtLogin: Bool
 }
 
@@ -66,7 +31,6 @@ private struct SettingsDocument: Codable {
 @MainActor
 public final class SettingsStore: ObservableObject {
     @Published public var features: [String: FeatureConfig]
-    @Published public var layout: LayoutConfig
     @Published public var launchAtLogin: Bool
 
     /// True when there was no saved configuration to load (i.e. first ever run).
@@ -83,12 +47,10 @@ public final class SettingsStore: ObservableObject {
         if let data = defaults.data(forKey: storageKey),
            let document = try? JSONDecoder().decode(SettingsDocument.self, from: data) {
             self.features = document.features
-            self.layout = document.layout
             self.launchAtLogin = document.launchAtLogin
             self.isFirstRun = false
         } else {
             self.features = [:]
-            self.layout = .default
             self.launchAtLogin = false
             self.isFirstRun = true
         }
@@ -145,7 +107,6 @@ public final class SettingsStore: ObservableObject {
     private func save() {
         let document = SettingsDocument(
             features: features,
-            layout: layout,
             launchAtLogin: launchAtLogin
         )
         if let data = try? JSONEncoder().encode(document) {

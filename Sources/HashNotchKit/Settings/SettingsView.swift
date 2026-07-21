@@ -82,7 +82,9 @@ public struct SettingsView: View {
 
     private var launchAtLoginBinding: Binding<Bool> {
         Binding(
-            get: { settings.launchAtLogin },
+            // Read the OS's actual login-item state, not our stored copy — the
+            // user can also change it in System Settings behind our back.
+            get: { LoginItem.isSupported ? LoginItem.isEnabled : settings.launchAtLogin },
             set: { value in
                 let ok = LoginItem.setEnabled(value)
                 settings.launchAtLogin = ok ? value : LoginItem.isEnabled

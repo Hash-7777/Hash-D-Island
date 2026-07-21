@@ -28,22 +28,31 @@ public final class NotchWindowController {
         self.registry = registry
         self.context = context
 
-        let screen = NotchGeometry.preferredScreen() ?? NSScreen.main!
-        let geometry = NotchGeometry.current(for: screen)
+        // No force-unwrap: launching with no screen attached (login races,
+        // headless sessions) must never crash — fall back to a nominal frame
+        // and let a screen-parameters change rebuild us properly.
+        let screen = NotchGeometry.preferredScreen()
+        let screenFrame = screen?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let geometry = screen.map { NotchGeometry.current(for: $0) }
+            ?? NotchGeometry(
+                screenFrame: screenFrame,
+                notchRect: CGRect(x: screenFrame.midX - 100, y: screenFrame.maxY - 32, width: 200, height: 32),
+                hasNotch: false
+            )
         self.state = NotchState(geometry: geometry)
 
         let frame = NSRect(
-            x: screen.frame.minX,
-            y: screen.frame.maxY - Self.stripHeight,
-            width: screen.frame.width,
+            x: screenFrame.minX,
+            y: screenFrame.maxY - Self.stripHeight,
+            width: screenFrame.width,
             height: Self.stripHeight
         )
         self.window = NotchWindow(contentRect: frame)
 
         // Hover zones in screen coordinates (bottom-left origin), centered on the
         // notch and anchored to the top of the screen.
-        let midX = screen.frame.midX
-        let top = screen.frame.maxY
+        let midX = screenFrame.midX
+        let top = screenFrame.maxY
         self.collapsedHoverRect = CGRect(
             x: midX - (state.collapsedWidth / 2 + 14),
             y: top - (state.collapsedHeight + 6),
