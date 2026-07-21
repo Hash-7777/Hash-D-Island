@@ -54,7 +54,7 @@ struct MediaTitleView: View {
                     .foregroundStyle(theme.textColor)
                 AudioBarsView(isActive: media.isPlaying, tint: theme.accent)
             }
-            .frame(maxWidth: 158, alignment: .leading)
+            .frame(maxWidth: 140, alignment: .leading)
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }

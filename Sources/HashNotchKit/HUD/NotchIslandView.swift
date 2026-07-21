@@ -128,13 +128,15 @@ struct NotchIslandView: View {
         HStack(spacing: 0) {
             // Clearance paddings live INSIDE the fixed side widths, so content
             // stays within the island's black pill and clear of the notch.
+            // Artwork hugs the notch (6pt, iPhone-style); text keeps a wider
+            // 18pt gap so glyphs never look tucked under the notch's curve.
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
                 ForEach(enabledFeatures, id: \.id) { feature in
                     if let view = feature.makeCompactLeadingView(context: context) { view }
                 }
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, 6)
             .frame(width: state.liveLeadingWidth, alignment: .trailing)
 
             Color.clear.frame(width: state.notchWidth, height: state.notchHeight)
@@ -145,7 +147,7 @@ struct NotchIslandView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.leading, 12)
+            .padding(.leading, 18)
             .frame(width: state.liveTrailingWidth, alignment: .leading)
         }
         .frame(height: state.notchHeight)

@@ -72,11 +72,14 @@ public struct MarqueeText: View {
                 .frame(width: available, height: geo.size.height, alignment: .leading)
                 .clipped()
                 .mask(
+                    // Narrow fades: enough to soften glyphs entering/leaving,
+                    // never wide enough to make the title's start look
+                    // swallowed by the adjacent notch.
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0),
-                            .init(color: .black, location: 0.06),
-                            .init(color: .black, location: 0.94),
+                            .init(color: .black, location: 0.035),
+                            .init(color: .black, location: 0.965),
                             .init(color: .clear, location: 1),
                         ],
                         startPoint: .leading,
