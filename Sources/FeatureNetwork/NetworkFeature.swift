@@ -8,13 +8,14 @@ enum NetworkStyle: String {
     case uploadOnly
 }
 
-/// Live internet throughput. Defaults to the right of the notch so it never
-/// collides with the frontmost app's menus on the left.
+/// Live internet throughput. Defaults to the left of the notch, keeping the
+/// right side (battery, temperature) narrow and clear of the system status
+/// icons. Users can move it to either side in Settings.
 @MainActor
 public final class NetworkFeature: NotchFeature {
     public let id = "network"
     public let title = "Internet speed"
-    public let placement: FeaturePlacement = .trailing
+    public let placement: FeaturePlacement = .leading
 
     public let displayOptions: [FeatureOption] = [
         FeatureOption(id: NetworkStyle.both.rawValue, title: "Up and down"),

@@ -31,6 +31,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.controller = controller
         self.menuBar = menuBar
         self.power = power
+
+        // First launch: show the settings window so the app is easy to find.
+        if settings.isFirstRun {
+            menuBar.showSettings()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

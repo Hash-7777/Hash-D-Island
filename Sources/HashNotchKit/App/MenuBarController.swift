@@ -17,9 +17,10 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
         super.init()
 
         statusItem.button?.image = NSImage(
-            systemSymbolName: "rectangle.topthird.inset.filled",
+            systemSymbolName: "menubar.dock.rectangle",
             accessibilityDescription: "HashNotch"
         )
+        statusItem.button?.toolTip = "HashNotch"
 
         let menu = NSMenu()
         menu.delegate = self
@@ -50,6 +51,11 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
     public func menuWillOpen(_ menu: NSMenu) {
         loginItemMenuItem.state = LoginItem.isEnabled ? .on : .off
         loginItemMenuItem.isEnabled = LoginItem.isSupported
+    }
+
+    /// Open the customization window (also called on first run).
+    public func showSettings() {
+        settingsWindow.show()
     }
 
     @objc private func openSettings() {

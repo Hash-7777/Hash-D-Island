@@ -21,11 +21,6 @@ struct NotchContainerView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .onHover { hovering in
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                state.isExpanded = hovering
-            }
-        }
     }
 
     private var compactRow: some View {

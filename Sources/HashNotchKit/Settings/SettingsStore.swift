@@ -47,8 +47,12 @@ public final class SettingsStore: ObservableObject {
     @Published public var layout: LayoutConfig
     @Published public var launchAtLogin: Bool
 
+    /// True when there was no saved configuration to load (i.e. first ever run).
+    /// Used to show the settings window once so the app is easy to find.
+    public let isFirstRun: Bool
+
     private let defaults: UserDefaults
-    private let storageKey = "hashnotch.settings.v1"
+    private let storageKey = "hashnotch.settings.v2"
     private var saveCancellable: AnyCancellable?
 
     public init(defaults: UserDefaults = .standard) {
@@ -59,10 +63,12 @@ public final class SettingsStore: ObservableObject {
             self.features = document.features
             self.layout = document.layout
             self.launchAtLogin = document.launchAtLogin
+            self.isFirstRun = false
         } else {
             self.features = [:]
             self.layout = .default
             self.launchAtLogin = false
+            self.isFirstRun = true
         }
 
         // Persist on any change, coalesced to the next runloop tick.
