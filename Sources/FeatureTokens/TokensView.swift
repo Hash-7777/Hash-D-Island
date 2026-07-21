@@ -36,29 +36,29 @@ struct TokensDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("AI TOKENS TODAY")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(theme.subtitleColor)
-
+            NotchSectionHeader("AI TOKENS TODAY", theme: theme)
             row("Total", monitor.today.total, emphasized: true)
             row("Claude Code", monitor.today.claude)
             row("HashCortx", monitor.today.hashCortx)
             row("HashCerebrum", monitor.today.hashCerebrum)
+            if monitor.today.cached > 0 {
+                NotchRow("Cached", theme: theme) {
+                    Text("+\(Formatters.compactCount(monitor.today.cached))")
+                        .foregroundStyle(theme.subtitleColor)
+                        .monospacedDigit()
+                }
+            }
         }
     }
 
     private func row(_ label: String, _ value: Int64, emphasized: Bool = false) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .foregroundStyle(emphasized ? theme.textColor : theme.subtitleColor)
-            Spacer(minLength: 8)
+        NotchRow(label, emphasized: emphasized, theme: theme) {
             Text(Formatters.compactCount(value))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
                 .contentTransition(.numericText())
                 .fontWeight(emphasized ? .bold : .regular)
         }
-        .frame(width: 200, alignment: .leading)
         .animation(.snappy, value: value)
     }
 }

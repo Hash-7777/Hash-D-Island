@@ -1,10 +1,14 @@
 import Foundation
 
-/// Today's token totals, per source, following the same data HashMeterAi reads.
+/// Today's token totals, per source. `claude` / `hashCortx` / `hashCerebrum`
+/// count input + output tokens (the headline number, matching HashMeterAi).
+/// `cached` is the much larger cache read/write total, kept separate so it never
+/// inflates the headline.
 public struct TokenTotals: Equatable {
     public var claude: Int64 = 0
     public var hashCortx: Int64 = 0
     public var hashCerebrum: Int64 = 0
+    public var cached: Int64 = 0
 
     public var total: Int64 { claude + hashCortx + hashCerebrum }
 }
@@ -22,9 +26,19 @@ enum TokenUsageReader {
     static func readToday() -> TokenTotals {
         let startOfToday = Calendar.current.startOfDay(for: Date())
         var totals = TokenTotals()
-        totals.claude = claudeTokens(since: startOfToday)
-        totals.hashCortx = ecosystemTokens(at: hashCortxURL, since: startOfToday)
-        totals.hashCerebrum = ecosystemTokens(at: hashCerebrumURL, since: startOfToday)
+
+        let claude = claudeTokens(since: startOfToday)
+        totals.claude = claude.io
+        totals.cached += claude.cache
+
+        let cortx = ecosystemTokens(at: hashCortxURL, since: startOfToday)
+        totals.hashCortx = cortx.io
+        totals.cached += cortx.cache
+
+        let cerebrum = ecosystemTokens(at: hashCerebrumURL, since: startOfToday)
+        totals.hashCerebrum = cerebrum.io
+        totals.cached += cerebrum.cache
+
         return totals
     }
 
@@ -44,57 +58,57 @@ enum TokenUsageReader {
 
     // MARK: Claude Code
 
-    private static func claudeTokens(since: Date) -> Int64 {
+    private static func claudeTokens(since: Date) -> (io: Int64, cache: Int64) {
         let projects = home.appendingPathComponent(".claude/projects")
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: projects,
             includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
             options: [.skipsHiddenFiles]
-        ) else { return 0 }
+        ) else { return (0, 0) }
 
-        var total: Int64 = 0
+        var io: Int64 = 0
+        var cache: Int64 = 0
         for case let url as URL in enumerator where url.pathExtension == "jsonl" {
-            // Skip files not modified today — a big saving with many transcripts.
             let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if let modified, modified < since { continue }
-            total += claudeFileTokens(url, since: since)
+            let file = claudeFileTokens(url, since: since)
+            io += file.io
+            cache += file.cache
         }
-        return total
+        return (io, cache)
     }
 
-    private static func claudeFileTokens(_ url: URL, since: Date) -> Int64 {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
-        var total: Int64 = 0
+    private static func claudeFileTokens(_ url: URL, since: Date) -> (io: Int64, cache: Int64) {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return (0, 0) }
+        var io: Int64 = 0
+        var cache: Int64 = 0
         content.enumerateLines { line, _ in
             guard let data = line.data(using: .utf8),
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   isToday(object["timestamp"] as? String, since: since),
                   let message = object["message"] as? [String: Any],
                   let usage = message["usage"] as? [String: Any] else { return }
-            total += int(usage["input_tokens"])
-                + int(usage["output_tokens"])
-                + int(usage["cache_read_input_tokens"])
-                + int(usage["cache_creation_input_tokens"])
+            io += int(usage["input_tokens"]) + int(usage["output_tokens"])
+            cache += int(usage["cache_read_input_tokens"]) + int(usage["cache_creation_input_tokens"])
         }
-        return total
+        return (io, cache)
     }
 
     // MARK: Ecosystem usage.jsonl
 
-    private static func ecosystemTokens(at url: URL, since: Date) -> Int64 {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
-        var total: Int64 = 0
+    private static func ecosystemTokens(at url: URL, since: Date) -> (io: Int64, cache: Int64) {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return (0, 0) }
+        var io: Int64 = 0
+        var cache: Int64 = 0
         content.enumerateLines { line, _ in
             guard let data = line.data(using: .utf8),
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   isToday(object["ts"] as? String, since: since) else { return }
-            total += int(object["input_tokens"])
-                + int(object["output_tokens"])
-                + int(object["cache_read"])
-                + int(object["cache_write"])
+            io += int(object["input_tokens"]) + int(object["output_tokens"])
+            cache += int(object["cache_read"]) + int(object["cache_write"])
         }
-        return total
+        return (io, cache)
     }
 
     // MARK: Helpers

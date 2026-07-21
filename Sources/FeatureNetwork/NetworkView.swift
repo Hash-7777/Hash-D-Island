@@ -52,3 +52,34 @@ struct NetworkView: View {
         }
     }
 }
+
+/// Expanded detail: internet speed as a clean row that matches the panel.
+struct NetworkDetailView: View {
+    @ObservedObject var monitor: NetworkMonitor
+    let theme: Theme
+
+    var body: some View {
+        NotchRow("Internet", theme: theme) {
+            HStack(spacing: 12) {
+                speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+                speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
+            }
+        }
+    }
+
+    private func speed(_ symbol: String, _ rate: Double, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(color)
+            Text(Formatters.megabytesPerSecond(rate))
+                .foregroundStyle(theme.textColor)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.snappy, value: rate)
+            Text("MB/s")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(theme.subtitleColor)
+        }
+    }
+}

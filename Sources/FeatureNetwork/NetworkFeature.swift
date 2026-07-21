@@ -34,4 +34,8 @@ public final class NetworkFeature: NotchFeature {
         let style = NetworkStyle(rawValue: context.settings.style(for: id)) ?? .both
         return AnyView(NetworkView(monitor: monitor, theme: context.theme, style: style))
     }
+
+    public func makeExpandedView(context: FeatureContext) -> AnyView? {
+        AnyView(NetworkDetailView(monitor: monitor, theme: context.theme))
+    }
 }

@@ -53,3 +53,31 @@ struct BatteryView: View {
         }
     }
 }
+
+/// Expanded detail: battery as a clean row that matches the panel.
+struct BatteryDetailView: View {
+    @ObservedObject var monitor: BatteryMonitor
+    let theme: Theme
+
+    var body: some View {
+        NotchRow("Battery", theme: theme) {
+            HStack(spacing: 6) {
+                if monitor.isCharging {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(theme.downColor)
+                }
+                if let minutes = monitor.minutesRemaining, minutes > 0, !monitor.isCharging {
+                    Text(String(format: "%d:%02d left", minutes / 60, minutes % 60))
+                        .font(.system(size: 9))
+                        .foregroundStyle(theme.subtitleColor)
+                }
+                Text("\(monitor.percentage)%")
+                    .foregroundStyle(theme.textColor)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+            }
+        }
+        .animation(.snappy, value: monitor.percentage)
+    }
+}

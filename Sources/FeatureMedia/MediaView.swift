@@ -25,12 +25,12 @@ struct MediaArtworkView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         } else {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(theme.accent.opacity(0.25))
+                .fill(Color.white.opacity(0.12))
                 .frame(width: size, height: size)
                 .overlay(
                     Image(systemName: "music.note")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(theme.accent)
+                        .foregroundStyle(theme.subtitleColor)
                 )
         }
     }
@@ -80,11 +80,12 @@ struct MediaDetailView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                Image(systemName: media.isPlaying ? "play.fill" : "pause.fill")
+                Image(systemName: "waveform")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.subtitleColor)
+                    .foregroundStyle(theme.accent)
+                    .symbolEffect(.variableColor.iterative, isActive: media.isPlaying)
             }
-            .frame(width: 260, alignment: .leading)
+            .frame(width: Panel.rowWidth, alignment: .leading)
         }
     }
 

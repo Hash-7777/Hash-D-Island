@@ -34,4 +34,8 @@ public final class BatteryFeature: NotchFeature {
         let style = BatteryStyle(rawValue: context.settings.style(for: id)) ?? .iconAndPercent
         return AnyView(BatteryView(monitor: monitor, theme: context.theme, style: style))
     }
+
+    public func makeExpandedView(context: FeatureContext) -> AnyView? {
+        AnyView(BatteryDetailView(monitor: monitor, theme: context.theme))
+    }
 }

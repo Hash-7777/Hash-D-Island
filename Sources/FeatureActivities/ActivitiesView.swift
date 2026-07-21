@@ -47,10 +47,7 @@ struct ActivitiesDetailView: View {
     var body: some View {
         if !monitor.activities.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("ACTIVITIES")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(theme.subtitleColor)
-
+                NotchSectionHeader("ACTIVITIES", theme: theme)
                 ForEach(monitor.activities) { activity in
                     row(activity)
                 }
@@ -89,7 +86,7 @@ struct ActivitiesDetailView: View {
                     .scaleEffect(x: 1, y: 0.7)
             }
         }
-        .frame(width: 220, alignment: .leading)
+        .frame(width: Panel.rowWidth, alignment: .leading)
     }
 }
 

@@ -59,25 +59,21 @@ struct ThermalDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("TEMPERATURE")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(theme.subtitleColor)
+            NotchSectionHeader("TEMPERATURE", theme: theme)
 
             if monitor.sensors.isEmpty {
-                Text(monitor.pressureLabel)
-                    .foregroundStyle(theme.textColor)
+                NotchRow("Pressure", theme: theme) {
+                    Text(monitor.pressureLabel).foregroundStyle(theme.textColor)
+                }
             } else {
                 ForEach(monitor.sensors.prefix(5)) { sensor in
-                    HStack(spacing: 12) {
-                        Text(sensor.name)
-                            .foregroundStyle(theme.subtitleColor)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
+                    NotchRow(sensor.name, theme: theme) {
                         Text("\(Int(sensor.celsius.rounded()))°")
                             .foregroundStyle(theme.textColor)
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                     }
-                    .frame(width: 190, alignment: .leading)
+                    .animation(.snappy, value: sensor.celsius)
                 }
             }
         }
