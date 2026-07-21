@@ -39,7 +39,7 @@ public final class ThermalMonitor: ObservableObject {
             }
         }
 
-        sampler = PollingSampler(interval: 2.0) { [weak self] in self?.refresh() }
+        sampler = PollingSampler(interval: 3.0) { [weak self] in self?.refresh() }
         sampler?.start()
     }
 
@@ -54,10 +54,14 @@ public final class ThermalMonitor: ObservableObject {
 
     private func refresh() {
         let readings = reader?.read() ?? []
-        sensors = readings
+        let newSensors = readings
             .map { TempSensor(name: $0.name, celsius: $0.celsius) }
             .sorted { $0.celsius > $1.celsius }
-        hottestCelsius = sensors.first?.celsius
+
+        // Publish only on change so steady temperatures cause no redraws.
+        if newSensors != sensors { sensors = newSensors }
+        let newHottest = newSensors.first?.celsius
+        if newHottest != hottestCelsius { hottestCelsius = newHottest }
     }
 
     /// True when we have real sensor values (not just the pressure label).

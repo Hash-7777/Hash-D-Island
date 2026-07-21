@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 import CoreGraphics
-@testable import HashNotchKit
+import HashNotchKit
 
 // A tiny, dependency-free check runner. Prints one line per check and exits
 // non-zero if any fails, so it works as a pre-push gate under the Command Line
@@ -67,6 +67,25 @@ MainActor.assumeIsolated {
     check("mbps unit fixed", Formatters.megabytesUnit == "MB/s")
     check("mbps small", Formatters.megabytesPerSecond(12_288) == "0.01")
     check("mbps whole", Formatters.megabytesPerSecond(5_242_880) == "5.00")
+
+    // Settings: defaults, updates, and persistence round-trip.
+    let suite = "hashnotch.checks.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    let store = SettingsStore(defaults: defaults)
+    let stub = StubFeature(id: "x", placement: .leading)
+    store.seed(features: [stub])
+    check("settings seed enables", store.isEnabled("x"))
+    check("settings seed placement", store.features["x"]?.placement == .leading)
+
+    store.update("x") { $0.enabled = false; $0.styleID = "word" }
+    check("settings update disables", store.isEnabled("x") == false)
+    check("settings update style", store.style(for: "x") == "word")
+
+    store.flush()
+    let reloaded = SettingsStore(defaults: defaults)
+    check("settings persist enabled", reloaded.isEnabled("x") == false)
+    check("settings persist style", reloaded.style(for: "x") == "word")
+    defaults.removePersistentDomain(forName: suite)
 }
 
 if failures == 0 {

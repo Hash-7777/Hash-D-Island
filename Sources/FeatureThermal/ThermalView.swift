@@ -6,21 +6,37 @@ import HashNotchKit
 struct ThermalView: View {
     @ObservedObject var monitor: ThermalMonitor
     let theme: Theme
+    let style: ThermalStyle
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "thermometer.medium")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(tint)
-            Text(monitor.compactText)
-                .foregroundStyle(theme.textColor)
-                .monospacedDigit()
+            if style != .number {
+                Image(systemName: "thermometer.medium")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            if let text = valueText {
+                Text(text)
+                    .foregroundStyle(theme.textColor)
+                    .monospacedDigit()
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(
             Capsule(style: .continuous).fill(theme.pillBackground)
         )
+    }
+
+    private var valueText: String? {
+        switch style {
+        case .symbol:
+            return nil
+        case .word:
+            return monitor.pressureLabel
+        case .number, .symbolAndNumber:
+            return monitor.compactText
+        }
     }
 
     private var tint: Color {

@@ -5,10 +5,11 @@ import HashNotchKit
 ///
 /// Every element has a reserved width and the digits are monospaced, so the
 /// arrows, numbers, and unit never shift as the values change — the readout
-/// stays rock-steady in place.
+/// stays rock-steady in place. The style controls which directions appear.
 struct NetworkView: View {
     @ObservedObject var monitor: NetworkMonitor
     let theme: Theme
+    let style: NetworkStyle
 
     // Reserved widths keep the layout from reflowing as numbers change.
     private let valueWidth: CGFloat = 52
@@ -17,8 +18,12 @@ struct NetworkView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            metric(systemImage: "arrow.up", rate: monitor.uploadBytesPerSec, color: theme.upColor)
-            metric(systemImage: "arrow.down", rate: monitor.downloadBytesPerSec, color: theme.downColor)
+            if style != .downloadOnly {
+                metric(systemImage: "arrow.up", rate: monitor.uploadBytesPerSec, color: theme.upColor)
+            }
+            if style != .uploadOnly {
+                metric(systemImage: "arrow.down", rate: monitor.downloadBytesPerSec, color: theme.downColor)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

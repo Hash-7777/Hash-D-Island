@@ -67,6 +67,27 @@ main.swift
                  └─ asks the registry for each feature's view
 ```
 
+## Customization (settings)
+
+User choices live in `SettingsStore` (in `HashNotchKit`), persisted to
+`UserDefaults`. It is the single source of truth for:
+
+- which features are enabled,
+- each feature's placement (left / right of the notch) and order,
+- each feature's chosen display style, and
+- layout spacing + open-at-login.
+
+Features declare their display choices via `displayOptions` on `NotchFeature`
+and read the selected one with `context.settings.style(for: id)` inside
+`makeView`. The HUD (`NotchContainerView`) observes the store, so editing
+settings in the menu-bar window (`SettingsView`) updates the notch live. Because
+placement and visibility come from the store — not hard-coded — the core stays
+generic and features never know about each other.
+
+Low-power behavior also lives in the core: `PollingSampler` uses tolerant,
+coalesced timers; monitors publish only when a displayed value actually changes;
+and `PowerCoordinator` stops all sampling while the screen is asleep.
+
 ## Adding a feature
 
 1. Create `Sources/Feature<Name>/` with:

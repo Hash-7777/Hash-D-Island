@@ -33,8 +33,13 @@ public final class NotchWindowController {
         )
         self.window = NotchWindow(contentRect: frame)
 
-        let root = NotchContainerView(state: state, registry: registry, context: context)
-            .frame(width: frame.width, height: frame.height, alignment: .top)
+        let root = NotchContainerView(
+            state: state,
+            settings: context.settings,
+            registry: registry,
+            context: context
+        )
+        .frame(width: frame.width, height: frame.height, alignment: .top)
 
         let hosting = NSHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: frame.size)

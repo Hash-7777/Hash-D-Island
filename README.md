@@ -26,16 +26,33 @@ accounts, no cloud, no data collection.
 - macOS 14 (Sonoma) or later
 - Apple Silicon Mac (M-series) with a notch display
 
+## Customize it
+
+HashNotch adds a small item to the menu bar. Click it for **HashNotch
+Settings…**, where you can:
+
+- turn each indicator on or off,
+- put it on the left or right of the notch,
+- choose how it looks (e.g. temperature as a number `52°`, a word `Cool`, or
+  just a symbol), and
+- nudge the spacing so nothing overlaps your other menu-bar items.
+
+Turn on **Open at Login** to have it come back every time you start your Mac.
+
 ## Develop
 
 The project is a Swift Package, so it builds and runs with the Command Line
 Tools alone — no full Xcode required to try it.
 
 ```sh
-swift build              # compile everything
-swift run HashNotch      # launch the notch overlay
+swift build               # compile everything
+swift run HashNotch       # launch the notch overlay + menu-bar item
 swift run HashNotchChecks # run the core checks
+./scripts/build_app.sh    # assemble build/HashNotch.app (needed for login item)
 ```
+
+"Open at Login" only works from the built `.app` (macOS manages login items by
+bundle), so run `build_app.sh` and launch `build/HashNotch.app` to use it.
 
 Every capability is a self-contained module. Adding or removing one touches a
 single manifest line and never the core — see

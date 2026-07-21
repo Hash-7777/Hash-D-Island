@@ -39,8 +39,17 @@ public final class NetworkMonitor: ObservableObject {
         let dRx = counters.rx >= lastRx ? counters.rx - lastRx : 0
         let dTx = counters.tx >= lastTx ? counters.tx - lastTx : 0
 
-        downloadBytesPerSec = Double(dRx) / dt
-        uploadBytesPerSec = Double(dTx) / dt
+        let newDownload = Double(dRx) / dt
+        let newUpload = Double(dTx) / dt
+
+        // Only publish when the displayed MB/s value actually changes, so an idle
+        // link (0.00) triggers no SwiftUI redraws at all.
+        if Formatters.megabytesPerSecond(newDownload) != Formatters.megabytesPerSecond(downloadBytesPerSec) {
+            downloadBytesPerSec = newDownload
+        }
+        if Formatters.megabytesPerSecond(newUpload) != Formatters.megabytesPerSecond(uploadBytesPerSec) {
+            uploadBytesPerSec = newUpload
+        }
 
         lastRx = counters.rx
         lastTx = counters.tx

@@ -16,7 +16,7 @@ public final class BatteryMonitor: ObservableObject {
     public init() {}
 
     public func start() {
-        sampler = PollingSampler(interval: 5.0) { [weak self] in self?.sample() }
+        sampler = PollingSampler(interval: 10.0) { [weak self] in self?.sample() }
         sampler?.start()
     }
 
@@ -39,19 +39,23 @@ public final class BatteryMonitor: ObservableObject {
 
             let current = description[kIOPSCurrentCapacityKey as String] as? Int ?? 0
             let maximum = description[kIOPSMaxCapacityKey as String] as? Int ?? 100
-            percentage = maximum > 0 ? Int((Double(current) / Double(maximum)) * 100.0) : current
+            let newPercentage = maximum > 0 ? Int((Double(current) / Double(maximum)) * 100.0) : current
 
             let state = description[kIOPSPowerSourceStateKey as String] as? String
-            isCharging = (description[kIOPSIsChargingKey as String] as? Bool)
+            let newCharging = (description[kIOPSIsChargingKey as String] as? Bool)
                 ?? (state == kIOPSACPowerValue)
 
             let timeToEmpty = description[kIOPSTimeToEmptyKey as String] as? Int
-            minutesRemaining = (timeToEmpty ?? -1) > 0 ? timeToEmpty : nil
+            let newRemaining = (timeToEmpty ?? -1) > 0 ? timeToEmpty : nil
 
-            hasBattery = true
+            // Assign only on real change so identical samples cause no redraws.
+            if percentage != newPercentage { percentage = newPercentage }
+            if isCharging != newCharging { isCharging = newCharging }
+            if minutesRemaining != newRemaining { minutesRemaining = newRemaining }
+            if !hasBattery { hasBattery = true }
             return
         }
 
-        hasBattery = false
+        if hasBattery { hasBattery = false }
     }
 }

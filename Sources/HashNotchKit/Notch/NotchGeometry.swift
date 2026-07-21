@@ -12,6 +12,12 @@ public struct NotchGeometry {
     public let notchRect: CGRect
     public let hasNotch: Bool
 
+    public init(screenFrame: CGRect, notchRect: CGRect, hasNotch: Bool) {
+        self.screenFrame = screenFrame
+        self.notchRect = notchRect
+        self.hasNotch = hasNotch
+    }
+
     public static func current(for screen: NSScreen) -> NotchGeometry {
         let frame = screen.frame
         let topInset = screen.safeAreaInsets.top

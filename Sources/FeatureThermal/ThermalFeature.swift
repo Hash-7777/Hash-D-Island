@@ -1,12 +1,27 @@
 import SwiftUI
 import HashNotchKit
 
-/// System thermal pressure, shown to the right of the notch.
+/// How the temperature readout is shown.
+enum ThermalStyle: String {
+    case symbolAndNumber
+    case number
+    case word
+    case symbol
+}
+
+/// System temperature, shown to the right of the notch by default.
 @MainActor
 public final class ThermalFeature: NotchFeature {
     public let id = "thermal"
     public let title = "Temperature"
     public let placement: FeaturePlacement = .trailing
+
+    public let displayOptions: [FeatureOption] = [
+        FeatureOption(id: ThermalStyle.symbolAndNumber.rawValue, title: "Symbol and number"),
+        FeatureOption(id: ThermalStyle.number.rawValue, title: "Number only"),
+        FeatureOption(id: ThermalStyle.word.rawValue, title: "Word (Cool / Warm)"),
+        FeatureOption(id: ThermalStyle.symbol.rawValue, title: "Symbol only"),
+    ]
 
     private let monitor = ThermalMonitor()
 
@@ -16,7 +31,8 @@ public final class ThermalFeature: NotchFeature {
     public func stop() { monitor.stop() }
 
     public func makeView(context: FeatureContext) -> AnyView {
-        AnyView(ThermalView(monitor: monitor, theme: context.theme))
+        let style = ThermalStyle(rawValue: context.settings.style(for: id)) ?? .symbolAndNumber
+        return AnyView(ThermalView(monitor: monitor, theme: context.theme, style: style))
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {

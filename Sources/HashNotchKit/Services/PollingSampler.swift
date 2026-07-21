@@ -24,6 +24,10 @@ public final class PollingSampler {
                 self?.tick()
             }
         }
+        // A generous tolerance lets macOS coalesce our wakeups with other timers
+        // instead of waking the CPU on its own schedule — a large battery win for
+        // a background app, at no cost to a once-a-second readout.
+        timer.tolerance = interval * 0.5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
