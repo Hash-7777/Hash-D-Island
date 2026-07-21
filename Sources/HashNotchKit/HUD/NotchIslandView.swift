@@ -16,6 +16,10 @@ struct NotchIslandView: View {
     @ObservedObject var presence: LivePresence
     let registry: FeatureRegistry
     let context: FeatureContext
+    /// Reports the island's rendered size so the controller can keep the
+    /// overlay WINDOW hugging the island (a window-sized screenshot then
+    /// captures just the notch, not a huge transparent strip).
+    var onIslandSize: ((CGSize) -> Void)? = nil
 
     private var showExpanded: Bool { state.isExpanded }
     private var showLive: Bool { !state.isExpanded && presence.hasLive }
@@ -32,6 +36,13 @@ struct NotchIslandView: View {
         stateContent
             .frame(width: islandWidth, alignment: .top)
             .frame(height: showExpanded ? nil : nonExpandedHeight, alignment: .top)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { onIslandSize?(geo.size) }
+                        .onChange(of: geo.size) { _, size in onIslandSize?(size) }
+                }
+            )
             .background(islandBackground)
             // Direction-aware motion: opening gets a soft settle so the panel
             // feels like it emerges from the physical notch; closing is calm

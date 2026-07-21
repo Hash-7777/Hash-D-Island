@@ -27,14 +27,20 @@ public final class NotchWindowController {
     private let collapsedHoverRect: CGRect
     private let liveHoverRect: CGRect
     private let expandedHoverRect: CGRect
+    private let screenFrame: CGRect
     private var hoverMonitor: Any?
     private var localHoverMonitor: Any?
-    private var expandCancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
+    private var lastIslandSize: CGSize?
+    private var settleWork: DispatchWorkItem?
 
-    /// Height of the top strip the overlay reserves — generous so the expanded
-    /// panel is never clipped. The window is click-through, so extra height costs
-    /// nothing.
-    private static let stripHeight: CGFloat = 560
+    /// Extra window room around the island for its shadow. The window always
+    /// hugs the island (plus these margins) so a window screenshot captures
+    /// just the notch, never a huge invisible strip.
+    private static let sideMargin: CGFloat = 30
+    private static let bottomMargin: CGFloat = 46
+    /// Room reserved while the panel is opening, before its first measurement.
+    private static let provisionalExpandedHeight: CGFloat = 480
 
     public init(registry: FeatureRegistry, context: FeatureContext) {
         self.registry = registry
@@ -45,6 +51,7 @@ public final class NotchWindowController {
         // and let a screen-parameters change rebuild us properly.
         let screen = NotchGeometry.preferredScreen()
         let screenFrame = screen?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        self.screenFrame = screenFrame
         let geometry = screen.map { NotchGeometry.current(for: $0) }
             ?? NotchGeometry(
                 screenFrame: screenFrame,
@@ -53,11 +60,13 @@ public final class NotchWindowController {
             )
         self.state = NotchState(geometry: geometry)
 
+        let initialWidth = state.collapsedWidth + Self.sideMargin * 2
+        let initialHeight = state.collapsedHeight + Self.bottomMargin
         let frame = NSRect(
-            x: screenFrame.minX,
-            y: screenFrame.maxY - Self.stripHeight,
-            width: screenFrame.width,
-            height: Self.stripHeight
+            x: screenFrame.midX - initialWidth / 2,
+            y: screenFrame.maxY - initialHeight,
+            width: initialWidth,
+            height: initialHeight
         )
         self.window = NotchWindow(contentRect: frame)
 
@@ -89,9 +98,11 @@ public final class NotchWindowController {
             settings: context.settings,
             presence: context.presence,
             registry: registry,
-            context: context
+            context: context,
+            onIslandSize: { size in
+                Task { @MainActor [weak self] in self?.islandSizeChanged(size) }
+            }
         )
-        .frame(width: frame.width, height: frame.height, alignment: .top)
 
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: frame.size)
@@ -102,14 +113,83 @@ public final class NotchWindowController {
         // Clicks reach the panel only while it is open; everywhere else — and
         // whenever the island is collapsed or live — the overlay stays fully
         // click-through.
-        expandCancellable = state.$isExpanded
+        state.$isExpanded
             .removeDuplicates()
             .sink { [weak window] expanded in
                 window?.ignoresMouseEvents = !expanded
             }
+            .store(in: &cancellables)
+
+        // Refit the window whenever the island's state changes.
+        state.$isExpanded
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.refitWindow() }
+            }
+            .store(in: &cancellables)
+        context.presence.$activeIDs
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.refitWindow() }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: Window fitting (the window hugs the island)
+
+    private func targetWindowFrame() -> NSRect {
+        let width: CGFloat
+        let height: CGFloat
+        if state.isExpanded {
+            width = state.expandedWidth + Self.sideMargin * 2
+            let islandHeight = lastIslandSize?.height ?? Self.provisionalExpandedHeight
+            height = min(islandHeight, screenFrame.height * 0.8) + Self.bottomMargin
+        } else if context.presence.hasLive {
+            width = state.liveWidth + Self.sideMargin * 2
+            height = state.liveHeight + Self.bottomMargin
+        } else {
+            width = state.collapsedWidth + Self.sideMargin * 2
+            height = state.collapsedHeight + Self.bottomMargin
+        }
+        return NSRect(
+            x: screenFrame.midX - width / 2,
+            y: screenFrame.maxY - height,
+            width: width,
+            height: height
+        )
+    }
+
+    /// Grow immediately (the animation needs room), settle to the exact fit
+    /// once the spring is done. All frames share the notch's center and the
+    /// screen's top edge, so growing and shrinking never moves the island.
+    private func refitWindow() {
+        let target = targetWindowFrame()
+        let union = window.frame.union(target)
+        if union != window.frame {
+            window.setFrame(union, display: true)
+        }
+        settleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.window.setFrame(self.targetWindowFrame(), display: true)
+            }
+        }
+        settleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7, execute: work)
+    }
+
+    private func islandSizeChanged(_ size: CGSize) {
+        lastIslandSize = size
+        // If open content grew beyond the current window (e.g. a media card
+        // appeared while the panel is open), make room right away.
+        if state.isExpanded, size.height + Self.bottomMargin > window.frame.height {
+            refitWindow()
+        }
     }
 
     public func show() {
+        refitWindow()
         window.orderFrontRegardless()
         startHoverTracking()
     }
