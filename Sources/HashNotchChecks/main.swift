@@ -62,6 +62,11 @@ MainActor.assumeIsolated {
     check("rate B", Formatters.rate(512).unit == "B/s")
     check("rate KB", Formatters.rate(9_216).value == "9" && Formatters.rate(9_216).unit == "KB/s")
     check("rate MB", Formatters.rate(5_242_880).unit == "MB/s")
+
+    // Network readout is always MB/s with two decimals (fixed layout).
+    check("mbps unit fixed", Formatters.megabytesUnit == "MB/s")
+    check("mbps small", Formatters.megabytesPerSecond(12_288) == "0.01")
+    check("mbps whole", Formatters.megabytesPerSecond(5_242_880) == "5.00")
 }
 
 if failures == 0 {

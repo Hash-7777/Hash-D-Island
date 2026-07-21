@@ -2,8 +2,9 @@ import AppKit
 
 /// A borderless, transparent overlay window that floats above the menu bar so
 /// the HUD can draw in and around the notch. It sits on every Space and does not
-/// steal focus. Mouse interaction is off for now (the HUD is glanceable only);
-/// individual features will opt back in when they gain controls.
+/// steal focus. Mouse events are enabled, but the content view
+/// (`PassthroughContainerView`) only captures them over the notch cluster, so
+/// the rest of the menu bar stays fully usable.
 public final class NotchWindow: NSWindow {
     public init(contentRect: NSRect) {
         super.init(
@@ -18,7 +19,8 @@ public final class NotchWindow: NSWindow {
         hasShadow = false
         isMovable = false
         isMovableByWindowBackground = false
-        ignoresMouseEvents = true
+        ignoresMouseEvents = false
+        acceptsMouseMovedEvents = true
         level = .statusBar
         collectionBehavior = [
             .canJoinAllSpaces,

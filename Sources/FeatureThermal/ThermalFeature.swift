@@ -18,4 +18,8 @@ public final class ThermalFeature: NotchFeature {
     public func makeView(context: FeatureContext) -> AnyView {
         AnyView(ThermalView(monitor: monitor, theme: context.theme))
     }
+
+    public func makeExpandedView(context: FeatureContext) -> AnyView? {
+        AnyView(ThermalDetailView(monitor: monitor, theme: context.theme))
+    }
 }

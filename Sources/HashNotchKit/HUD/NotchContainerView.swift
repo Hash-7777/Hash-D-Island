@@ -5,15 +5,15 @@ import SwiftUI
 /// The compact row is split into a left half and a right half of equal width,
 /// with a transparent gap the exact size of the notch between them. Leading
 /// features hug the right edge of the left half; trailing features hug the left
-/// edge of the right half — so both sit flush against the cutout. The expanded
-/// panel animates open below the notch.
+/// edge of the right half — so both sit flush against the cutout. Hovering the
+/// notch cluster springs the expanded panel open below.
 struct NotchContainerView: View {
     @ObservedObject var state: NotchState
     let registry: FeatureRegistry
     let context: FeatureContext
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             compactRow
             if state.isExpanded {
                 expandedPanel
@@ -21,7 +21,11 @@ struct NotchContainerView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .padding(.top, 0)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                state.isExpanded = hovering
+            }
+        }
     }
 
     private var compactRow: some View {
@@ -43,19 +47,25 @@ struct NotchContainerView: View {
         }
         .frame(height: state.notchHeight)
         .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .scaleEffect(state.isExpanded ? 1.03 : 1.0, anchor: .top)
     }
 
     private var expandedPanel: some View {
-        HStack(spacing: 16) {
-            featureViews(for: .expanded)
+        HStack(alignment: .top, spacing: 20) {
+            ForEach(registry.features, id: \.id) { feature in
+                if let view = feature.makeExpandedView(context: context) {
+                    view
+                }
+            }
         }
+        .font(.system(size: 11, weight: .medium, design: .rounded))
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: context.theme.cornerRadius, style: .continuous)
                 .fill(context.theme.pillBackground)
         )
-        .frame(maxWidth: state.notchWidth + 360)
+        .fixedSize()
     }
 
     @ViewBuilder

@@ -27,8 +27,12 @@ public protocol NotchFeature: AnyObject {
     /// Where this feature renders in the HUD.
     var placement: FeaturePlacement { get }
 
-    /// Build the SwiftUI view for this feature. Called on the main actor.
+    /// Build the compact SwiftUI view shown around the notch. Main actor.
     func makeView(context: FeatureContext) -> AnyView
+
+    /// Optional richer view shown in the expanded panel when the HUD opens on
+    /// hover. Return `nil` (the default) to show nothing extra when expanded.
+    func makeExpandedView(context: FeatureContext) -> AnyView?
 
     /// Begin sampling / observing. Called once when the HUD starts.
     func start()
@@ -38,6 +42,7 @@ public protocol NotchFeature: AnyObject {
 }
 
 public extension NotchFeature {
+    func makeExpandedView(context: FeatureContext) -> AnyView? { nil }
     func start() {}
     func stop() {}
 }

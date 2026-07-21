@@ -39,7 +39,20 @@ public final class NotchWindowController {
         let hosting = NSHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: frame.size)
         hosting.autoresizingMask = [.width, .height]
-        window.contentView = hosting
+
+        // Only the notch cluster (centered at the top) should catch the mouse;
+        // the rest of the strip passes clicks through to the menu bar.
+        let container = PassthroughContainerView(frame: NSRect(origin: .zero, size: frame.size))
+        let clusterWidth = state.notchWidth + 400
+        let clusterHeight: CGFloat = state.notchHeight + 140
+        container.interactiveFrame = CGRect(
+            x: (frame.width - clusterWidth) / 2,
+            y: frame.height - clusterHeight,
+            width: clusterWidth,
+            height: clusterHeight
+        )
+        container.addSubview(hosting)
+        window.contentView = container
     }
 
     public func show() {

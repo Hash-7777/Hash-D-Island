@@ -1,7 +1,8 @@
 import SwiftUI
 import HashNotchKit
 
-/// Compact thermal-pressure readout with a thermometer glyph tinted by pressure.
+/// Compact thermal readout: a thermometer glyph tinted by pressure, plus the
+/// hottest die temperature (falling back to the pressure word).
 struct ThermalView: View {
     @ObservedObject var monitor: ThermalMonitor
     let theme: Theme
@@ -11,8 +12,9 @@ struct ThermalView: View {
             Image(systemName: "thermometer.medium")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(tint)
-            Text(monitor.label)
+            Text(monitor.compactText)
                 .foregroundStyle(theme.textColor)
+                .monospacedDigit()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -28,6 +30,38 @@ struct ThermalView: View {
         case .serious: return .orange
         case .critical: return theme.upColor
         @unknown default: return theme.subtitleColor
+        }
+    }
+}
+
+/// Expanded detail: the top temperature sensors, shown when the HUD opens.
+struct ThermalDetailView: View {
+    @ObservedObject var monitor: ThermalMonitor
+    let theme: Theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("TEMPERATURE")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(theme.subtitleColor)
+
+            if monitor.sensors.isEmpty {
+                Text(monitor.pressureLabel)
+                    .foregroundStyle(theme.textColor)
+            } else {
+                ForEach(monitor.sensors.prefix(5)) { sensor in
+                    HStack(spacing: 12) {
+                        Text(sensor.name)
+                            .foregroundStyle(theme.subtitleColor)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text("\(Int(sensor.celsius.rounded()))°")
+                            .foregroundStyle(theme.textColor)
+                            .monospacedDigit()
+                    }
+                    .frame(width: 190, alignment: .leading)
+                }
+            }
         }
     }
 }

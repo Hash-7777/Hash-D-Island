@@ -25,4 +25,14 @@ public enum Formatters {
         }
         return (rounded, units[index] + "/s")
     }
+
+    /// Unit label paired with `megabytesPerSecond` — always MB/s.
+    public static let megabytesUnit = "MB/s"
+
+    /// Formats a bytes-per-second rate as a fixed MB/s value with two decimals,
+    /// e.g. 0.01, 12.34. Always MB/s so the readout never changes units and the
+    /// layout can reserve a stable width.
+    public static func megabytesPerSecond(_ bytesPerSecond: Double) -> String {
+        String(format: "%.2f", max(0, bytesPerSecond) / 1_048_576)
+    }
 }
