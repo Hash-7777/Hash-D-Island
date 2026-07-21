@@ -49,14 +49,15 @@ MainActor.assumeIsolated {
     check("filter trailing", ordered.features(for: .trailing).map(\.id) == ["b"])
     check("filter expanded empty", ordered.features(for: .expanded).isEmpty)
 
-    // Geometry splits evenly around the notch.
+    // Island sizing: collapsed matches the notch, expanded is larger.
     let state = NotchState(geometry: NotchGeometry(
         screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 982),
         notchRect: CGRect(x: 656, y: 950, width: 200, height: 32),
         hasNotch: true
     ))
     check("notch width", state.notchWidth == 200)
-    check("side width splits around notch", state.sideWidth == (1512 - 200) / 2)
+    check("collapsed matches notch", state.collapsedWidth == 200)
+    check("expanded is larger", state.expandedWidth > state.collapsedWidth && state.expandedHeight > state.collapsedHeight)
 
     // Rate formatter scales units.
     check("rate B", Formatters.rate(512).unit == "B/s")

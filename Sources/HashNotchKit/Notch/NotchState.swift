@@ -1,36 +1,43 @@
 import SwiftUI
 
-/// Observable UI state for the notch HUD: expansion and the measured geometry
-/// the layout needs. Features never touch this — it drives the container only.
+/// Observable UI state and sizing for the black notch island.
+///
+/// The island has two sizes: collapsed (matching the physical notch, so it looks
+/// like the notch) and expanded (a rounded black panel that drops down below the
+/// menu bar). Because the expanded content lives *below* the menu bar, it never
+/// overlaps app menus or status items.
 @MainActor
 public final class NotchState: ObservableObject {
-    /// Whether the expanded panel below the notch is showing.
+    /// Whether the island is expanded (dropped down) or collapsed.
     @Published public var isExpanded: Bool = false
 
-    /// Free horizontal space (points) between the frontmost app's menus and the
-    /// left edge of the notch. `.infinity` means "not measured / no limit", so
-    /// nothing is relocated. Updated by the window controller from Accessibility.
-    @Published public var leftFreeWidth: CGFloat = .infinity
-
-    public let totalWidth: CGFloat
     public let notchWidth: CGFloat
     public let notchHeight: CGFloat
 
-    /// Width available on each side of the notch, so the compact readouts line
-    /// up precisely against the physical cutout.
-    public var sideWidth: CGFloat {
-        max(0, (totalWidth - notchWidth) / 2)
-    }
+    public let collapsedWidth: CGFloat
+    public let collapsedHeight: CGFloat
+    public let expandedWidth: CGFloat
+    public let expandedHeight: CGFloat
 
     public init(geometry: NotchGeometry) {
-        self.totalWidth = geometry.screenFrame.width
-        self.notchWidth = geometry.notchRect.width
-        self.notchHeight = max(geometry.notchRect.height, 28)
+        let width = geometry.notchRect.width
+        let height = max(geometry.notchRect.height, 28)
+        self.notchWidth = width
+        self.notchHeight = height
+
+        // Collapsed: the notch plus a small rounded lip so it reads as a tab.
+        self.collapsedWidth = width
+        self.collapsedHeight = height + 6
+
+        // Expanded: a panel wide/tall enough for the readouts, dropped below.
+        self.expandedWidth = max(width + 120, 420)
+        self.expandedHeight = 190
     }
 
-    public func toggleExpanded() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            isExpanded.toggle()
+    public func setExpanded(_ expanded: Bool) {
+        guard expanded != isExpanded else { return }
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.78)) {
+            isExpanded = expanded
         }
     }
 }

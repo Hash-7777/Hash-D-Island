@@ -36,12 +36,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settings.isFirstRun {
             menuBar.showSettings()
         }
-
-        // If automatic menu avoidance is on but not yet permitted, ask once so
-        // macOS shows the Accessibility prompt.
-        if settings.layout.autoAvoidMenus, !AccessibilityMenuProbe.isTrusted {
-            AccessibilityMenuProbe.requestPermission()
-        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

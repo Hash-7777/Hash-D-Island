@@ -79,10 +79,17 @@ User choices live in `SettingsStore` (in `HashNotchKit`), persisted to
 
 Features declare their display choices via `displayOptions` on `NotchFeature`
 and read the selected one with `context.settings.style(for: id)` inside
-`makeView`. The HUD (`NotchContainerView`) observes the store, so editing
-settings in the menu-bar window (`SettingsView`) updates the notch live. Because
-placement and visibility come from the store — not hard-coded — the core stays
-generic and features never know about each other.
+`makeView`. The island (`NotchIslandView`) observes the store, so editing
+settings in the menu-bar window (`SettingsView`) updates the notch live.
+
+## The black island
+
+`NotchIslandView` draws the notch as a black shape with two sizes: collapsed
+(matching the physical notch) and expanded (a rounded panel dropped below the
+menu bar). `NotchWindowController` hosts it in a click-through overlay and
+detects hover with a global mouse-position monitor against tight, hysteretic
+zones (small notch zone to open, full-panel zone to stay open). Readouts live in
+the expanded panel — below the menu bar — so nothing ever overlaps the menus.
 
 Low-power behavior also lives in the core: `PollingSampler` uses tolerant,
 coalesced timers; monitors publish only when a displayed value actually changes;

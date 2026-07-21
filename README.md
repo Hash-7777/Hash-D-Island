@@ -26,23 +26,22 @@ accounts, no cloud, no data collection.
 - macOS 14 (Sonoma) or later
 - Apple Silicon Mac (M-series) with a notch display
 
+## How it works
+
+The notch stays a clean black shape at the top of your screen. **Hover it** and
+it smoothly drops down into a rounded black panel — like the iPhone's Dynamic
+Island — showing your internet speed, battery, and temperatures. Because the
+panel opens *below* the menu bar, it never overlaps your menus or status icons.
+
 ## Customize it
 
 HashNotch adds a small item to the menu bar. Click it for **HashNotch
 Settings…**, where you can:
 
 - turn each indicator on or off,
-- put it on the left or right of the notch,
 - choose how it looks (e.g. temperature as a number `52°`, a word `Cool`, or
   just a symbol), and
-- nudge the spacing so nothing overlaps your other menu-bar items.
-
-**Automatically avoid menus:** with Accessibility permission granted, HashNotch
-measures where the frontmost app's menus end and moves the left readout out of
-the way — so it never sits on top of File / Edit / Window. Grant it in System
-Settings › Privacy & Security › Accessibility.
-
-Turn on **Open at Login** to have it come back every time you start your Mac.
+- turn on **Open at Login** so it comes back every time you start your Mac.
 
 ## Develop
 
