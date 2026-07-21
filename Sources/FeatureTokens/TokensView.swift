@@ -39,8 +39,8 @@ struct TokensDetailView: View {
             NotchSectionHeader("AI TOKENS TODAY", theme: theme)
             row("Total", monitor.today.total, emphasized: true)
             row("Claude Code", monitor.today.claude)
-            row("HashCortx", monitor.today.hashCortx)
-            row("HashCerebrum", monitor.today.hashCerebrum)
+            if monitor.today.hashCortx > 0 { row("HashCortx", monitor.today.hashCortx) }
+            if monitor.today.hashCerebrum > 0 { row("HashCerebrum", monitor.today.hashCerebrum) }
             if monitor.today.cached > 0 {
                 NotchRow("Cached", theme: theme) {
                     Text("+\(Formatters.compactCount(monitor.today.cached))")

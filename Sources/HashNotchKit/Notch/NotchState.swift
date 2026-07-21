@@ -33,10 +33,10 @@ public final class NotchState: ObservableObject {
         self.collapsedWidth = width
         self.collapsedHeight = height + 6
 
-        // Expanded: sized to the content (a column of rows) plus padding, so the
-        // panel hugs its content instead of leaving a big empty margin.
+        // Expanded: width sized to the content; height is generous only for the
+        // hover zone (the panel itself sizes to its content).
         self.expandedWidth = max(width + 120, 300)
-        self.expandedHeight = 380
+        self.expandedHeight = 460
 
         // Compact-live: content hugs the notch — a small art tile on the left,
         // a title on the right — like the iPhone's compact Dynamic Island.

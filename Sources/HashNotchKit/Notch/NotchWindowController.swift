@@ -19,9 +19,10 @@ public final class NotchWindowController {
     private let expandedHoverRect: CGRect
     private var hoverMonitor: Any?
 
-    /// Height of the top strip the overlay reserves — enough for the expanded
-    /// panel to drop down.
-    private static let stripHeight: CGFloat = 300
+    /// Height of the top strip the overlay reserves — generous so the expanded
+    /// panel is never clipped. The window is click-through, so extra height costs
+    /// nothing.
+    private static let stripHeight: CGFloat = 560
 
     public init(registry: FeatureRegistry, context: FeatureContext) {
         self.registry = registry

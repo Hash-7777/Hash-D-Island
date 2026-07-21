@@ -4,12 +4,12 @@ import SwiftUI
 ///
 /// Three states:
 ///   • idle    — a black shape the size of the notch (looks like the notch).
-///   • live    — content flanks the notch (art on the left, title on the right)
-///               like the iPhone's compact Dynamic Island.
-///   • expanded — on hover, a rounded black panel drops down with the details.
+///   • live    — content flanks the notch (art left, title right), glassy.
+///   • expanded — on hover, a frosted panel drops down with the details.
 ///
-/// Expanded content is padded below the physical notch and inside the panel, so
-/// nothing hides under the notch or clips at the edges.
+/// The expanded panel sizes to its content (never clipped) and its background is
+/// a Control-Center-style frosted glass. The resting notch stays solid black so
+/// it blends with the physical notch.
 struct NotchIslandView: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: SettingsStore
@@ -29,42 +29,35 @@ struct NotchIslandView: View {
     }
 
     private var island: some View {
-        ZStack(alignment: .top) {
-            shape
-                .fill(
-                    LinearGradient(
-                        colors: [Color(white: 0.10), Color.black],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 0.6))
-                .shadow(color: .black.opacity(showExpanded ? 0.6 : (showLive ? 0.4 : 0)),
-                        radius: showExpanded ? 16 : 10, y: showExpanded ? 10 : 6)
+        stateContent
+            .frame(width: islandWidth, alignment: .top)
+            .frame(height: showExpanded ? nil : nonExpandedHeight, alignment: .top)
+            .background(islandBackground)
+            .animation(.spring(response: 0.42, dampingFraction: 0.74), value: showExpanded)
+            .animation(.spring(response: 0.40, dampingFraction: 0.82), value: showLive)
+    }
 
-            if showExpanded {
-                expandedContent
-                    .padding(.top, state.notchHeight + 16)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 18)
-                    .frame(width: state.expandedWidth, alignment: .center)
-                    .transition(.opacity)
-            } else if showLive {
-                liveContent
-                    .transition(.opacity)
-            }
+    @ViewBuilder
+    private var stateContent: some View {
+        if showExpanded {
+            expandedContent
+                .padding(.top, state.notchHeight + 16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+                .transition(.opacity)
+        } else if showLive {
+            liveContent.transition(.opacity)
+        } else {
+            Color.clear
         }
-        .frame(width: islandWidth, height: islandHeight)
-        .animation(.spring(response: 0.42, dampingFraction: 0.72), value: showExpanded)
-        .animation(.spring(response: 0.40, dampingFraction: 0.82), value: showLive)
     }
 
     private var islandWidth: CGFloat {
         showExpanded ? state.expandedWidth : (showLive ? state.liveWidth : state.collapsedWidth)
     }
 
-    private var islandHeight: CGFloat {
-        showExpanded ? state.expandedHeight : (showLive ? state.liveHeight : state.collapsedHeight)
+    private var nonExpandedHeight: CGFloat {
+        showLive ? state.liveHeight : state.collapsedHeight
     }
 
     private var cornerRadius: CGFloat {
@@ -79,6 +72,24 @@ struct NotchIslandView: View {
             topTrailingRadius: 0,
             style: .continuous
         )
+    }
+
+    // MARK: Background
+
+    @ViewBuilder
+    private var islandBackground: some View {
+        ZStack {
+            if showExpanded || showLive {
+                VisualEffectView(material: .hudWindow)
+                Color.black.opacity(0.30)
+            } else {
+                Color.black
+            }
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7))
+        .shadow(color: .black.opacity(showExpanded ? 0.5 : (showLive ? 0.35 : 0)),
+                radius: showExpanded ? 18 : 10, y: showExpanded ? 12 : 6)
     }
 
     // MARK: Live (flanks the notch)
