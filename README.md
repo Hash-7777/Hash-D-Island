@@ -1,6 +1,6 @@
 # HashNotch
 
-Make the notch on your MacBook actually useful.
+Your notch, finally alive.
 
 HashNotch turns the dead space around the notch into a living, glanceable area —
 like the iPhone's Dynamic Island, but built purely for Apple Silicon. It reacts
@@ -25,6 +25,21 @@ accounts, no cloud, no data collection.
 
 - macOS 14 (Sonoma) or later
 - Apple Silicon Mac (M-series) with a notch display
+
+## Develop
+
+The project is a Swift Package, so it builds and runs with the Command Line
+Tools alone — no full Xcode required to try it.
+
+```sh
+swift build              # compile everything
+swift run HashNotch      # launch the notch overlay
+swift run HashNotchChecks # run the core checks
+```
+
+Every capability is a self-contained module. Adding or removing one touches a
+single manifest line and never the core — see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 
