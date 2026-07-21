@@ -48,7 +48,7 @@ let package = Package(
         // .testTarget once full Xcode is available.
         .executableTarget(
             name: "HashNotchChecks",
-            dependencies: ["HashNotchKit", "FeatureMedia", "FeatureActivities"]
+            dependencies: ["HashNotchKit", "FeatureMedia", "FeatureActivities", "FeatureTokens"]
         ),
     ],
     swiftLanguageModes: [.v5]

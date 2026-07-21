@@ -4,6 +4,7 @@ import CoreGraphics
 import HashNotchKit
 import FeatureMedia
 import FeatureActivities
+import FeatureTokens
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -134,6 +135,40 @@ MainActor.assumeIsolated {
     let fractional = tempFile("[{\"id\": \"f\", \"title\": \"Fractional\", \"endsAt\": \"2099-01-01T12:00:00.500Z\"}]")
     check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
     try? FileManager.default.removeItem(at: fractional)
+
+    // Token files: counts only today's lines, ignores malformed ones, and
+    // keeps cache tokens out of the headline number.
+    let startOfToday = Calendar.current.startOfDay(for: Date())
+    let todayStamp = ISO8601DateFormatter().string(from: Date())
+    let oldStamp = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-172_800))
+
+    let claudeFile = tempFile("""
+    {"timestamp":"\(todayStamp)","message":{"usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":1000,"cache_creation_input_tokens":200}}}
+    {"timestamp":"\(oldStamp)","message":{"usage":{"input_tokens":999,"output_tokens":999}}}
+    not json at all
+    {"timestamp":"\(todayStamp)","message":{"usage":{"input_tokens":1,"output_tokens":2}}}
+    """)
+    let claudeCounted = TokenUsageReader.tokens(inClaudeFile: claudeFile, since: startOfToday)
+    check("claude counts today's io", claudeCounted.io == 153)
+    check("claude separates cache", claudeCounted.cache == 1200)
+    try? FileManager.default.removeItem(at: claudeFile)
+
+    let ecosystemFile = tempFile("""
+    {"ts":"\(todayStamp)","input_tokens":10,"output_tokens":5,"cache_read":100,"cache_write":20}
+    {"ts":"\(oldStamp)","input_tokens":7,"output_tokens":7}
+    """)
+    let ecosystemCounted = TokenUsageReader.tokens(inEcosystemFile: ecosystemFile, since: startOfToday)
+    check("ecosystem counts today's io", ecosystemCounted.io == 15)
+    check("ecosystem separates cache", ecosystemCounted.cache == 120)
+    try? FileManager.default.removeItem(at: ecosystemFile)
+
+    // A file larger than one read chunk (1 MB) exercises the streaming path's
+    // carry-over of partial lines across chunk boundaries.
+    let padding = String(repeating: "x", count: 400)
+    let bigLine = "{\"timestamp\":\"\(todayStamp)\",\"pad\":\"\(padding)\",\"message\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}"
+    let bigFile = tempFile(Array(repeating: bigLine, count: 4000).joined(separator: "\n"))
+    check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday).io == 4000)
+    try? FileManager.default.removeItem(at: bigFile)
 
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashnotch.checks.\(UUID().uuidString)"

@@ -20,9 +20,11 @@ public struct TokenTotals: Equatable {
 ///   • HashCortx     ~/.hashcortx/usage.jsonl       (ecosystem contract)
 ///   • HashCerebrum  app-data usage.jsonl           (ecosystem contract)
 ///
-/// Only files touched today are opened, so the scan stays cheap. Call from a
-/// background queue — it does file IO and JSON parsing.
-enum TokenUsageReader {
+/// Only files touched today are opened, and files are streamed line by line in
+/// 1 MB chunks — a session transcript can grow to hundreds of megabytes, and
+/// loading it whole every poll would be a real memory and energy cost. Call
+/// from a background queue — it does file IO and JSON parsing.
+package enum TokenUsageReader {
     static func readToday() -> TokenTotals {
         let startOfToday = Calendar.current.startOfDay(for: Date())
         var totals = TokenTotals()
@@ -31,11 +33,11 @@ enum TokenUsageReader {
         totals.claude = claude.io
         totals.cached += claude.cache
 
-        let cortx = ecosystemTokens(at: hashCortxURL, since: startOfToday)
+        let cortx = tokens(inEcosystemFile: hashCortxURL, since: startOfToday)
         totals.hashCortx = cortx.io
         totals.cached += cortx.cache
 
-        let cerebrum = ecosystemTokens(at: hashCerebrumURL, since: startOfToday)
+        let cerebrum = tokens(inEcosystemFile: hashCerebrumURL, since: startOfToday)
         totals.hashCerebrum = cerebrum.io
         totals.cached += cerebrum.cache
 
@@ -72,20 +74,18 @@ enum TokenUsageReader {
         for case let url as URL in enumerator where url.pathExtension == "jsonl" {
             let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if let modified, modified < since { continue }
-            let file = claudeFileTokens(url, since: since)
+            let file = tokens(inClaudeFile: url, since: since)
             io += file.io
             cache += file.cache
         }
         return (io, cache)
     }
 
-    private static func claudeFileTokens(_ url: URL, since: Date) -> (io: Int64, cache: Int64) {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return (0, 0) }
+    package static func tokens(inClaudeFile url: URL, since: Date) -> (io: Int64, cache: Int64) {
         var io: Int64 = 0
         var cache: Int64 = 0
-        content.enumerateLines { line, _ in
-            guard let data = line.data(using: .utf8),
-                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        forEachLine(of: url) { data in
+            guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   isToday(object["timestamp"] as? String, since: since),
                   let message = object["message"] as? [String: Any],
                   let usage = message["usage"] as? [String: Any] else { return }
@@ -97,18 +97,52 @@ enum TokenUsageReader {
 
     // MARK: Ecosystem usage.jsonl
 
-    private static func ecosystemTokens(at url: URL, since: Date) -> (io: Int64, cache: Int64) {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return (0, 0) }
+    package static func tokens(inEcosystemFile url: URL, since: Date) -> (io: Int64, cache: Int64) {
         var io: Int64 = 0
         var cache: Int64 = 0
-        content.enumerateLines { line, _ in
-            guard let data = line.data(using: .utf8),
-                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        forEachLine(of: url) { data in
+            guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   isToday(object["ts"] as? String, since: since) else { return }
             io += int(object["input_tokens"]) + int(object["output_tokens"])
             cache += int(object["cache_read"]) + int(object["cache_write"])
         }
         return (io, cache)
+    }
+
+    // MARK: Line streaming
+
+    /// Calls `body` with each newline-terminated line of the file as raw bytes,
+    /// reading in 1 MB chunks so even a huge transcript never sits in memory
+    /// whole. A partial line at a chunk boundary is carried into the next read.
+    private static func forEachLine(of url: URL, _ body: (Data) -> Void) {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return }
+        defer { try? handle.close() }
+
+        var carry = Data()
+        while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+            var data: Data
+            if carry.isEmpty {
+                data = chunk
+            } else {
+                data = carry
+                data.append(chunk)
+                carry = Data()
+            }
+
+            var start = data.startIndex
+            while let newline = data[start...].firstIndex(of: 0x0A) {
+                if newline > start {
+                    body(data.subdata(in: start..<newline))
+                }
+                start = data.index(after: newline)
+            }
+            if start < data.endIndex {
+                carry = Data(data[start...])
+            }
+        }
+        if !carry.isEmpty {
+            body(carry)
+        }
     }
 
     // MARK: Helpers
