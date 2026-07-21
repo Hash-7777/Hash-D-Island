@@ -4,12 +4,12 @@ import SwiftUI
 ///
 /// Three states:
 ///   • idle    — a black shape the size of the notch (looks like the notch).
-///   • live    — content flanks the notch (art left, title right), glassy.
-///   • expanded — on hover, a frosted panel drops down with the details.
+///   • live    — content flanks the notch (art left, title right).
+///   • expanded — on hover, a black panel drops down with the details.
 ///
-/// The expanded panel sizes to its content (never clipped) and its background is
-/// a Control-Center-style frosted glass. The resting notch stays solid black so
-/// it blends with the physical notch.
+/// The whole island is solid black in every state so it reads as one piece
+/// with the physical notch; the expanded panel sizes to its content (never
+/// clipped) and gets its depth from a shadow, not a material.
 struct NotchIslandView: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: SettingsStore
@@ -33,8 +33,21 @@ struct NotchIslandView: View {
             .frame(width: islandWidth, alignment: .top)
             .frame(height: showExpanded ? nil : nonExpandedHeight, alignment: .top)
             .background(islandBackground)
-            .animation(.spring(response: 0.46, dampingFraction: 0.80), value: showExpanded)
-            .animation(.spring(response: 0.38, dampingFraction: 0.86), value: showLive)
+            // Direction-aware motion: opening gets a soft settle so the panel
+            // feels like it emerges from the physical notch; closing is calm
+            // and fully damped — smooth, never snapping shut.
+            .animation(
+                showExpanded
+                    ? .spring(response: 0.52, dampingFraction: 0.80)
+                    : .spring(response: 0.44, dampingFraction: 0.98),
+                value: showExpanded
+            )
+            .animation(
+                showLive
+                    ? .spring(response: 0.45, dampingFraction: 0.82)
+                    : .spring(response: 0.38, dampingFraction: 0.98),
+                value: showLive
+            )
     }
 
     @ViewBuilder
@@ -44,10 +57,16 @@ struct NotchIslandView: View {
                 .padding(.top, state.notchHeight + 16)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 18)
-                .transition(.opacity.combined(with: .offset(y: -10)).combined(with: .scale(0.97, anchor: .top)))
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .offset(y: -14)).combined(with: .scale(scale: 0.94, anchor: .top)),
+                    removal: .opacity.combined(with: .offset(y: -8)).combined(with: .scale(scale: 0.97, anchor: .top))
+                ))
         } else if showLive {
             liveContent
-                .transition(.opacity.combined(with: .scale(0.92, anchor: .top)))
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.85, anchor: .top)),
+                    removal: .opacity.combined(with: .scale(scale: 0.93, anchor: .top))
+                ))
         } else {
             Color.clear
         }

@@ -37,7 +37,9 @@ public final class MediaMonitor: ObservableObject {
 
     public func start(presence: LivePresence) {
         self.presence = presence
-        sampler = PollingSampler(interval: 3.0) { [weak self] in self?.refresh() }
+        // 2s keeps "media started → strip appears" latency low while staying
+        // cheap (the fetch is out-of-process and skipped when one is running).
+        sampler = PollingSampler(interval: 2.0) { [weak self] in self?.refresh() }
         sampler?.start()
     }
 
@@ -73,7 +75,7 @@ public final class MediaMonitor: ObservableObject {
     private func setPlaying(_ playing: Bool) {
         guard let media = nowPlaying else { return }
         let now = Date()
-        withAnimation(.snappy) {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
             nowPlaying = NowPlaying(
                 title: media.title,
                 artist: media.artist,
@@ -120,7 +122,7 @@ public final class MediaMonitor: ObservableObject {
         }
 
         if shown != nowPlaying {
-            withAnimation(.snappy) { nowPlaying = shown }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { nowPlaying = shown }
         }
 
         if let shown, let elapsed = shown.elapsed, let duration = shown.duration, duration > 0 {
