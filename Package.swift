@@ -46,7 +46,10 @@ let package = Package(
         // `swift run HashNotchChecks` even on a machine that only has the
         // Command Line Tools (no XCTest/Swift Testing). Swap for a proper
         // .testTarget once full Xcode is available.
-        .executableTarget(name: "HashNotchChecks", dependencies: ["HashNotchKit"]),
+        .executableTarget(
+            name: "HashNotchChecks",
+            dependencies: ["HashNotchKit", "FeatureMedia"]
+        ),
     ],
     swiftLanguageModes: [.v5]
 )

@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CoreGraphics
 import HashNotchKit
+import FeatureMedia
 
 // A tiny, dependency-free check runner. Prints one line per check and exits
 // non-zero if any fails, so it works as a pre-push gate under the Command Line
@@ -74,6 +75,16 @@ MainActor.assumeIsolated {
     check("count K", Formatters.compactCount(12_300) == "12.3K")
     check("count M", Formatters.compactCount(4_500_000) == "4.5M")
     check("count B", Formatters.compactCount(1_280_000_000) == "1.28B")
+
+    // Artwork downloads: HTTPS to Spotify's own CDN only — the app's single
+    // network access must never fetch an arbitrary or non-HTTPS URL.
+    check("artwork allows Spotify CDN", ArtworkPolicy.isTrustedURL("https://i.scdn.co/image/abc123"))
+    check("artwork allows Spotify CDN alt", ArtworkPolicy.isTrustedURL("https://images.spotifycdn.com/x.jpg"))
+    check("artwork refuses http", !ArtworkPolicy.isTrustedURL("http://i.scdn.co/image/abc123"))
+    check("artwork refuses other hosts", !ArtworkPolicy.isTrustedURL("https://example.com/a.jpg"))
+    check("artwork refuses lookalike host", !ArtworkPolicy.isTrustedURL("https://evilscdn.co/a.jpg"))
+    check("artwork refuses file scheme", !ArtworkPolicy.isTrustedURL("file:///etc/passwd"))
+    check("artwork refuses garbage", !ArtworkPolicy.isTrustedURL("not a url"))
 
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashnotch.checks.\(UUID().uuidString)"
