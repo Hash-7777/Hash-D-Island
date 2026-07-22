@@ -4,12 +4,13 @@ import SwiftUI
 ///
 /// Three states:
 ///   • idle    — a black shape the size of the notch (looks like the notch).
-///   • live    — content flanks the notch (art left, title right).
-///   • expanded — on hover, a black panel drops down with the details.
+///   • live    — content flanks the notch (art left, title right), black.
+///   • expanded — on hover, a glassy panel drops down with the details.
 ///
-/// The whole island is solid black in every state so it reads as one piece
-/// with the physical notch; the expanded panel sizes to its content (never
-/// clipped) and gets its depth from a shadow, not a material.
+/// The notch shape and live strip are solid black so they read as one piece
+/// with the hardware; the drop-down panel is Control-Center glass, falls
+/// straight down out of the notch like a water drop, and sizes to its
+/// content (never clipped).
 struct NotchIslandView: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: SettingsStore
@@ -32,97 +33,110 @@ struct NotchIslandView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
+    /// Layered pills instead of one morphing pill: the black notch shape is
+    /// ALWAYS present as the base, the live strip and the glass panel each
+    /// appear and vanish as their own layer, every one anchored to the top
+    /// center. Nothing ever slides sideways — the strip fades out where it is
+    /// (at its notch-aligned offset) while the panel drops STRAIGHT DOWN from
+    /// the physical notch like a water drop, and returns into it on close.
     private var island: some View {
-        stateContent
-            .frame(width: islandWidth, alignment: .top)
-            .frame(height: showExpanded ? nil : nonExpandedHeight, alignment: .top)
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear { onIslandSize?(geo.size) }
-                        .onChange(of: geo.size) { _, size in onIslandSize?(size) }
-                }
-            )
-            .background(islandBackground)
-            // Aligns the strip's internal gap with the PHYSICAL notch (the
-            // sides are unequal, so a centered strip would sit 64pt off).
-            .offset(x: showLive ? state.liveCenterOffset : 0)
-            // Direction-aware motion: opening gets a soft settle so the panel
-            // feels like it emerges from the physical notch; closing is calm
-            // and fully damped — smooth, never snapping shut.
-            .animation(
-                showExpanded
-                    ? .spring(response: 0.52, dampingFraction: 0.80)
-                    : .spring(response: 0.44, dampingFraction: 0.98),
-                value: showExpanded
-            )
-            .animation(
-                showLive
-                    ? .spring(response: 0.45, dampingFraction: 0.82)
-                    : .spring(response: 0.38, dampingFraction: 0.98),
-                value: showLive
-            )
-    }
+        ZStack(alignment: .top) {
+            collapsedIsland
 
-    @ViewBuilder
-    private var stateContent: some View {
-        if showExpanded {
-            expandedContent
-                .padding(.top, state.notchHeight + 16)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 18)
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .offset(y: -14)).combined(with: .scale(scale: 0.94, anchor: .top)),
-                    removal: .opacity.combined(with: .offset(y: -8)).combined(with: .scale(scale: 0.97, anchor: .top))
-                ))
-        } else if showLive {
-            liveContent
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .scale(scale: 0.85, anchor: .top)),
-                    removal: .opacity.combined(with: .scale(scale: 0.93, anchor: .top))
-                ))
-        } else {
-            Color.clear
+            if showLive {
+                liveIsland
+                    // Aligns the strip's internal gap with the PHYSICAL notch
+                    // (the sides are unequal, so a centered strip would sit
+                    // 64pt off).
+                    .offset(x: state.liveCenterOffset)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.85, anchor: .top)),
+                        removal: .opacity.combined(with: .scale(scale: 0.93, anchor: .top))
+                    ))
+            }
+
+            if showExpanded {
+                expandedIsland
+                    // Water drop: forms small at the notch's lower lip,
+                    // stretches downward, and settles with a soft wobble
+                    // (the opening spring undershoots damping for that).
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.30, anchor: .top)),
+                        removal: .opacity.combined(with: .scale(scale: 0.45, anchor: .top))
+                    ))
+            }
         }
-    }
-
-    private var islandWidth: CGFloat {
-        showExpanded ? state.expandedWidth : (showLive ? state.liveWidth : state.collapsedWidth)
-    }
-
-    private var nonExpandedHeight: CGFloat {
-        showLive ? state.liveHeight : state.collapsedHeight
-    }
-
-    private var cornerRadius: CGFloat {
-        showExpanded ? 26 : (showLive ? 14 : 10)
-    }
-
-    private var shape: some InsettableShape {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 0,
-            bottomLeadingRadius: cornerRadius,
-            bottomTrailingRadius: cornerRadius,
-            topTrailingRadius: 0,
-            style: .continuous
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { onIslandSize?(geo.size) }
+                    .onChange(of: geo.size) { _, size in onIslandSize?(size) }
+            }
+        )
+        .animation(
+            showExpanded
+                ? .spring(response: 0.55, dampingFraction: 0.72)
+                : .spring(response: 0.42, dampingFraction: 0.98),
+            value: showExpanded
+        )
+        .animation(
+            showLive
+                ? .spring(response: 0.45, dampingFraction: 0.82)
+                : .spring(response: 0.38, dampingFraction: 0.98),
+            value: showLive
         )
     }
 
-    // MARK: Background
+    // MARK: The three pills
 
-    /// SOLID BLACK in every state — the island must read as one piece with the
-    /// physical notch, exactly like the iPhone's Dynamic Island. Depth comes
-    /// from the shadow alone; a faint hairline appears only on the open panel
-    /// so it stays legible over black wallpapers.
-    @ViewBuilder
-    private var islandBackground: some View {
-        Color.black
-            .clipShape(shape)
-            .overlay(
-                shape.strokeBorder(Color.white.opacity(showExpanded ? 0.09 : 0), lineWidth: 0.7)
+    /// The permanent base: a black shape the size of the notch, so the island
+    /// reads as one piece with the hardware in every state.
+    private var collapsedIsland: some View {
+        pillShape(radius: 10)
+            .fill(Color.black)
+            .frame(width: state.collapsedWidth, height: state.collapsedHeight)
+    }
+
+    private var liveIsland: some View {
+        liveContent
+            .frame(width: state.liveWidth, height: state.liveHeight, alignment: .top)
+            .background(
+                Color.black
+                    .clipShape(pillShape(radius: 14))
+                    .shadow(color: .black.opacity(0.35), radius: 9, y: 5)
             )
-            .shadow(color: .black.opacity(showExpanded ? 0.55 : (showLive ? 0.35 : 0)),
-                    radius: showExpanded ? 22 : 9, y: showExpanded ? 14 : 5)
+    }
+
+    /// The drop-down panel: Control-Center glass over the wallpaper, framed by
+    /// a hairline — the notch above it stays black, the drop itself is glassy.
+    private var expandedIsland: some View {
+        expandedContent
+            .padding(.top, state.notchHeight + 16)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 18)
+            .frame(width: state.expandedWidth, alignment: .top)
+            .background(
+                ZStack {
+                    VisualEffectView(material: .hudWindow)
+                    Color.black.opacity(0.15)
+                }
+                .clipShape(pillShape(radius: 26))
+                .overlay(
+                    pillShape(radius: 26)
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7)
+                )
+                .shadow(color: .black.opacity(0.55), radius: 22, y: 14)
+            )
+    }
+
+    private func pillShape(radius: CGFloat) -> UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: 0,
+            bottomLeadingRadius: radius,
+            bottomTrailingRadius: radius,
+            topTrailingRadius: 0,
+            style: .continuous
+        )
     }
 
     // MARK: Live (flanks the notch)

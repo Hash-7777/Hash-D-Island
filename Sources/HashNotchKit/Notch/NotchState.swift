@@ -68,8 +68,8 @@ public final class NotchState: ObservableObject {
         // content pops in. Direction-aware: soft settle open, damped close.
         withAnimation(
             expanded
-                ? .spring(response: 0.52, dampingFraction: 0.80)
-                : .spring(response: 0.44, dampingFraction: 0.98)
+                ? .spring(response: 0.55, dampingFraction: 0.72)
+                : .spring(response: 0.42, dampingFraction: 0.98)
         ) {
             isExpanded = expanded
         }
