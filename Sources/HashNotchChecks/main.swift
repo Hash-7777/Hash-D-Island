@@ -5,6 +5,7 @@ import HashNotchKit
 import FeatureMedia
 import FeatureActivities
 import FeatureTokens
+import FeatureBattery
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -190,6 +191,13 @@ MainActor.assumeIsolated {
     var bigSeen = Set<String>()
     check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday, seen: &bigSeen).io == 4000)
     try? FileManager.default.removeItem(at: bigFile)
+
+    // Low-battery announcements fire exactly when a threshold is crossed
+    // downward, never on charge or within a band.
+    check("low fires crossing 20", BatteryMonitor.crossedLowThreshold(from: 21, to: 20) == 20)
+    check("low fires crossing 10", BatteryMonitor.crossedLowThreshold(from: 15, to: 9) == 10)
+    check("low silent inside band", BatteryMonitor.crossedLowThreshold(from: 19, to: 15) == nil)
+    check("low silent when rising", BatteryMonitor.crossedLowThreshold(from: 9, to: 30) == nil)
 
     // System volume via CoreAudio: readable in range, and a same-value write
     // round-trips (harmless — it sets the volume it already has).

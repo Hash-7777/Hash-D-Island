@@ -27,12 +27,20 @@ public final class BatteryFeature: NotchFeature {
 
     public init() {}
 
-    public func start(context: FeatureContext) { monitor.start() }
+    public func start(context: FeatureContext) { monitor.start(presence: context.presence) }
     public func stop() { monitor.stop() }
 
     public func makeView(context: FeatureContext) -> AnyView {
         let style = BatteryStyle(rawValue: context.settings.style(for: id)) ?? .iconAndPercent
         return AnyView(BatteryView(monitor: monitor, theme: context.theme, style: style))
+    }
+
+    public func makeCompactLeadingView(context: FeatureContext) -> AnyView? {
+        AnyView(BatteryEventIconView(monitor: monitor, theme: context.theme))
+    }
+
+    public func makeCompactTrailingView(context: FeatureContext) -> AnyView? {
+        AnyView(BatteryEventTextView(monitor: monitor, theme: context.theme))
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {

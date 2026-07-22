@@ -54,6 +54,58 @@ struct BatteryView: View {
     }
 }
 
+/// Compact-live: a brief iPhone-style announcement flanking the notch when
+/// the Mac starts charging or the battery runs low.
+struct BatteryEventIconView: View {
+    @ObservedObject var monitor: BatteryMonitor
+    let theme: Theme
+
+    var body: some View {
+        if let event = monitor.event {
+            Image(systemName: iconName(event))
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(iconColor(event))
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+
+    private func iconName(_ event: BatteryEvent) -> String {
+        switch event {
+        case .startedCharging: return "bolt.fill"
+        case .lowBattery: return "battery.25"
+        }
+    }
+
+    private func iconColor(_ event: BatteryEvent) -> Color {
+        switch event {
+        case .startedCharging: return theme.downColor
+        case .lowBattery: return theme.upColor
+        }
+    }
+}
+
+struct BatteryEventTextView: View {
+    @ObservedObject var monitor: BatteryMonitor
+    let theme: Theme
+
+    var body: some View {
+        if let event = monitor.event {
+            Text(text(event))
+                .foregroundStyle(theme.textColor)
+                .monospacedDigit()
+                .lineLimit(1)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+        }
+    }
+
+    private func text(_ event: BatteryEvent) -> String {
+        switch event {
+        case .startedCharging(let percent): return "Charging · \(percent)%"
+        case .lowBattery(let percent): return "Low battery · \(percent)%"
+        }
+    }
+}
+
 /// Expanded detail: battery as a clean row that matches the panel.
 struct BatteryDetailView: View {
     @ObservedObject var monitor: BatteryMonitor
