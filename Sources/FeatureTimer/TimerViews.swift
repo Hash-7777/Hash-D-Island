@@ -52,16 +52,22 @@ struct TimerDetailView: View {
     @ObservedObject var engine: TimerEngine
     let theme: Theme
 
+    /// The user's own timer length, adjusted with the stepper.
+    @State private var customMinutes = 10
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             NotchSectionHeader("TIMER", theme: theme)
             switch engine.phase {
             case .idle:
-                HStack(spacing: 8) {
-                    quickButton(5)
-                    quickButton(15)
-                    quickButton(25)
-                    Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        quickButton(5)
+                        quickButton(15)
+                        quickButton(25)
+                        Spacer(minLength: 0)
+                    }
+                    customRow
                 }
                 .frame(width: Panel.rowWidth)
             case .running:
@@ -108,6 +114,47 @@ struct TimerDetailView: View {
             .padding(.vertical, 5)
             .background(Capsule(style: .continuous).fill(Color.white.opacity(0.12)))
             .contentShape(Capsule())
+    }
+
+    /// Set your own length: minus / value / plus, then start.
+    private var customRow: some View {
+        HStack(spacing: 8) {
+            stepButton("minus") { customMinutes = max(1, customMinutes - step) }
+            Text("\(customMinutes) min")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.textColor)
+                .monospacedDigit()
+                .frame(minWidth: 52)
+            stepButton("plus") { customMinutes = min(600, customMinutes + step) }
+            Spacer(minLength: 0)
+            Button {
+                engine.begin(minutes: customMinutes)
+            } label: {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.textColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule(style: .continuous).fill(theme.accent.opacity(0.9)))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Coarser steps at higher values so long durations are quick to dial.
+    private var step: Int { customMinutes >= 60 ? 15 : (customMinutes >= 20 ? 5 : 1) }
+
+    private func stepButton(_ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(theme.textColor)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.white.opacity(0.12)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var stopButton: some View {

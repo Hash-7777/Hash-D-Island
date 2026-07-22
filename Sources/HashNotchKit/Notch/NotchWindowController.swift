@@ -135,17 +135,23 @@ public final class NotchWindowController {
             }
             .store(in: &cancellables)
 
-        // Refit the window whenever the island's state changes.
+        // Refit the window whenever the island's state changes. @Published fires
+        // in willSet — BEFORE the property updates — so the refit is deferred to
+        // the next main-runloop hop, by which point isExpanded / activeIDs hold
+        // their new values and targetWindowFrame() reads them correctly. Reading
+        // synchronously here would size the window for the OLD state (too small
+        // on open → the panel is clipped to a black box or appears not to open;
+        // stale width on close → the strip lands off-centre until the settle).
         state.$isExpanded
             .removeDuplicates()
             .sink { [weak self] _ in
-                MainActor.assumeIsolated { self?.refitWindow() }
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.refitWindow() } }
             }
             .store(in: &cancellables)
         context.presence.$activeIDs
             .removeDuplicates()
             .sink { [weak self] _ in
-                MainActor.assumeIsolated { self?.refitWindow() }
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.refitWindow() } }
             }
             .store(in: &cancellables)
     }
