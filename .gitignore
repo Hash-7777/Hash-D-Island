@@ -15,6 +15,9 @@ build/
 DerivedData/
 .build/
 .swiftpm/
+
+# Intermediate iconset (regenerated from Packaging/AppIcon-master.png)
+Packaging/AppIcon.iconset/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 *.xcuserstate

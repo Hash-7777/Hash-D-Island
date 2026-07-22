@@ -28,6 +28,23 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/HashNotch" "$APP/Contents/MacOS/HashNotch"
 cp "$ROOT/Packaging/Info.plist" "$APP/Contents/Info.plist"
 
+# App icon. Regenerate the .icns from the master PNG if it is missing or
+# older than the master (sips + iconutil, both always present); otherwise use
+# the committed .icns as-is.
+ICONSET="$ROOT/Packaging/AppIcon.iconset"
+MASTER="$ROOT/Packaging/AppIcon-master.png"
+ICNS="$ROOT/Packaging/AppIcon.icns"
+if [ -f "$MASTER" ] && { [ ! -f "$ICNS" ] || [ "$MASTER" -nt "$ICNS" ]; }; then
+  echo "Regenerating app icon…"
+  rm -rf "$ICONSET"; mkdir -p "$ICONSET"
+  for s in 16 32 128 256 512; do
+    sips -z "$s" "$s" "$MASTER" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+    sips -z "$((s*2))" "$((s*2))" "$MASTER" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$ICNS"
+fi
+cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
+
 # Signing the bundle covers its single main executable; --deep is unnecessary
 # (and deprecated) because there is no nested code.
 if [ "$IDENTITY" = "-" ]; then
