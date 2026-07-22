@@ -7,6 +7,7 @@ import FeatureActivities
 import FeatureTokens
 import FeatureBattery
 import FeatureDownloads
+import FeatureAirPods
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -212,6 +213,42 @@ MainActor.assumeIsolated {
     check("part part", DownloadsMonitor.isPartFileName("archive.zip.part"))
     check("finished not part", !DownloadsMonitor.isPartFileName("movie.mp4"))
     check("finished pdf not part", !DownloadsMonitor.isPartFileName("report.pdf"))
+
+    // AirPods: parse battery out of `system_profiler SPBluetoothDataType`, only
+    // for the AirPods block, only while connected (levels present).
+    let apConnected = [
+        "    Bluetooth:",
+        "        Connected:",
+        "          Hash's AirPods:",
+        "              Case Battery Level: 81%",
+        "              Left Battery Level: 81%",
+        "              Right Battery Level: 100%",
+        "              Minor Type: Headphones",
+        "          Hash's Speaker:",
+        "              Battery Level: 55%",
+    ].joined(separator: "\n")
+    let ap = AirPodsReader.parse(apConnected)
+    check("airpods parses left", ap.left == 81)
+    check("airpods parses right", ap.right == 100)
+    check("airpods parses case", ap.caseLevel == 81)
+    check("airpods stops at next device", ap.single == nil)
+    check("airpods glance is the lower earbud", ap.glance == 81)
+
+    let apDisconnected = [
+        "        Not Connected:",
+        "          Hash's AirPods:",
+        "              Address: 08:65:18:5F:AF:0C",
+        "              Minor Type: Headphones",
+    ].joined(separator: "\n")
+    check("airpods empty when disconnected", AirPodsReader.parse(apDisconnected).isEmpty)
+
+    let apSingle = [
+        "          Someone's AirPods Max:",
+        "              Battery Level: 90%",
+        "              Minor Type: Headphones",
+    ].joined(separator: "\n")
+    let single = AirPodsReader.parse(apSingle)
+    check("airpods single-battery level", single.single == 90 && single.glance == 90)
 
     // System volume via CoreAudio: readable in range, and a same-value write
     // round-trips (harmless — it sets the volume it already has).

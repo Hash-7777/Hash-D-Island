@@ -30,6 +30,7 @@ let package = Package(
         .target(name: "FeatureActivities", dependencies: ["HashNotchKit"]),
         .target(name: "FeatureTimer", dependencies: ["HashNotchKit"]),
         .target(name: "FeatureDownloads", dependencies: ["HashNotchKit"]),
+        .target(name: "FeatureAirPods", dependencies: ["HashNotchKit"]),
 
         .executableTarget(
             name: "HashNotch",
@@ -43,6 +44,7 @@ let package = Package(
                 "FeatureActivities",
                 "FeatureTimer",
                 "FeatureDownloads",
+                "FeatureAirPods",
             ]
         ),
 
@@ -52,7 +54,7 @@ let package = Package(
         // .testTarget once full Xcode is available.
         .executableTarget(
             name: "HashNotchChecks",
-            dependencies: ["HashNotchKit", "FeatureMedia", "FeatureActivities", "FeatureTokens", "FeatureBattery", "FeatureDownloads"]
+            dependencies: ["HashNotchKit", "FeatureMedia", "FeatureActivities", "FeatureTokens", "FeatureBattery", "FeatureDownloads", "FeatureAirPods"]
         ),
     ],
     swiftLanguageModes: [.v5]
