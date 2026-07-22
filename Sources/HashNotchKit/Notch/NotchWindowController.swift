@@ -30,6 +30,9 @@ public final class NotchWindowController {
     private let screenFrame: CGRect
     private var hoverMonitor: Any?
     private var localHoverMonitor: Any?
+    private var scrollMonitor: Any?
+    private var localScrollMonitor: Any?
+    private var lastSwipe = Date.distantPast
     private var cancellables = Set<AnyCancellable>()
     private var lastIslandSize: CGSize?
     private var settleWork: DispatchWorkItem?
@@ -221,18 +224,50 @@ public final class NotchWindowController {
             MainActor.assumeIsolated { self?.updateHover() }
             return event
         }
+        // Two-finger swipe on the notch: down opens the panel, up closes it.
+        // Observe-only, and only ever acted on while the cursor is on the
+        // island — scrolling anywhere else is ignored entirely.
+        scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleScroll(event) }
+        }
+        localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleScroll(event) }
+            return event
+        }
         updateHover()
     }
 
+    private func handleScroll(_ event: NSEvent) {
+        let delta = event.scrollingDeltaY
+        guard abs(delta) >= 10 else { return }
+        guard Date().timeIntervalSince(lastSwipe) > 0.5 else { return }
+
+        let location = NSEvent.mouseLocation
+        // Natural scrolling flips the sign; normalize to finger direction.
+        let fingersDown = event.isDirectionInvertedFromDevice ? delta > 0 : delta < 0
+
+        if !state.isExpanded, fingersDown {
+            let zone = context.presence.hasLive ? liveHoverRect : collapsedHoverRect
+            guard zone.contains(location) else { return }
+            lastSwipe = Date()
+            state.setExpanded(true)
+        } else if state.isExpanded, !fingersDown {
+            guard expandedHoverRect.contains(location)
+                || liveHoverRect.contains(location)
+                || collapsedHoverRect.contains(location) else { return }
+            lastSwipe = Date()
+            state.setExpanded(false)
+        }
+    }
+
     private func stopHoverTracking() {
-        if let hoverMonitor {
-            NSEvent.removeMonitor(hoverMonitor)
-            self.hoverMonitor = nil
+        for monitor in [hoverMonitor, localHoverMonitor, scrollMonitor, localScrollMonitor] {
+            if let monitor { NSEvent.removeMonitor(monitor) }
         }
-        if let localHoverMonitor {
-            NSEvent.removeMonitor(localHoverMonitor)
-            self.localHoverMonitor = nil
-        }
+        hoverMonitor = nil
+        localHoverMonitor = nil
+        scrollMonitor = nil
+        localScrollMonitor = nil
     }
 
     private func updateHover() {
