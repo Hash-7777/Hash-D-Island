@@ -40,10 +40,13 @@ public final class NotchState: ObservableObject {
 
         // Compact-live: content hugs the notch — a small art tile on the left,
         // a title on the right — like the iPhone's compact Dynamic Island.
-        // These widths INCLUDE the clearance beside the physical notch, so
-        // content can never slide underneath it.
+        // Leading is a fixed clearance beside the notch; trailing is the MAX
+        // the visible pill can reach (18pt gap + the 140pt title cap + 12pt
+        // breathing room) — the pill hugs the actual content within it, and
+        // this max only sizes the positioning box, the hover zone, and the
+        // window so a fully-scrolling long title is always covered.
         self.liveLeadingWidth = 56
-        self.liveTrailingWidth = 184
+        self.liveTrailingWidth = 170
         self.liveWidth = width + self.liveLeadingWidth + self.liveTrailingWidth
         self.liveHeight = height
     }

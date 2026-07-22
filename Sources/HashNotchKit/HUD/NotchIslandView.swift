@@ -98,13 +98,18 @@ struct NotchIslandView: View {
     }
 
     private var liveIsland: some View {
+        // The black pill HUGS its content (no trailing dead space after the
+        // name), but sits left-anchored inside a fixed-width positioning box.
+        // Keeping the box fixed means the notch gap stays pinned and the strip
+        // never shifts as the title changes; only the visible pill shrinks to
+        // fit.
         liveContent
-            .frame(width: state.liveWidth, height: state.liveHeight, alignment: .top)
             .background(
                 Color.black
                     .clipShape(pillShape(radius: 14))
                     .shadow(color: .black.opacity(0.35), radius: 9, y: 5)
             )
+            .frame(width: state.liveWidth, height: state.liveHeight, alignment: .leading)
     }
 
     /// The drop-down panel: Control-Center glass over the wallpaper, framed by
@@ -143,10 +148,11 @@ struct NotchIslandView: View {
 
     private var liveContent: some View {
         HStack(spacing: 0) {
-            // Clearance paddings live INSIDE the fixed side widths, so content
-            // stays within the island's black pill and clear of the notch.
-            // Artwork hugs the notch (6pt, iPhone-style); text keeps a wider
-            // 18pt gap so glyphs never look tucked under the notch's curve.
+            // Leading stays a FIXED width so the artwork hugs the notch (6pt,
+            // iPhone-style) and the notch gap lands in the same place every
+            // time. The trailing side HUGS its content — the title's own cap
+            // (it marquees past it) plus a little breathing room — so the pill
+            // ends right after the name instead of reserving dead black space.
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
                 ForEach(enabledFeatures, id: \.id) { feature in
@@ -162,11 +168,11 @@ struct NotchIslandView: View {
                 ForEach(enabledFeatures, id: \.id) { feature in
                     if let view = feature.makeCompactTrailingView(context: context) { view }
                 }
-                Spacer(minLength: 0)
             }
             .padding(.leading, 18)
-            .frame(width: state.liveTrailingWidth, alignment: .leading)
+            .padding(.trailing, 12)
         }
+        .fixedSize(horizontal: true, vertical: false)
         .frame(height: state.notchHeight)
         .font(.system(size: 11, weight: .semibold, design: .rounded))
     }

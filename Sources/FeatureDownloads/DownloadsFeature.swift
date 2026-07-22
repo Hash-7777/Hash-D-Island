@@ -25,7 +25,7 @@ struct DownloadsTextView: View {
         if let download = monitor.latest {
             MarqueeText(download.name)
                 .foregroundStyle(theme.textColor)
-                .frame(maxWidth: 150, alignment: .leading)
+                .frame(maxWidth: 140, alignment: .leading)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
