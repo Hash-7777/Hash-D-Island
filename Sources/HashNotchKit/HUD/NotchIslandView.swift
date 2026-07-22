@@ -50,6 +50,15 @@ struct NotchIslandView: View {
         }
     }
 
+    /// The stack's fixed width: wide enough to hold the panel and the
+    /// notch-offset live strip symmetrically about the notch center, so the
+    /// stack's center never moves as layers appear or leave.
+    private var islandAnchorWidth: CGFloat {
+        let leftReach = state.liveLeadingWidth + state.notchWidth / 2
+        let rightReach = state.notchWidth / 2 + state.liveTrailingWidth
+        return max(state.expandedWidth, 2 * max(leftReach, rightReach), state.collapsedWidth)
+    }
+
     /// Layered pills instead of one morphing pill: the black notch shape is
     /// ALWAYS present as the base, the live strip and the glass panel each
     /// appear and vanish as their own layer, every one anchored to the top
@@ -83,6 +92,12 @@ struct NotchIslandView: View {
                     ))
             }
         }
+        // A fixed, notch-symmetric coordinate space: every layer is centered in
+        // this constant width, so a layer that is transitioning out (the live
+        // strip, which sits offset to the right) can never bias the stack's
+        // center and drag the opening panel sideways. The window stays tight
+        // and clips the overflow.
+        .frame(width: islandAnchorWidth, alignment: .top)
         .background(
             GeometryReader { geo in
                 Color.clear
