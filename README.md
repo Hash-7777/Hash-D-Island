@@ -98,20 +98,41 @@ quickly:
 ./scripts/post-activity.sh --clear
 ```
 
-## Claude Code in your notch
+## Your AI usage
 
-If you use Claude Code, one command wires it to the notch:
+HashNotch keeps today's AI token use one glance away. The strip shows a running
+total across your tools; open the panel for the per-tool breakdown — Claude
+Code, HashCortX, and HashCerebrum — under a **HashMeterAi** heading, counted the
+same way [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) counts them so
+the two always agree. It reads only the local usage files those tools already
+write (`~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and
+HashCerebrum's usage log) — read-only, on your Mac, adding up numbers and
+nothing more.
 
-```sh
-./scripts/install-claude-hooks.sh
-```
+## When your AI tools finish
 
-From then on the island lights up the moment Claude **finishes a reply**
-(checkmark + project name) or is **waiting for your permission** (raised hand
-+ the reason) — so you can work in another window and glance at the notch
-instead of the terminal. It uses Claude Code's own hook system; the hook is a
-small script that writes only the local activities feed, and the installer
-backs up your Claude settings before touching them.
+Work in another window and let the notch tell you the moment an AI tool is done
+— a checkmark landing on the notch, like the iPhone Dynamic Island.
+
+- **Claude Code** — one command wires it up:
+
+  ```sh
+  ./scripts/install-claude-hooks.sh
+  ```
+
+  From then on the island lights up the moment Claude **finishes a reply**
+  (checkmark + project name) or is **waiting for your permission** (raised hand
+  + the reason). It uses Claude Code's own hook system; the hook is a small
+  script that writes only the local activities feed, and the installer backs up
+  your Claude settings before touching them.
+
+- **HashCortX** and **HashCerebrum** — built in, nothing to install. HashCortX
+  flashes "HashCortX finished" when a run completes; HashCerebrum lights up when
+  a manuscript or peer review is ready.
+
+Under the hood they all use the same local feed
+(`~/.hashnotch/activities.json`, see [Live activities](#live-activities)), so
+any app, script, or Shortcut can light up your notch the same way.
 
 ## Now Playing
 
