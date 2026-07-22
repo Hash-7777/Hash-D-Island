@@ -44,6 +44,9 @@ struct NotchIslandView: View {
                 }
             )
             .background(islandBackground)
+            // Aligns the strip's internal gap with the PHYSICAL notch (the
+            // sides are unequal, so a centered strip would sit 64pt off).
+            .offset(x: showLive ? state.liveCenterOffset : 0)
             // Direction-aware motion: opening gets a soft settle so the panel
             // feels like it emerges from the physical notch; closing is calm
             // and fully damped — smooth, never snapping shut.

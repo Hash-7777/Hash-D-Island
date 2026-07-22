@@ -40,12 +40,24 @@ public final class NotchState: ObservableObject {
 
         // Compact-live: content hugs the notch — a small art tile on the left,
         // a title on the right — like the iPhone's compact Dynamic Island.
-        // These widths INCLUDE the 12pt clearance beside the physical notch, so
+        // These widths INCLUDE the clearance beside the physical notch, so
         // content can never slide underneath it.
         self.liveLeadingWidth = 56
         self.liveTrailingWidth = 184
         self.liveWidth = width + self.liveLeadingWidth + self.liveTrailingWidth
         self.liveHeight = height
+    }
+
+    /// How far RIGHT the live strip must shift so its internal notch gap sits
+    /// exactly on the physical notch. The sides are deliberately unequal
+    /// (small art left, wide title right); centering the whole strip would
+    /// land the gap (trailing − leading) / 2 points LEFT of the physical
+    /// notch — which put the artwork far from the notch and buried the
+    /// title's start underneath it (confirmed by photographing the physical
+    /// screen; screenshots can't show this, they include the hidden pixels
+    /// behind the notch).
+    public var liveCenterOffset: CGFloat {
+        (liveTrailingWidth - liveLeadingWidth) / 2
     }
 
     public func setExpanded(_ expanded: Bool) {

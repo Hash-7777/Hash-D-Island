@@ -81,7 +81,7 @@ public final class NotchWindowController {
             height: state.collapsedHeight + 6
         )
         self.liveHoverRect = CGRect(
-            x: midX - (state.liveWidth / 2 + 8),
+            x: midX - (state.liveWidth / 2 + 8) + state.liveCenterOffset,
             y: top - (state.liveHeight + 6),
             width: state.liveWidth + 16,
             height: state.liveHeight + 6
@@ -140,9 +140,14 @@ public final class NotchWindowController {
     private func targetWindowFrame() -> NSRect {
         // ONE constant width, sized for the widest state: the window's x never
         // changes, so window management can never nudge the island sideways.
-        // Only the height follows the state.
-        let width = max(state.expandedWidth, state.liveWidth, state.collapsedWidth)
-            + Self.sideMargin * 2
+        // Only the height follows the state. The live strip shifts right by
+        // liveCenterOffset to align its gap with the physical notch, so the
+        // window must cover that reach on both sides.
+        let width = max(
+            state.expandedWidth,
+            state.liveWidth + 2 * state.liveCenterOffset,
+            state.collapsedWidth
+        ) + Self.sideMargin * 2
         let height: CGFloat
         if state.isExpanded {
             let islandHeight = lastIslandSize?.height ?? Self.provisionalExpandedHeight
