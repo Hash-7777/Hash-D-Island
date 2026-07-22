@@ -36,6 +36,17 @@ public enum Formatters {
         String(format: "%.2f", max(0, bytesPerSecond) / 1_048_576)
     }
 
+    /// A duration in minutes as explicit hours/minutes — "45m", "2h 34m",
+    /// "3h" — so a battery estimate never reads like an ambiguous clock time.
+    public static func hoursMinutes(_ totalMinutes: Int) -> String {
+        let minutes = max(0, totalMinutes)
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours == 0 { return "\(mins)m" }
+        if mins == 0 { return "\(hours)h" }
+        return "\(hours)h \(mins)m"
+    }
+
     /// Compact count for large token totals, e.g. 812, 12.3K, 4.5M, 1.28B.
     public static func compactCount(_ count: Int64) -> String {
         let value = Double(max(0, count))

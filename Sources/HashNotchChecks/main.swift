@@ -82,6 +82,12 @@ MainActor.assumeIsolated {
     check("mbps small", Formatters.megabytesPerSecond(12_288) == "0.01")
     check("mbps whole", Formatters.megabytesPerSecond(5_242_880) == "5.00")
 
+    // Battery time-remaining reads as explicit hours/minutes, never a clock.
+    check("hm minutes only", Formatters.hoursMinutes(45) == "45m")
+    check("hm hours and minutes", Formatters.hoursMinutes(154) == "2h 34m")
+    check("hm whole hours", Formatters.hoursMinutes(180) == "3h")
+    check("hm under an hour zero-safe", Formatters.hoursMinutes(0) == "0m")
+
     // Compact token counts.
     check("count small", Formatters.compactCount(812) == "812")
     check("count K", Formatters.compactCount(12_300) == "12.3K")

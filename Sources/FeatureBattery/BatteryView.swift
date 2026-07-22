@@ -39,7 +39,7 @@ struct BatteryView: View {
             return "\(monitor.percentage)%"
         case .timeRemaining:
             if let minutes = monitor.minutesRemaining, minutes > 0 {
-                return String(format: "%d:%02d", minutes / 60, minutes % 60)
+                return Formatters.hoursMinutes(minutes)
             }
             return "\(monitor.percentage)%"
         }
@@ -120,7 +120,7 @@ struct BatteryDetailView: View {
                         .foregroundStyle(theme.downColor)
                 }
                 if let minutes = monitor.minutesRemaining, minutes > 0, !monitor.isCharging {
-                    Text(String(format: "%d:%02d left", minutes / 60, minutes % 60))
+                    Text("\(Formatters.hoursMinutes(minutes)) left")
                         .font(.system(size: 9))
                         .foregroundStyle(theme.subtitleColor)
                 }
