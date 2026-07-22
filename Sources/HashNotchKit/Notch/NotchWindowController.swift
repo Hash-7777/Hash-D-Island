@@ -231,17 +231,23 @@ public final class NotchWindowController {
     }
 
     private func updateHover() {
-        // Hysteresis: expanded keeps the whole panel open; otherwise use the tight
-        // notch zone (or the slightly larger live-strip zone when something is
-        // live). This stops it opening when the cursor is merely near the top.
-        let zone: CGRect
+        // Hysteresis: opening uses the tight zone for the current state (just
+        // the notch, or the live strip). Staying open accepts the panel zone
+        // OR any zone that can trigger opening — the keep-open area must fully
+        // contain every open trigger, or hovering a spot inside one and
+        // outside the other flaps open/closed on every mouse move (the live
+        // strip is wider than the panel, so its far edges did exactly that).
+        let location = NSEvent.mouseLocation
+        let inside: Bool
         if state.isExpanded {
-            zone = expandedHoverRect
+            inside = expandedHoverRect.contains(location)
+                || liveHoverRect.contains(location)
+                || collapsedHoverRect.contains(location)
         } else if context.presence.hasLive {
-            zone = liveHoverRect
+            inside = liveHoverRect.contains(location)
         } else {
-            zone = collapsedHoverRect
+            inside = collapsedHoverRect.contains(location)
         }
-        state.setExpanded(zone.contains(NSEvent.mouseLocation))
+        state.setExpanded(inside)
     }
 }
