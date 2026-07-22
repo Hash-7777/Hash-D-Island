@@ -28,6 +28,7 @@ let package = Package(
         .target(name: "FeatureTokens", dependencies: ["HashNotchKit"]),
         .target(name: "FeatureMedia", dependencies: ["HashNotchKit"]),
         .target(name: "FeatureActivities", dependencies: ["HashNotchKit"]),
+        .target(name: "FeatureTimer", dependencies: ["HashNotchKit"]),
 
         .executableTarget(
             name: "HashNotch",
@@ -39,6 +40,7 @@ let package = Package(
                 "FeatureTokens",
                 "FeatureMedia",
                 "FeatureActivities",
+                "FeatureTimer",
             ]
         ),
 

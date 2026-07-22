@@ -5,6 +5,7 @@ import FeatureThermal
 import FeatureTokens
 import FeatureMedia
 import FeatureActivities
+import FeatureTimer
 
 /// The one and only place features are turned on or off.
 ///
@@ -24,6 +25,7 @@ enum FeatureManifest {
         [
             MediaFeature(),
             ActivitiesFeature(),
+            TimerFeature(),
             TokensFeature(),
             NetworkFeature(),
             BatteryFeature(),
