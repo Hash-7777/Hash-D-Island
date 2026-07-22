@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The black interactive notch.
 ///
@@ -188,14 +189,19 @@ struct NotchIslandView: View {
             }
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))
-        .overlay(alignment: .topTrailing) { settingsButton }
+        .overlay(alignment: .topTrailing) { cornerControls }
     }
 
-    /// The app's only settings entry point — a quiet gear in the panel corner
-    /// (there is no menu-bar item).
-    private var settingsButton: some View {
-        SettingsGearButton { context.openSettings() }
-            .offset(x: 6, y: -10)
+    /// The app's controls, quiet in the panel's top corner: settings gear and
+    /// a quit button (there is no menu-bar item).
+    private var cornerControls: some View {
+        HStack(spacing: 2) {
+            CornerButton(symbol: "gearshape.fill") { context.openSettings() }
+            CornerButton(symbol: "power", hoverTint: .red) {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+        .offset(x: 6, y: -10)
     }
 
     private var enabledFeatures: [NotchFeature] {
@@ -207,22 +213,26 @@ struct NotchIslandView: View {
     }
 }
 
-/// A quiet gear that brightens on hover.
-private struct SettingsGearButton: View {
+/// A quiet corner icon that brightens on hover. `hoverTint` colors the icon
+/// on hover (e.g. red for quit); default is plain white.
+private struct CornerButton: View {
+    let symbol: String
+    var hoverTint: Color = .white
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "gearshape.fill")
+            Image(systemName: symbol)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(hovering ? 0.85 : 0.35))
+                .foregroundStyle(hovering ? hoverTint.opacity(0.9) : Color.white.opacity(0.35))
                 .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.white.opacity(hovering ? 0.12 : 0)))
+                .background(Circle().fill((hovering ? hoverTint : .white).opacity(hovering ? 0.14 : 0)))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
+        .help(symbol == "power" ? "Quit HashNotch" : "Settings")
     }
 }
