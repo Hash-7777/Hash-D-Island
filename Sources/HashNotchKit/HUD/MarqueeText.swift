@@ -24,6 +24,10 @@ public struct MarqueeText: View {
     private let dwell: Double
 
     @State private var textWidth: CGFloat = 0
+    /// The loop is anchored to when THIS text appeared — never to absolute
+    /// time. With an absolute clock the marquee would materialize mid-cycle
+    /// and visibly jump left the moment measurement landed.
+    @State private var appeared = Date()
 
     public init(_ text: String, speed: Double = 30, gap: CGFloat = 36, dwell: Double = 1.4) {
         self.text = text
@@ -60,7 +64,7 @@ public struct MarqueeText: View {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
                     let span = textWidth + gap
                     let cycle = dwell + Double(span) / speed
-                    let t = context.date.timeIntervalSinceReferenceDate
+                    let t = max(0, context.date.timeIntervalSince(appeared))
                         .truncatingRemainder(dividingBy: cycle)
                     let distance = CGFloat(max(0, t - dwell) * speed)
                     HStack(spacing: gap) {

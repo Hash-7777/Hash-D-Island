@@ -138,21 +138,22 @@ public final class NotchWindowController {
     // MARK: Window fitting (the window hugs the island)
 
     private func targetWindowFrame() -> NSRect {
-        let width: CGFloat
+        // ONE constant width, sized for the widest state: the window's x never
+        // changes, so window management can never nudge the island sideways.
+        // Only the height follows the state.
+        let width = max(state.expandedWidth, state.liveWidth, state.collapsedWidth)
+            + Self.sideMargin * 2
         let height: CGFloat
         if state.isExpanded {
-            width = state.expandedWidth + Self.sideMargin * 2
             let islandHeight = lastIslandSize?.height ?? Self.provisionalExpandedHeight
             height = min(islandHeight, screenFrame.height * 0.8) + Self.bottomMargin
         } else if context.presence.hasLive {
-            width = state.liveWidth + Self.sideMargin * 2
             height = state.liveHeight + Self.bottomMargin
         } else {
-            width = state.collapsedWidth + Self.sideMargin * 2
             height = state.collapsedHeight + Self.bottomMargin
         }
         return NSRect(
-            x: screenFrame.midX - width / 2,
+            x: (screenFrame.midX - width / 2).rounded(),
             y: screenFrame.maxY - height,
             width: width,
             height: height
@@ -172,7 +173,10 @@ public final class NotchWindowController {
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.window.setFrame(self.targetWindowFrame(), display: true)
+                let settled = self.targetWindowFrame()
+                if self.window.frame != settled {
+                    self.window.setFrame(settled, display: true)
+                }
             }
         }
         settleWork = work
