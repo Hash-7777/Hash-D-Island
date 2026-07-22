@@ -26,12 +26,28 @@ struct NotchIslandView: View {
     private var showExpanded: Bool { state.isExpanded }
     private var showLive: Bool { !state.isExpanded && presence.hasLive }
 
+    /// The panel drops as a SOLID BLACK box first, then — once this flips true
+    /// ~0.2s later — the glass and its contents fade in. That black beat makes
+    /// the panel read as the physical notch stretching open before it reveals.
+    @State private var panelRevealed = false
+
     var body: some View {
         VStack(spacing: 0) {
             island
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onChange(of: showExpanded) { _, expanded in
+            if expanded {
+                panelRevealed = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    guard state.isExpanded else { return }
+                    withAnimation(.easeOut(duration: 0.28)) { panelRevealed = true }
+                }
+            } else {
+                panelRevealed = false
+            }
+        }
     }
 
     /// Layered pills instead of one morphing pill: the black notch shape is
@@ -113,23 +129,31 @@ struct NotchIslandView: View {
             .frame(width: state.liveWidth, height: state.liveHeight, alignment: .leading)
     }
 
-    /// The drop-down panel: Control-Center glass over the wallpaper, framed by
-    /// a hairline — the notch above it stays black, the drop itself is glassy.
+    /// The drop-down panel. It first appears as a solid-black box (matching the
+    /// notch) and, once `panelRevealed` flips ~0.2s later, crossfades to
+    /// Control-Center glass while its contents fade in. The content is always
+    /// laid out (just invisible at first) so the black box is full panel size
+    /// from the start and nothing resizes on the reveal.
     private var expandedIsland: some View {
         expandedContent
+            .opacity(panelRevealed ? 1 : 0)
             .padding(.top, state.notchHeight + 16)
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
             .frame(width: state.expandedWidth, alignment: .top)
             .background(
                 ZStack {
-                    VisualEffectView(material: .hudWindow)
-                    Color.black.opacity(0.15)
+                    Color.black
+                    ZStack {
+                        VisualEffectView(material: .hudWindow)
+                        Color.black.opacity(0.15)
+                    }
+                    .opacity(panelRevealed ? 1 : 0)
                 }
                 .clipShape(pillShape(radius: 26))
                 .overlay(
                     pillShape(radius: 26)
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7)
+                        .strokeBorder(Color.white.opacity(panelRevealed ? 0.12 : 0), lineWidth: 0.7)
                 )
                 .shadow(color: .black.opacity(0.55), radius: 22, y: 14)
             )
