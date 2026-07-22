@@ -29,9 +29,10 @@ public final class NotchState: ObservableObject {
         self.notchWidth = width
         self.notchHeight = height
 
-        // Collapsed: the notch plus a small rounded lip so it reads as a tab.
+        // Collapsed: EXACTLY the physical notch, so the idle black shape is
+        // invisible against the hardware — no lip poking out below it.
         self.collapsedWidth = width
-        self.collapsedHeight = height + 6
+        self.collapsedHeight = height
 
         // Expanded: width sized to the content; height is generous only for the
         // hover zone (the panel itself sizes to its content).

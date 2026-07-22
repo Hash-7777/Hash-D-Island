@@ -28,6 +28,7 @@ public final class NotchWindowController {
     private let liveHoverRect: CGRect
     private let expandedHoverRect: CGRect
     private let screenFrame: CGRect
+    private let notchRect: CGRect
     private var hoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var scrollMonitor: Any?
@@ -37,11 +38,12 @@ public final class NotchWindowController {
     private var lastIslandSize: CGSize?
     private var settleWork: DispatchWorkItem?
 
-    /// Extra window room around the island for its shadow. The window always
-    /// hugs the island (plus these margins) so a window screenshot captures
-    /// just the notch, never a huge invisible strip.
-    private static let sideMargin: CGFloat = 30
-    private static let bottomMargin: CGFloat = 46
+    /// Shadow room around the island, per state — kept as tight as each
+    /// state's shadow needs so a window screenshot captures the island, not a
+    /// big empty box. (side, bottom).
+    private static let collapsedShadow: (CGFloat, CGFloat) = (10, 12)
+    private static let liveShadow: (CGFloat, CGFloat) = (14, 16)
+    private static let expandedShadow: (CGFloat, CGFloat) = (26, 40)
     /// Room reserved while the panel is opening, before its first measurement.
     private static let provisionalExpandedHeight: CGFloat = 480
 
@@ -62,35 +64,38 @@ public final class NotchWindowController {
                 hasNotch: false
             )
         self.state = NotchState(geometry: geometry)
+        self.notchRect = geometry.notchRect
 
-        let initialWidth = state.collapsedWidth + Self.sideMargin * 2
-        let initialHeight = state.collapsedHeight + Self.bottomMargin
-        let frame = NSRect(
-            x: screenFrame.midX - initialWidth / 2,
-            y: screenFrame.maxY - initialHeight,
-            width: initialWidth,
-            height: initialHeight
-        )
-        self.window = NotchWindow(contentRect: frame)
+        let initial = Self.frame(for: geometry.notchRect, state: state, expanded: false, live: false, islandHeight: nil, in: screenFrame)
+        self.window = NotchWindow(contentRect: initial)
 
-        // Hover zones in screen coordinates (bottom-left origin), centered on the
-        // notch and anchored to the top of the screen.
-        let midX = screenFrame.midX
+        // Hover zones in screen coordinates (bottom-left origin). Opening uses a
+        // TIGHT zone hugging the real notch so the panel never opens from far
+        // away; the live and expanded zones cover their visible content so the
+        // panel stays open while the cursor is over it.
+        let notch = geometry.notchRect
         let top = screenFrame.maxY
+        // Collapsed: the notch itself plus a hair of slop, reaching a little
+        // below its lower edge so it is easy to catch.
         self.collapsedHoverRect = CGRect(
-            x: midX - (state.collapsedWidth / 2 + 14),
+            x: notch.minX - 6,
             y: top - (state.collapsedHeight + 6),
-            width: state.collapsedWidth + 28,
+            width: notch.width + 12,
             height: state.collapsedHeight + 6
         )
+        // Live: the strip's actual extent (leading reach left of the notch,
+        // trailing reach right of it), plus a little slop.
+        let leftReach = state.liveLeadingWidth + notch.width / 2
+        let rightReach = notch.width / 2 + state.liveTrailingWidth
         self.liveHoverRect = CGRect(
-            x: midX - (state.liveWidth / 2 + 8) + state.liveCenterOffset,
+            x: notch.midX - leftReach - 8,
             y: top - (state.liveHeight + 6),
-            width: state.liveWidth + 16,
+            width: leftReach + rightReach + 16,
             height: state.liveHeight + 6
         )
+        // Expanded: the whole dropped panel.
         self.expandedHoverRect = CGRect(
-            x: midX - (state.expandedWidth / 2 + 6),
+            x: notch.midX - (state.expandedWidth / 2 + 6),
             y: top - (state.expandedHeight + 6),
             width: state.expandedWidth + 12,
             height: state.expandedHeight + 6
@@ -108,7 +113,7 @@ public final class NotchWindowController {
         )
 
         let hosting = FirstMouseHostingView(rootView: root)
-        hosting.frame = NSRect(origin: .zero, size: frame.size)
+        hosting.frame = NSRect(origin: .zero, size: initial.size)
         hosting.autoresizingMask = [.width, .height]
         window.contentView = hosting
         window.acceptsMouseMovedEvents = true
@@ -141,25 +146,49 @@ public final class NotchWindowController {
     // MARK: Window fitting (the window hugs the island)
 
     private func targetWindowFrame() -> NSRect {
-        // ONE constant width, sized for the widest state: the window's x never
-        // changes, so window management can never nudge the island sideways.
-        // Only the height follows the state. The live strip shifts right by
-        // liveCenterOffset to align its gap with the physical notch, so the
-        // window must cover that reach on both sides.
-        let width = max(
-            state.expandedWidth,
-            state.liveWidth + 2 * state.liveCenterOffset,
-            state.collapsedWidth
-        ) + Self.sideMargin * 2
-        let height: CGFloat
-        if state.isExpanded {
-            let islandHeight = lastIslandSize?.height ?? Self.provisionalExpandedHeight
-            height = min(islandHeight, screenFrame.height * 0.8) + Self.bottomMargin
-        } else if context.presence.hasLive {
-            height = state.liveHeight + Self.bottomMargin
+        Self.frame(
+            for: notchRect,
+            state: state,
+            expanded: state.isExpanded,
+            live: context.presence.hasLive,
+            islandHeight: lastIslandSize?.height,
+            in: screenFrame
+        )
+    }
+
+    /// The window is sized TIGHT to the island for the current state and stays
+    /// centered on the notch (so it never nudges the island sideways). Tight
+    /// means a window screenshot captures the island, not a big empty box.
+    private static func frame(
+        for notchRect: CGRect,
+        state: NotchState,
+        expanded: Bool,
+        live: Bool,
+        islandHeight: CGFloat?,
+        in screenFrame: CGRect
+    ) -> NSRect {
+        let contentWidth: CGFloat
+        let contentHeight: CGFloat
+        let shadow: (CGFloat, CGFloat)
+        if expanded {
+            contentWidth = state.expandedWidth
+            contentHeight = min(islandHeight ?? provisionalExpandedHeight, screenFrame.height * 0.8)
+            shadow = expandedShadow
+        } else if live {
+            // Symmetric about the notch so the window stays notch-centered; the
+            // wider of the two reaches sets the half-width.
+            let leftReach = state.liveLeadingWidth + notchRect.width / 2
+            let rightReach = notchRect.width / 2 + state.liveTrailingWidth
+            contentWidth = 2 * max(leftReach, rightReach)
+            contentHeight = state.liveHeight
+            shadow = liveShadow
         } else {
-            height = state.collapsedHeight + Self.bottomMargin
+            contentWidth = state.collapsedWidth
+            contentHeight = state.collapsedHeight
+            shadow = collapsedShadow
         }
+        let width = contentWidth + shadow.0 * 2
+        let height = contentHeight + shadow.1
         return NSRect(
             x: (screenFrame.midX - width / 2).rounded(),
             y: screenFrame.maxY - height,
@@ -195,7 +224,7 @@ public final class NotchWindowController {
         lastIslandSize = size
         // If open content grew beyond the current window (e.g. a media card
         // appeared while the panel is open), make room right away.
-        if state.isExpanded, size.height + Self.bottomMargin > window.frame.height {
+        if state.isExpanded, size.height + Self.expandedShadow.1 > window.frame.height {
             refitWindow()
         }
     }
