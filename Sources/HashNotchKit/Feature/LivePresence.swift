@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Tracks which features currently have something "live" to show always-on
 /// (media playing, an activity in progress). When anything is live, the island
@@ -13,10 +13,20 @@ public final class LivePresence: ObservableObject {
     public var hasLive: Bool { !activeIDs.isEmpty }
 
     public func setActive(_ id: String, _ active: Bool) {
-        if active {
-            if !activeIDs.contains(id) { activeIDs.insert(id) }
-        } else {
-            if activeIDs.contains(id) { activeIDs.remove(id) }
+        guard active != activeIDs.contains(id) else { return }
+        // Inside an animation transaction so the strip's content transition
+        // (emerging from the notch) actually animates — a bare set would grow
+        // the pill but pop the content in.
+        withAnimation(
+            active
+                ? .spring(response: 0.45, dampingFraction: 0.82)
+                : .spring(response: 0.38, dampingFraction: 0.95)
+        ) {
+            if active {
+                activeIDs.insert(id)
+            } else {
+                activeIDs.remove(id)
+            }
         }
     }
 }

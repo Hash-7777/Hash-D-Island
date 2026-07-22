@@ -49,8 +49,17 @@ public final class NotchState: ObservableObject {
     }
 
     public func setExpanded(_ expanded: Bool) {
-        // The island view animates the size change via `.animation(value:)`.
         guard expanded != isExpanded else { return }
-        isExpanded = expanded
+        // The change MUST run inside an animation transaction — the island's
+        // content transitions (the emerging-from-the-notch drop) only animate
+        // with a transaction; without one, only the pill resizes and the
+        // content pops in. Direction-aware: soft settle open, damped close.
+        withAnimation(
+            expanded
+                ? .spring(response: 0.52, dampingFraction: 0.80)
+                : .spring(response: 0.44, dampingFraction: 0.98)
+        ) {
+            isExpanded = expanded
+        }
     }
 }
