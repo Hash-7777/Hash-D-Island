@@ -48,13 +48,29 @@ script, or Apple Shortcut can write:
   "subtitle": "Rider on the way", "progress": 0.6, "endsAt": "2026-07-21T21:30:00Z" }
 ```
 
-`icon` is any SF Symbol name; `endsAt` (ISO 8601) drives a live countdown; expired
-activities disappear on their own. Post one quickly:
+`icon` is any SF Symbol name; `endsAt` (ISO 8601) drives a live countdown;
+activities merge by `id` and expired ones disappear on their own. Post one
+quickly:
 
 ```sh
 ./scripts/post-activity.sh "Food delivery" "Rider on the way" bicycle 12
 ./scripts/post-activity.sh --clear
 ```
+
+## Claude Code in your notch
+
+If you use Claude Code, one command wires it to the notch:
+
+```sh
+./scripts/install-claude-hooks.sh
+```
+
+From then on the island lights up the moment Claude **finishes a reply**
+(checkmark + project name) or is **waiting for your permission** (raised hand
++ the reason) — so you can work in another window and glance at the notch
+instead of the terminal. It uses Claude Code's own hook system; the hook is a
+small script that writes only the local activities feed, and the installer
+backs up your Claude settings before touching them.
 
 ## Now Playing
 
