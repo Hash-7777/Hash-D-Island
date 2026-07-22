@@ -7,6 +7,25 @@ like the iPhone's Dynamic Island, but built purely for Apple Silicon. It reacts
 with smooth motion as things happen and keeps the numbers you care about one
 glance away.
 
+## See it in action
+
+<!--
+  Drop your own captures into docs/media/ and they show up here automatically.
+  The tags below expect these files (see docs/media/README.md for sizes + tips):
+    docs/media/hero.png  — the panel open below the notch (the main shot)
+    docs/media/demo.gif  — a short clip of hovering the notch to open the panel
+-->
+
+<p align="center">
+  <img src="docs/media/hero.png" width="720"
+       alt="The HashNotch panel dropped below the notch, showing internet speed, battery, temperature and token usage">
+</p>
+
+<p align="center">
+  <img src="docs/media/demo.gif" width="720"
+       alt="Hovering the notch to open the HashNotch panel like the iPhone Dynamic Island">
+</p>
+
 ## What it shows
 
 - **Live internet usage** — upload and download speed plus running totals
@@ -25,6 +44,28 @@ accounts, no cloud, no data collection.
 
 - macOS 14 (Sonoma) or later
 - Apple Silicon Mac (M-series) with a notch display
+
+## Download & install
+
+1. Get `HashNotch.app` from the
+   [Releases](https://github.com/Hash-7777/Hash_Mac_Notch/releases) page, unzip
+   it, and drag **HashNotch** into your **Applications** folder. (Or build it
+   yourself — see [Develop](#develop) below.)
+2. **The first time you open it,** macOS says it can't verify the developer.
+   Click **Done**, then open **System Settings → Privacy & Security**, scroll to
+   the bottom, and click **Open Anyway** next to HashNotch. Confirm once and it
+   launches; every time after that it opens normally. (On older macOS you can
+   instead right-click the app and choose **Open**.)
+3. HashNotch has no Dock icon — it lives around the notch and in the menu bar.
+   Click the **gear** in its panel for **HashNotch Settings…** to choose what
+   shows and to turn on **Open at Login**.
+
+> **Why the extra step to open it?** HashNotch reads system-wide Now Playing and
+> the real Apple Silicon temperature sensors, which need Apple APIs the Mac App
+> Store doesn't allow — so it ships straight from here instead of the store, and
+> macOS asks you to confirm the first launch. It makes no network connection
+> except to load album and video artwork, collects nothing, and every commit is
+> signed. Exactly what it reads and why is spelled out in [SECURITY.md](SECURITY.md).
 
 ## How it works
 
