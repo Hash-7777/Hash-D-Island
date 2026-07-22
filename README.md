@@ -9,21 +9,14 @@ glance away.
 
 ## See it in action
 
-<!--
-  Drop your own captures into docs/media/ and they show up here automatically.
-  The tags below expect these files (see docs/media/README.md for sizes + tips):
-    docs/media/hero.png  — the panel open below the notch (the main shot)
-    docs/media/demo.gif  — a short clip of hovering the notch to open the panel
--->
-
 <p align="center">
-  <img src="docs/media/hero.png" width="720"
-       alt="The HashNotch panel dropped below the notch, showing internet speed, battery, temperature and token usage">
+  <img src="docs/media/hero.png" width="300"
+       alt="The HashNotch panel dropped below the notch — Now Playing, today's AI tokens, internet speed, temperatures, and a timer">
 </p>
 
 <p align="center">
-  <img src="docs/media/demo.gif" width="720"
-       alt="Hovering the notch to open the HashNotch panel like the iPhone Dynamic Island">
+  <img src="docs/media/live.png" width="360"
+       alt="The live strip beside the notch — album art, the track title, and audio bars that dance while it plays">
 </p>
 
 ## What it shows
