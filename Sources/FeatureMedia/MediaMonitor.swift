@@ -35,13 +35,35 @@ public final class MediaMonitor: ObservableObject {
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var lastVolumeTouch = Date.distantPast
+    private var audioObserver: AudioActivityObserver?
+    private var stateObservers: [NSObjectProtocol] = []
+    private var refreshWork: DispatchWorkItem?
 
     public init() {}
 
     public func start(presence: LivePresence) {
         self.presence = presence
-        // 2s keeps "media started → strip appears" latency low while staying
-        // cheap (the fetch is out-of-process and skipped when one is running).
+
+        // Instant reaction: CoreAudio signals the moment audio starts or stops
+        // anywhere, and Spotify/Music broadcast their play-state changes. The
+        // poll below is only the safety net (seek positions, sources that
+        // signal nothing).
+        audioObserver = AudioActivityObserver { [weak self] in
+            MainActor.assumeIsolated { self?.refreshSoon() }
+        }
+        let center = DistributedNotificationCenter.default()
+        for name in [
+            "com.spotify.client.PlaybackStateChanged",
+            "com.apple.Music.playerInfo",
+            "com.apple.iTunes.playerInfo",
+        ] {
+            stateObservers.append(center.addObserver(
+                forName: Notification.Name(name), object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshSoon() }
+            })
+        }
+
         sampler = PollingSampler(interval: 2.0) { [weak self] in self?.refresh() }
         sampler?.start()
     }
@@ -49,7 +71,23 @@ public final class MediaMonitor: ObservableObject {
     public func stop() {
         sampler?.stop()
         sampler = nil
+        audioObserver = nil
+        let center = DistributedNotificationCenter.default()
+        stateObservers.forEach(center.removeObserver)
+        stateObservers.removeAll()
+        refreshWork?.cancel()
+        refreshWork = nil
         presence?.setActive("media", false)
+    }
+
+    /// Coalesces the burst of signals audio startup produces into one fetch.
+    private func refreshSoon() {
+        refreshWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+        refreshWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     // MARK: Controls
