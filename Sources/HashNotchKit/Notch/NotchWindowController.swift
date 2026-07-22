@@ -115,6 +115,13 @@ public final class NotchWindowController {
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: initial.size)
         hosting.autoresizingMask = [.width, .height]
+        // Do NOT let SwiftUI resize the window to the content's ideal size — the
+        // window frame is controlled solely by refitWindow(), which keeps it
+        // centered on the notch. Left on, the hosting view resizes the window to
+        // the island's intrinsic width (keeping the old origin) when the content
+        // changes, which knocks the strip off-center for the 0.7s until the
+        // settle corrects it (visible as a right-then-left shift on close).
+        hosting.sizingOptions = []
         window.contentView = hosting
         window.acceptsMouseMovedEvents = true
 
