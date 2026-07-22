@@ -77,6 +77,9 @@ package enum ArtworkPolicy {
 /// is no temp file another process could swap out between write and execute.
 final class MediaRemoteReader {
     private let queue = DispatchQueue(label: "com.hashnotch.media.nowplaying")
+    /// Commands run on their own queue so a click NEVER waits behind an
+    /// in-flight fetch — play/pause must feel instant.
+    private let commandQueue = DispatchQueue(label: "com.hashnotch.media.commands", qos: .userInitiated)
 
     private let stateLock = NSLock()
     private var inFlight = false
@@ -288,7 +291,7 @@ final class MediaRemoteReader {
     }
 
     private func runCommand(_ arguments: [String]) {
-        queue.async {
+        commandQueue.async {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: Self.osascript)
             process.arguments = arguments

@@ -164,12 +164,12 @@ public final class MediaMonitor: ObservableObject {
     }
 
     private func apply(_ snapshot: NowPlaying?) {
-        let shown: NowPlaying?
-        if let snapshot, snapshot.isPlaying || snapshot.source != .other {
-            shown = snapshot
-        } else {
-            shown = nil
-        }
+        // Keep whatever track exists — playing OR paused, any source — so the
+        // panel's card and its resume button survive a pause (pausing a
+        // browser video used to drop the card, which made the controls feel
+        // dead). The compact strip stays playing-only via presence, and the
+        // card clears when the system reports no item at all.
+        let shown = snapshot
 
         if shown != nowPlaying {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { nowPlaying = shown }
