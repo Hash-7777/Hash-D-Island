@@ -380,9 +380,19 @@ final class MediaRemoteReader {
         guard let url = URL(string: urlString) else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 4
+        // An ephemeral session with a redirect guard: nothing is written to the
+        // URL cache or disk, and a CDN that 302s to a host outside the allowlist
+        // is refused mid-flight — so "only these hosts, ever" holds even across
+        // redirects, not just for the first URL.
+        let session = URLSession(
+            configuration: .ephemeral,
+            delegate: ArtworkRedirectGuard(),
+            delegateQueue: nil
+        )
+        defer { session.finishTasksAndInvalidate() }
         var result: Data?
         let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: request) { data, _, _ in
+        session.dataTask(with: request) { data, _, _ in
             if let data, data.count <= ArtworkPolicy.maxArtworkBytes {
                 result = data
             }
@@ -390,5 +400,26 @@ final class MediaRemoteReader {
         }.resume()
         _ = semaphore.wait(timeout: .now() + 5)
         return result
+    }
+}
+
+/// Follows an artwork redirect only while it stays on the trusted-host
+/// allowlist; a redirect that would leave it is cancelled. This keeps the
+/// artwork fetch bound to the same `ArtworkPolicy` the initial URL passed,
+/// closing the one path by which the app's single network access could reach an
+/// arbitrary host.
+private final class ArtworkRedirectGuard: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        if let url = request.url?.absoluteString, ArtworkPolicy.isTrustedURL(url) {
+            completionHandler(request)
+        } else {
+            completionHandler(nil)
+        }
     }
 }

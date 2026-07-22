@@ -12,10 +12,11 @@ There is exactly **one** kind of network request the app can ever make:
 fetching the picture for what's playing — album art from Spotify's own image
 servers, or a web video's thumbnail from YouTube's thumbnail server. Those
 requests are HTTPS-only, restricted to exactly those hosts (`scdn.co`,
-`spotifycdn.com`, `ytimg.com`), and capped at 5 MB — any other URL is refused
-outright (see `ArtworkPolicy` in
-`Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
-checks). Nothing else in the app touches the network.
+`spotifycdn.com`, `ytimg.com`), and capped at 5 MB — any other URL, and any
+redirect that would leave those hosts, is refused outright (see `ArtworkPolicy`
+in `Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
+checks). The fetch uses an ephemeral session, so no artwork is ever written to
+disk. Nothing else in the app touches the network.
 
 ## What it reads, and why
 
@@ -24,7 +25,7 @@ checks). Nothing else in the app touches the network.
 | Network speed | Kernel per-interface byte counters (`getifaddrs`) | The up/down readout. It counts bytes only — it can never see what you send or receive. |
 | Battery | IOKit power-source info | Level, charging state, time remaining. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it asks your browser only for the playing tab's address, to derive the thumbnail. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Downloads | Lists the file names in your `~/Downloads` folder | The "download finished" notice. It reads names and dates only — it never opens, moves, or uploads a file — and shows the name of a file that just completed. |
@@ -37,8 +38,12 @@ checks). Nothing else in the app touches the network.
   time Now Playing asks Spotify or Music for the current track. Deny it and
   every other feature keeps working.
 - **Automation (control your browser)** — asked only if a web video is playing
-  and only to read the playing tab's address so the video's thumbnail can be
-  shown. Deny it and Now Playing simply shows a placeholder tile instead.
+  and nothing else already provided artwork. HashNotch then reads your open
+  browser tabs' addresses and titles to find the one whose title matches what's
+  playing, and derives only that video's thumbnail. The tab list never leaves
+  the helper subprocess — only the single matching thumbnail URL is returned to
+  the app, and only its image (from YouTube's thumbnail host) is fetched. Deny
+  this and Now Playing simply shows a placeholder tile instead.
 - **Notifications** — asked the first time you start the timer, so it can post
   a banner when the timer ends. Deny it and the timer still chimes and shows
   "Time's up" in the notch.
