@@ -6,6 +6,7 @@ import FeatureMedia
 import FeatureActivities
 import FeatureTokens
 import FeatureBattery
+import FeatureDownloads
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -198,6 +199,13 @@ MainActor.assumeIsolated {
     check("low fires crossing 10", BatteryMonitor.crossedLowThreshold(from: 15, to: 9) == 10)
     check("low silent inside band", BatteryMonitor.crossedLowThreshold(from: 19, to: 15) == nil)
     check("low silent when rising", BatteryMonitor.crossedLowThreshold(from: 9, to: 30) == nil)
+
+    // Downloads: browser part-files are recognized, finished files are not.
+    check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))
+    check("part download", DownloadsMonitor.isPartFileName("photo.jpg.download"))
+    check("part part", DownloadsMonitor.isPartFileName("archive.zip.part"))
+    check("finished not part", !DownloadsMonitor.isPartFileName("movie.mp4"))
+    check("finished pdf not part", !DownloadsMonitor.isPartFileName("report.pdf"))
 
     // System volume via CoreAudio: readable in range, and a same-value write
     // round-trips (harmless — it sets the volume it already has).

@@ -6,6 +6,7 @@ import FeatureTokens
 import FeatureMedia
 import FeatureActivities
 import FeatureTimer
+import FeatureDownloads
 
 /// The one and only place features are turned on or off.
 ///
@@ -25,6 +26,7 @@ enum FeatureManifest {
         [
             MediaFeature(),
             ActivitiesFeature(),
+            DownloadsFeature(),
             TimerFeature(),
             TokensFeature(),
             NetworkFeature(),
