@@ -4,7 +4,7 @@ import HashNotchKit
 
 /// A simple countdown the user starts from the panel. While running it is a
 /// live activity (compact countdown flanking the notch); when it ends it
-/// plays a soft system sound and shows "Time's up" briefly.
+/// chimes, posts a notification banner, and shows "Time's up" briefly.
 @MainActor
 public final class TimerEngine: ObservableObject {
     public enum Phase: Equatable {
@@ -20,6 +20,7 @@ public final class TimerEngine: ObservableObject {
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var finishWork: DispatchWorkItem?
+    private let notifier = TimerNotifier()
 
     public init() {}
 
@@ -40,6 +41,9 @@ public final class TimerEngine: ObservableObject {
 
     public func begin(minutes: Int) {
         finishWork?.cancel()
+        // Ask for notification permission now so the banner is ready to show
+        // the instant the timer ends.
+        notifier.requestAuthorization()
         let total = TimeInterval(minutes * 60)
         phase = .running(endsAt: Date().addingTimeInterval(total), total: total)
         presence?.setActive("timer", true)
@@ -79,7 +83,7 @@ public final class TimerEngine: ObservableObject {
         sampler?.stop()
         sampler = nil
         phase = .finished
-        NSSound(named: "Glass")?.play()
+        notifier.fire(title: "Timer finished", body: "Your HashNotch timer is done.")
 
         // Keep "Time's up" visible briefly, then go quiet.
         let work = DispatchWorkItem { [weak self] in

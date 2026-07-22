@@ -36,7 +36,7 @@ struct TokensDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            NotchSectionHeader("AI TOKENS TODAY", theme: theme)
+            NotchSectionHeader("HASHMETERAI", theme: theme)
             row("Total", monitor.today.total, emphasized: true)
             row("Claude Code", monitor.today.claude)
             if monitor.today.hashCortx > 0 { row("HashCortx", monitor.today.hashCortx) }

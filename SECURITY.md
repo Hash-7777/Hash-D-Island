@@ -39,6 +39,9 @@ checks). Nothing else in the app touches the network.
 - **Automation (control your browser)** — asked only if a web video is playing
   and only to read the playing tab's address so the video's thumbnail can be
   shown. Deny it and Now Playing simply shows a placeholder tile instead.
+- **Notifications** — asked the first time you start the timer, so it can post
+  a banner when the timer ends. Deny it and the timer still chimes and shows
+  "Time's up" in the notch.
 
 That is the complete list. HashNotch never asks for Accessibility, Input
 Monitoring, Screen Recording, or Full Disk Access.
