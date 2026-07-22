@@ -172,7 +172,7 @@ struct NotchIslandView: View {
     /// (there is no menu-bar item).
     private var settingsButton: some View {
         SettingsGearButton { context.openSettings() }
-            .offset(x: 6, y: -2)
+            .offset(x: 6, y: -10)
     }
 
     private var enabledFeatures: [NotchFeature] {
