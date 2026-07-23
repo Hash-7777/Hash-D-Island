@@ -3,13 +3,14 @@ import AppKit
 import HashNotchKit
 
 /// Leading compact-live: album artwork to the left of the notch.
-/// The compact strip shows only while audio is actually playing.
+/// Shows while a track is present — playing or paused — so the artwork stays
+/// on the notch after you pause, until the player quits or the tab closes.
 struct MediaArtworkView: View {
     @ObservedObject var monitor: MediaMonitor
     let theme: Theme
 
     var body: some View {
-        if let media = monitor.nowPlaying, media.isPlaying {
+        if let media = monitor.nowPlaying {
             artwork(media)
                 .transition(.scale.combined(with: .opacity))
         }
@@ -48,10 +49,11 @@ struct MediaTitleView: View {
     let theme: Theme
 
     var body: some View {
-        if let media = monitor.nowPlaying, media.isPlaying {
+        if let media = monitor.nowPlaying {
             HStack(spacing: 7) {
                 MarqueeText(media.title)
                     .foregroundStyle(theme.textColor)
+                // Bars dance only while playing; they rest as dots when paused.
                 AudioBarsView(isActive: media.isPlaying, tint: theme.accent)
             }
             .frame(maxWidth: 140, alignment: .leading)

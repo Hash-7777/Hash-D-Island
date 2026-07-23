@@ -13,7 +13,8 @@ moment something is.
   invisible until it has something to say.
 - **A live strip** appears beside the notch — no hover needed — whenever
   something is happening: music playing, a timer counting down, a download
-  landing, an activity running.
+  landing, an activity running. A track keeps its place while paused, so the
+  artwork and the resume button stay where you left them.
 - **Hover, or swipe down with two fingers,** to drop the full panel below the
   menu bar. Because it opens below the menu bar, it never covers your menus or
   status icons.

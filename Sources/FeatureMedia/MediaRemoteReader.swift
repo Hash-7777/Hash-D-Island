@@ -125,13 +125,22 @@ final class MediaRemoteReader {
         const sp = Application('Spotify');
         if (sp.running()) {
           const st = String(sp.playerState());
-          if (st === 'playing' || (st === 'paused' && !title)) {
-            source = 'spotify';
-            artworkUrl = sp.currentTrack.artworkUrl();
-            elapsed = sp.playerPosition();
-            duration = sp.currentTrack.duration() / 1000;
-            if (!title) { title = sp.currentTrack.name(); artist = sp.currentTrack.artist(); }
-            playing = (st === 'playing');
+          if (st === 'playing' || st === 'paused') {
+            const spName = sp.currentTrack.name();
+            // Claim the slot when Spotify is playing, OR when it is paused and it
+            // is what's showing (nothing else is playing, or it's the same
+            // track). Claiming a PAUSED track keeps its artwork and lets the
+            // resume go through Spotify's own scripting instead of the generic
+            // media channel — so the play button actually resumes it.
+            if (st === 'playing' || !title || title === spName) {
+              source = 'spotify';
+              artworkUrl = sp.currentTrack.artworkUrl();
+              elapsed = sp.playerPosition();
+              duration = sp.currentTrack.duration() / 1000;
+              title = spName;
+              artist = sp.currentTrack.artist();
+              playing = (st === 'playing');
+            }
           }
         }
       } catch (e) {}
@@ -140,16 +149,22 @@ final class MediaRemoteReader {
         const mu = Application('Music');
         if (source === 'other' && mu.running()) {
           const st = String(mu.playerState());
-          if (st === 'playing' || (st === 'paused' && !title)) {
-            source = 'music';
-            elapsed = mu.playerPosition();
-            duration = mu.currentTrack.duration();
-            if (!title) { title = mu.currentTrack.name(); artist = mu.currentTrack.artist(); }
-            playing = (st === 'playing');
-            const arts = mu.currentTrack.artworks;
-            if (arts.length > 0) {
-              const raw = arts[0].rawData();
-              artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+          if (st === 'playing' || st === 'paused') {
+            const muName = mu.currentTrack.name();
+            // Same rule as Spotify: a paused Music track keeps its slot (and its
+            // artwork + scripting control) when it's what's showing.
+            if (st === 'playing' || !title || title === muName) {
+              source = 'music';
+              elapsed = mu.playerPosition();
+              duration = mu.currentTrack.duration();
+              title = muName;
+              artist = mu.currentTrack.artist();
+              playing = (st === 'playing');
+              const arts = mu.currentTrack.artworks;
+              if (arts.length > 0) {
+                const raw = arts[0].rawData();
+                artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+              }
             }
           }
         }

@@ -21,9 +21,11 @@ public struct MediaProgress: Equatable {
 /// is present. Polls on a light interval; the MediaRemote fetch is async and
 /// returns on a background queue, so results hop to the main actor to publish.
 ///
-/// Visibility rules (iPhone-like): the compact strip appears only while audio
-/// is PLAYING; a paused Spotify/Music track keeps its card in the expanded
-/// panel so it can be resumed; anything else disappears when it stops.
+/// Visibility rule (iPhone-like): a track holds the notch for as long as it
+/// exists — playing OR paused — so pausing never costs you the artwork, the
+/// title, or the button that resumes it. Only the audio bars react to the
+/// play state, resting as dots while paused. The track clears when the system
+/// reports no item at all: the player quit, or the tab closed.
 @MainActor
 public final class MediaMonitor: ObservableObject {
     @Published public private(set) var nowPlaying: NowPlaying?
@@ -145,7 +147,9 @@ public final class MediaMonitor: ObservableObject {
                 at: now
             )
         }
-        presence?.setActive("media", playing)
+        // The track is still present whether it's now playing or paused, so the
+        // strip stays up either way.
+        presence?.setActive("media", true)
     }
 
     private func scheduleRefresh() {
@@ -164,11 +168,10 @@ public final class MediaMonitor: ObservableObject {
     }
 
     private func apply(_ snapshot: NowPlaying?) {
-        // Keep whatever track exists — playing OR paused, any source — so the
-        // panel's card and its resume button survive a pause (pausing a
-        // browser video used to drop the card, which made the controls feel
-        // dead). The compact strip stays playing-only via presence, and the
-        // card clears when the system reports no item at all.
+        // Keep whatever track exists — playing OR paused, any source. Both the
+        // compact strip and the panel card stay up while a track is present so
+        // the artwork and controls survive a pause; they clear only when the
+        // system reports no item at all (the app quit, the tab closed).
         let shown = snapshot
 
         if shown != nowPlaying {
@@ -194,6 +197,6 @@ public final class MediaMonitor: ObservableObject {
             systemVolume = volume
         }
 
-        presence?.setActive("media", shown?.isPlaying == true)
+        presence?.setActive("media", shown != nil)
     }
 }
