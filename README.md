@@ -1,10 +1,12 @@
 <div align="center">
 
-<img src="docs/media/hero.svg" alt="Hash D Island — your notch, finally alive. A living, glanceable area around the MacBook notch." width="100%">
+<img src="docs/media/hero.svg" alt="Hash D Island — your notch, finally alive. A living, glanceable area around the MacBook notch, showing now playing, internet speed, battery, temperatures and AI token usage." width="100%">
 
-<br/>
+# Hash D Island
 
-**The dead space around your notch becomes a living, glanceable area** — like the iPhone's Dynamic Island, built purely for Apple Silicon. It reacts with smooth motion as things happen and keeps the numbers you care about one glance away.
+### Your notch, finally alive.
+
+**The dead space around your MacBook notch becomes a living, glanceable area** — like the iPhone's Dynamic Island, built purely for Apple Silicon. Now Playing, internet speed, battery, temperatures and AI token usage, one glance away. It reacts with smooth motion as things happen, and nothing ever leaves your Mac.
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-14%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 14+">
@@ -39,7 +41,7 @@ Artwork, a scrolling title, and full controls for whatever is playing — Spotif
 Upload and download speed, from the kernel's own byte counters.
 
 **Battery**
-Level, time remaining, and time to full while charging — with the adapter's wattage and whether that counts as a slow or fast charge. Tells charging apart from *held at 80% for battery health*. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
+Level, time remaining, and time to charge — with the adapter's wattage and whether that counts as a slow or fast charge. If your Mac is limited to 80%, it counts down to *that*, not to a full battery it will never reach. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
 
 **AirPods**
 Charge left in each earbud and the case.

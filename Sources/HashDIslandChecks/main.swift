@@ -702,6 +702,70 @@ MainActor.assumeIsolated {
         BatteryMonitor.isSettled(state: .onHold, minutesToFull: nil) == false
     )
 
+    // The charge ceiling is learned from behaviour, because macOS publishes no
+    // way to ask. A Mac on power that has deliberately stopped short of full
+    // has shown you its limit.
+    check(
+        "a hold below full teaches the ceiling",
+        BatteryMonitor.ceiling(after: .onHold, percentage: 80, known: nil) == 80
+    )
+    check(
+        "any limit is learned, not just eighty",
+        BatteryMonitor.ceiling(after: .onHold, percentage: 60, known: nil) == 60
+    )
+    check(
+        "a Mac sitting at 99 has finished, not been limited",
+        BatteryMonitor.ceiling(after: .onHold, percentage: 99, known: nil) == nil
+    )
+    check(
+        "charging below a known ceiling keeps it",
+        BatteryMonitor.ceiling(after: .charging, percentage: 62, known: 80) == 80
+    )
+    check(
+        "climbing past the ceiling unlearns it",
+        BatteryMonitor.ceiling(after: .charging, percentage: 88, known: 80) == nil
+    )
+    check(
+        "reaching full clears any ceiling",
+        BatteryMonitor.ceiling(after: .charged, percentage: 100, known: 80) == nil
+    )
+    check(
+        "unplugging changes nothing about the ceiling",
+        BatteryMonitor.ceiling(after: .discharging, percentage: 47, known: 80) == 80
+    )
+
+    // Time is then counted to that level rather than to a full battery it will
+    // never reach.
+    check(
+        "the estimate is scaled to the ceiling",
+        // 51 points of climb left to full in 102 minutes is 2 min per point;
+        // the 31 points up to 80% should read as about an hour.
+        BatteryMonitor.minutesToCeiling(minutesToFull: 102, percentage: 49, ceiling: 80) == 62
+    )
+    check(
+        "no ceiling means the estimate is left alone",
+        BatteryMonitor.minutesToCeiling(minutesToFull: 102, percentage: 49, ceiling: nil) == nil
+    )
+    check(
+        "a ceiling of 100 is not a ceiling",
+        BatteryMonitor.minutesToCeiling(minutesToFull: 102, percentage: 49, ceiling: 100) == nil
+    )
+    check(
+        "already at the ceiling means nothing left to count",
+        BatteryMonitor.minutesToCeiling(minutesToFull: 102, percentage: 80, ceiling: 80) == nil
+    )
+    check(
+        "no estimate to scale, no answer invented",
+        BatteryMonitor.minutesToCeiling(minutesToFull: nil, percentage: 49, ceiling: 80) == nil
+    )
+    check(
+        "a sliver of climb left never rounds down to nothing",
+        // 10 minutes of climb spread over 21 points, of which one is wanted,
+        // comes to under half a minute — which must still read as a minute
+        // rather than as no time at all.
+        BatteryMonitor.minutesToCeiling(minutesToFull: 10, percentage: 79, ceiling: 80) == 1
+    )
+
     // Downloads: browser part-files are recognized, finished files are not.
     check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))
     check("part download", DownloadsMonitor.isPartFileName("photo.jpg.download"))

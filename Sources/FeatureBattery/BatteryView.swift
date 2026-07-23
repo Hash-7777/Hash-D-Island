@@ -296,7 +296,17 @@ struct BatteryDetailView: View {
             // The two things you actually want while it fills: how long, and
             // whether the adapter to hand is up to the job.
             var parts: [String] = []
-            if let minutes = monitor.minutesToFull, minutes > 0 {
+            // Count down to the level it is actually going to stop at. On a Mac
+            // limited to 80%, "two hours to full" is an answer to a question
+            // nobody asked — it will never get there.
+            if let ceiling = monitor.chargeCeiling,
+               let minutes = BatteryMonitor.minutesToCeiling(
+                   minutesToFull: monitor.minutesToFull,
+                   percentage: monitor.percentage,
+                   ceiling: ceiling
+               ) {
+                parts.append("\(Formatters.hoursMinutes(minutes)) to \(ceiling)%")
+            } else if let minutes = monitor.minutesToFull, minutes > 0 {
                 parts.append("\(Formatters.hoursMinutes(minutes)) to full")
             } else {
                 // macOS often has no estimate for the first minutes of a
@@ -314,8 +324,12 @@ struct BatteryDetailView: View {
         case .charged:
             return nil
         case .onHold:
-            // Naming the reason turns "why has it stopped at 80%?" into a
-            // feature the user already half-knows about.
+            // Naming the level turns "why has it stopped at 80%?" into a
+            // feature the user already half-knows about — and naming the number
+            // is what makes it obviously deliberate rather than broken.
+            if let ceiling = monitor.chargeCeiling {
+                return "held at \(ceiling)% for battery health"
+            }
             return "held for battery health"
         case .discharging:
             guard let minutes = monitor.minutesRemaining, minutes > 0 else { return nil }

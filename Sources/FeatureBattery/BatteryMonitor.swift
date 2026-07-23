@@ -70,6 +70,23 @@ public final class BatteryMonitor: ObservableObject {
     /// battery, and nil for an adapter that declines to say.
     @Published public private(set) var adapterWatts: Int?
 
+    /// The level this Mac is actually charging up to, when that is not 100%.
+    ///
+    /// Learned by watching rather than asked for. macOS offers no public way to
+    /// read the charge limit — the 80% setting, or the ceiling optimised
+    /// charging picks on its own — and the private registry keys that hint at
+    /// it disagree between models and macOS versions. But the behaviour is
+    /// unambiguous and needs no permission at all: when a Mac is on power and
+    /// deliberately not charging, well short of full, the level it stopped at
+    /// *is* the ceiling. Watching for that costs nothing and cannot be wrong
+    /// about what it saw, where reading an undocumented key could be wrong
+    /// quietly and forever.
+    ///
+    /// Nil until such a hold is seen, and cleared again the moment the battery
+    /// climbs past it — because that is what a limit being raised or switched
+    /// off looks like from here.
+    @Published public private(set) var chargeCeiling: Int?
+
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var powerSource: CFRunLoopSource?
@@ -230,6 +247,62 @@ public final class BatteryMonitor: ObservableObject {
         adapterWatts.flatMap(ChargeSpeed.forWatts)
     }
 
+    /// The ceiling to carry forward, given what was just seen.
+    ///
+    /// A hold below full teaches it; charging past a known ceiling unlearns it.
+    /// Holds at or above `nearlyFull` are ignored, because a Mac sitting at
+    /// 99% has simply finished, and calling that a limit would put "held at
+    /// 99%" on the panel for the rest of the afternoon.
+    ///
+    /// Pure and package-visible: this is learned over minutes from hardware
+    /// nobody can put in a given state on demand, so it is pinned by the checks
+    /// rather than waited for.
+    package nonisolated static func ceiling(
+        after state: BatteryState,
+        percentage: Int,
+        known: Int?
+    ) -> Int? {
+        switch state {
+        case .onHold where percentage < nearlyFull:
+            return percentage
+        case .charging:
+            // Climbing past the old ceiling means it is no longer one.
+            if let known, percentage > known { return nil }
+            return known
+        case .charged:
+            return nil
+        case .discharging, .onHold:
+            return known
+        }
+    }
+
+    /// Roughly how long until the ceiling, from the system's estimate of how
+    /// long until full.
+    ///
+    /// macOS estimates time to 100%; there is no published figure for time to a
+    /// limit. Scaling by how much of the remaining climb is actually wanted is
+    /// the honest approximation available, and it holds up reasonably because
+    /// the stretch below 80% is the steady part of a charge — the slow tail
+    /// that would break a linear estimate lives above it, and is exactly the
+    /// part a limit removes.
+    ///
+    /// Returns nil when there is nothing to scale or nothing left to climb.
+    package nonisolated static func minutesToCeiling(
+        minutesToFull: Int?,
+        percentage: Int,
+        ceiling: Int?
+    ) -> Int? {
+        guard let minutesToFull, minutesToFull > 0 else { return nil }
+        guard let ceiling, ceiling < 100, percentage < ceiling else { return nil }
+        let remaining = 100 - percentage
+        guard remaining > 0 else { return nil }
+        let wanted = ceiling - percentage
+        return max(1, Int((Double(minutesToFull) * Double(wanted) / Double(remaining)).rounded()))
+    }
+
+    /// At or above this, a Mac on power has finished rather than been held.
+    package static let nearlyFull = 95
+
     /// What the battery is doing, from the three things IOKit reports.
     ///
     /// Pure and package-visible so the checks can pin every combination without
@@ -242,7 +315,7 @@ public final class BatteryMonitor: ObservableObject {
     ) -> BatteryState {
         guard onPower else { return .discharging }
         if isCharging { return .charging }
-        return percentage >= 95 ? .charged : .onHold
+        return percentage >= nearlyFull ? .charged : .onHold
     }
 
     /// How long an announcement stays.
@@ -427,6 +500,10 @@ public final class BatteryMonitor: ObservableObject {
             if percentage != newPercentage { percentage = newPercentage }
             if isCharging != newCharging { isCharging = newCharging }
             if state != newState { state = newState }
+            let newCeiling = Self.ceiling(
+                after: newState, percentage: newPercentage, known: chargeCeiling
+            )
+            if chargeCeiling != newCeiling { chargeCeiling = newCeiling }
             if Self.logsReadings {
                 FileHandle.standardError.write(Data(
                     "[battery] \(newState) \(newPercentage)% charging=\(newCharging) toFull=\(newToFull.map(String.init) ?? "-") watts=\(watts.map(String.init) ?? "-") settling=\(settleSampler != nil)\n".utf8
