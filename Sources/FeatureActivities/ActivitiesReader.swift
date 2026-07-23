@@ -20,6 +20,24 @@ public struct LiveActivity: Identifiable, Equatable {
     /// watch something that was already over.
     public let dismissAfter: TimeInterval?
 
+    public init(
+        id: String,
+        icon: String,
+        title: String,
+        subtitle: String?,
+        progress: Double?,
+        endsAt: Date?,
+        dismissAfter: TimeInterval?
+    ) {
+        self.id = id
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.progress = progress
+        self.endsAt = endsAt
+        self.dismissAfter = dismissAfter
+    }
+
     /// True when this counts down to something, rather than announcing
     /// something that already happened. Only a countdown draws a timer.
     public var showsCountdown: Bool { endsAt != nil && dismissAfter == nil }
@@ -37,9 +55,14 @@ public struct LiveActivity: Identifiable, Equatable {
 
     /// When a self-dismissing notice should disappear, given the moment it was
     /// first seen. Nil for everything else.
-    public func dismissalDate(firstSeen: Date) -> Date? {
-        guard let dismissAfter else { return nil }
-        return firstSeen.addingTimeInterval(dismissAfter)
+    ///
+    /// `preferred` is the reader's own choice of how long a notice should stay.
+    /// It wins over the poster's suggestion: whoever wrote the feed knows what
+    /// happened, but only the person looking at the notch knows how long they
+    /// want it there.
+    public func dismissalDate(firstSeen: Date, preferring preferred: TimeInterval? = nil) -> Date? {
+        guard dismissAfter != nil else { return nil }
+        return firstSeen.addingTimeInterval(preferred ?? dismissAfter ?? 0)
     }
 }
 

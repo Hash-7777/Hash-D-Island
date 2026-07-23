@@ -10,6 +10,10 @@ public final class NetworkMonitor: ObservableObject {
     @Published public private(set) var downloadBytesPerSec: Double = 0
 
     private static let interval: TimeInterval = 1.0
+    /// The interval actually in use, which battery saver stretches. The
+    /// staleness rule is measured against this rather than the nominal value,
+    /// so a saver-paced reading is not mistaken for an ancient one.
+    private var effectiveInterval: TimeInterval = interval
 
     private var sampler: VisibleSampler?
     private var lastRx: UInt64 = 0
@@ -18,14 +22,15 @@ public final class NetworkMonitor: ObservableObject {
 
     public init() {}
 
-    public func start(visibility: PanelVisibility) {
+    public func start(visibility: PanelVisibility, scale: Double = 1) {
         let counters = Self.counters()
         lastRx = counters.rx
         lastTx = counters.tx
         lastTime = Date().timeIntervalSinceReferenceDate
+        effectiveInterval = Self.interval * scale
         // Throughput is only ever drawn in the panel, so it is measured only
         // while the panel is open.
-        sampler = VisibleSampler(interval: Self.interval, visibility: visibility) { [weak self] in
+        sampler = VisibleSampler(interval: effectiveInterval, visibility: visibility) { [weak self] in
             self?.sample()
         }
         sampler?.start()
@@ -58,7 +63,7 @@ public final class NetworkMonitor: ObservableObject {
         let dt = max(0.001, now - lastTime)
         let counters = Self.counters()
 
-        guard !Self.isStaleBaseline(dt: dt, interval: Self.interval) else {
+        guard !Self.isStaleBaseline(dt: dt, interval: effectiveInterval) else {
             lastRx = counters.rx
             lastTx = counters.tx
             lastTime = now

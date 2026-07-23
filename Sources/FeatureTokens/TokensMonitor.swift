@@ -14,10 +14,10 @@ public final class TokensMonitor: ObservableObject {
 
     public init() {}
 
-    public func start(visibility: PanelVisibility) {
+    public func start(visibility: PanelVisibility, scale: Double = 1) {
         // Counting tokens walks every Claude Code transcript touched today.
         // That is far too much work to repeat forever behind a shut panel.
-        sampler = VisibleSampler(interval: 30.0, visibility: visibility) { [weak self] in
+        sampler = VisibleSampler(interval: 30.0 * scale, visibility: visibility) { [weak self] in
             self?.refresh()
         }
         sampler?.start()

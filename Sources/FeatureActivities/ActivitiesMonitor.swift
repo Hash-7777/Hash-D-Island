@@ -26,8 +26,14 @@ public final class ActivitiesMonitor: ObservableObject {
 
     public init() {}
 
-    public func start(presence: LivePresence) {
+    /// How long a notice stays, and whether a request waits. The poster
+    /// suggests a duration; this is the reader's preference, and the reader
+    /// wins — it is your notch.
+    private weak var settings: SettingsStore?
+
+    public func start(presence: LivePresence, settings: SettingsStore? = nil) {
         self.presence = presence
+        self.settings = settings
         reload()
 
         // The feed changes when somebody posts, which is rarely and never on a
@@ -86,10 +92,12 @@ public final class ActivitiesMonitor: ObservableObject {
             firstSeen[activity.id] = moment
         }
 
+        let preferred = settings?.alerts.noticeSeconds
         let showing = fresh.filter { activity in
             guard !activity.isExpired else { return false }
             guard let seen = firstSeen[activity.id],
-                  let dismissal = activity.dismissalDate(firstSeen: seen) else { return true }
+                  let dismissal = activity.dismissalDate(firstSeen: seen, preferring: preferred)
+            else { return true }
             return dismissal > moment
         }
 
@@ -126,9 +134,10 @@ public final class ActivitiesMonitor: ObservableObject {
         dismissalWork?.cancel()
         dismissalWork = nil
 
+        let preferred = settings?.alerts.noticeSeconds
         let due = activities.compactMap { activity -> Date? in
             guard let seen = firstSeen[activity.id] else { return nil }
-            return activity.dismissalDate(firstSeen: seen)
+            return activity.dismissalDate(firstSeen: seen, preferring: preferred)
         }
         guard let soonest = due.min() else { return }
 

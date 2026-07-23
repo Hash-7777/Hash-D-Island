@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// Lightweight description of a feature for the settings list, so the view never
 /// holds the live feature objects.
@@ -15,11 +16,43 @@ public struct FeatureDescriptor: Identifiable {
     }
 }
 
-/// The customization window: turn indicators on or off, pick a display style per
-/// indicator, and toggle open-at-login.
+/// The customization window.
+///
+/// Deliberately not a stock grouped Form: this window is the only face the app
+/// has apart from the island itself, so it is dark and tinted to match it. Each
+/// concern gets its own page rather than a dozen controls stacked into one
+/// scroll, which is what made the previous single list feel thin.
 public struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     let features: [FeatureDescriptor]
+
+    @State private var section: Section = .general
+    @State private var dragging: String?
+
+    enum Section: String, CaseIterable, Identifiable {
+        case general, indicators, appearance, alerts, privacy
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .general: return "General"
+            case .indicators: return "Indicators"
+            case .appearance: return "Appearance"
+            case .alerts: return "Alerts"
+            case .privacy: return "Privacy"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .general: return "gearshape.fill"
+            case .indicators: return "square.stack.3d.up.fill"
+            case .appearance: return "paintbrush.fill"
+            case .alerts: return "bell.fill"
+            case .privacy: return "lock.shield.fill"
+            }
+        }
+    }
 
     public init(settings: SettingsStore, features: [FeatureDescriptor]) {
         self.settings = settings
@@ -27,49 +60,331 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        Form {
-            Section("Indicators") {
-                ForEach(features) { feature in
-                    featureRow(feature)
-                }
-            }
-
-            Section("General") {
-                Toggle("Open at login", isOn: launchAtLoginBinding)
-                    .disabled(!LoginItem.isSupported)
-                if !LoginItem.isSupported {
-                    Text("Available once Hash D Island is installed as an app.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // With no menu-bar item, this window is also where you quit.
-            Section {
-                Button("Quit Hash D Island", role: .destructive) {
-                    NSApp.terminate(nil)
-                }
-            }
+        HStack(spacing: 0) {
+            sidebar
+            Rectangle().fill(Color.white.opacity(0.07)).frame(width: 1)
+            ScrollView { page.padding(24) }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .formStyle(.grouped)
-        .frame(width: 440, height: 460)
+        .frame(width: 700, height: 520)
+        .background(Color(red: 0.07, green: 0.07, blue: 0.08))
+        .preferredColorScheme(.dark)
+        .tint(settings.accent.color)
     }
 
-    @ViewBuilder
-    private func featureRow(_ feature: FeatureDescriptor) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(feature.title, isOn: enabledBinding(feature.id))
-                .font(.headline)
+    // MARK: Sidebar
 
-            if settings.isEnabled(feature.id), !feature.options.isEmpty {
-                Picker("Show as", selection: styleBinding(feature.id)) {
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Hash D Island")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 12)
+
+            ForEach(Section.allCases) { item in
+                sidebarRow(item)
+            }
+            Spacer()
+        }
+        .frame(width: 172)
+        .frame(maxHeight: .infinity)
+        .background(Color.white.opacity(0.03))
+    }
+
+    private func sidebarRow(_ item: Section) -> some View {
+        let selected = section == item
+        return Button { section = item } label: {
+            HStack(spacing: 9) {
+                Image(systemName: item.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 16)
+                    .foregroundStyle(selected ? settings.accent.color : Color.white.opacity(0.55))
+                Text(item.title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Color.white : Color.white.opacity(0.7))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.white.opacity(selected ? 0.09 : 0))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+
+    // MARK: Pages
+
+    @ViewBuilder
+    private var page: some View {
+        switch section {
+        case .general: general
+        case .indicators: indicators
+        case .appearance: appearance
+        case .alerts: alerts
+        case .privacy: privacy
+        }
+    }
+
+    private var general: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PageHeader("General", detail: "How the app starts, and how hard it works.")
+
+            SettingCard {
+                SettingRow(
+                    "Open at login",
+                    detail: LoginItem.isSupported
+                        ? "Bring the island back every time you start your Mac."
+                        : "Available once Hash D Island is installed as an app."
+                ) {
+                    Toggle("", isOn: launchAtLoginBinding)
+                        .labelsHidden()
+                        .disabled(!LoginItem.isSupported)
+                }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Battery saver",
+                    detail: "Check everything half as often. Readouts update more slowly; nothing disappears."
+                ) {
+                    Toggle("", isOn: $settings.batterySaver).labelsHidden()
+                }
+            }
+
+            SettingCard {
+                SettingRow(
+                    "Quit Hash D Island",
+                    detail: "The island closes and the app stops watching anything."
+                ) {
+                    Button("Quit") { NSApp.terminate(nil) }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var indicators: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PageHeader(
+                "Indicators",
+                detail: "What the island shows, how each one looks, and the order they appear in. Drag a row by its handle to reorder."
+            )
+
+            SettingCard {
+                ForEach(Array(orderedDescriptors.enumerated()), id: \.element.id) { index, feature in
+                    if index > 0 { SettingDivider() }
+                    indicatorRow(feature)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Descriptors in the user's chosen order. Ties break on id so two features
+    /// never swap places between launches.
+    private var orderedDescriptors: [FeatureDescriptor] {
+        features.sorted { left, right in
+            let l = settings.features[left.id]?.order ?? 0
+            let r = settings.features[right.id]?.order ?? 0
+            return l == r ? left.id < right.id : l < r
+        }
+    }
+
+    private func indicatorRow(_ feature: FeatureDescriptor) -> some View {
+        let enabled = settings.isEnabled(feature.id)
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 10) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(dragging == feature.id ? 0.7 : 0.28))
+                Text(feature.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(enabled ? Color.white : Color.white.opacity(0.45))
+                Spacer(minLength: 0)
+                Toggle("", isOn: enabledBinding(feature.id)).labelsHidden()
+            }
+
+            if enabled, !feature.options.isEmpty {
+                Picker("", selection: styleBinding(feature.id)) {
                     ForEach(feature.options) { option in
                         Text(option.title).tag(option.id)
                     }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.leading, 24)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 5)
+        .opacity(dragging == feature.id ? 0.45 : 1)
+        .contentShape(Rectangle())
+        .onDrag {
+            dragging = feature.id
+            return NSItemProvider(object: feature.id as NSString)
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: ReorderDrop(
+                target: feature.id,
+                order: orderedDescriptors.map(\.id),
+                dragging: $dragging,
+                apply: { settings.setOrder($0) }
+            )
+        )
+    }
+
+    private var appearance: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PageHeader(
+                "Appearance",
+                detail: "The resting notch and the live strip stay solid black so they read as part of the hardware. These change the panel that drops down."
+            )
+
+            SettingCard {
+                SettingRow("Accent colour", detail: "Tints icons, bars and highlights.") {
+                    HStack(spacing: 6) {
+                        ForEach(AccentColor.all) { accent in
+                            accentDot(accent)
+                        }
+                    }
+                }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Panel fill",
+                    detail: "Frosted glass picks up what is behind it. Solid black matches the notch exactly."
+                ) {
+                    Picker("", selection: $settings.appearance.panelFill) {
+                        ForEach(AppearanceSettings.PanelFill.allCases, id: \.self) { fill in
+                            Text(fill.label).tag(fill)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 220)
+                }
+
+                SettingDivider()
+
+                SettingRow("Motion", detail: "How eagerly the island opens and closes.") {
+                    Picker("", selection: $settings.appearance.motion) {
+                        ForEach(AppearanceSettings.Motion.allCases, id: \.self) { motion in
+                            Text(motion.label).tag(motion)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 220)
+                }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Panel roundness",
+                    detail: "\(Int(settings.appearance.panelCornerRadius)) pt at the bottom corners."
+                ) {
+                    Slider(value: $settings.appearance.panelCornerRadius, in: 8...36, step: 1)
+                        .frame(width: 220)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func accentDot(_ accent: AccentColor) -> some View {
+        let selected = settings.appearance.accentID == accent.id
+        return Button {
+            settings.appearance.accentID = accent.id
+        } label: {
+            Circle()
+                .fill(accent.color)
+                .frame(width: 18, height: 18)
+                .overlay(
+                    Circle().strokeBorder(
+                        Color.white.opacity(selected ? 0.95 : 0.16),
+                        lineWidth: selected ? 2 : 1
+                    )
+                )
+                .padding(2)
+        }
+        .buttonStyle(.plain)
+        .help(accent.name)
+    }
+
+    private var alerts: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PageHeader("Alerts", detail: "What happens when something finishes, or wants your attention.")
+
+            SettingCard {
+                SettingRow(
+                    "Keep a finished alert for",
+                    detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it leaves on its own. No timer is ever drawn beside it."
+                ) {
+                    Slider(value: $settings.alerts.noticeSeconds, in: 1...10, step: 1)
+                        .frame(width: 220)
+                }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Requests wait for you",
+                    detail: "An alert that is asking for something — a permission prompt — stays until you deal with it, instead of leaving on its own."
+                ) {
+                    Toggle("", isOn: $settings.alerts.requestsWaitForYou).labelsHidden()
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var privacy: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PageHeader(
+                "Privacy",
+                detail: "Everything stays on this Mac. Nothing is uploaded, and nothing is collected."
+            )
+
+            SettingCard {
+                PrivacyLine(
+                    "Network",
+                    "One request only: album and video artwork, from Spotify's and YouTube's image hosts. Nothing else ever leaves."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Files written",
+                    "None. The only thing kept is these settings, where every Mac app keeps them."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Audio",
+                    "Never listened to. The bars follow the play state, not the sound."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Permissions",
+                    "Automation for your media apps, and notifications for the timer. Never Accessibility, Screen Recording or Full Disk Access."
+                )
+            }
+
+            Text("The full detail, and how to check every line of it yourself, is in SECURITY.md.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
     }
 
     // MARK: Bindings
@@ -98,5 +413,144 @@ public struct SettingsView: View {
                 settings.launchAtLogin = ok ? value : LoginItem.isEnabled
             }
         )
+    }
+}
+
+/// Drops one indicator onto another to reorder the list.
+private struct ReorderDrop: DropDelegate {
+    let target: String
+    let order: [String]
+    @Binding var dragging: String?
+    let apply: ([String]) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let source = dragging, source != target else { return }
+        apply(SettingsReorder.moving(source, before: target, in: order))
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
+    }
+}
+
+/// The reordering itself, kept apart from the view so it can be checked.
+public enum SettingsReorder {
+    /// `source` lifted out of the list and dropped at `target`'s position.
+    /// Unknown ids leave the order untouched rather than corrupting it.
+    public static func moving(_ source: String, before target: String, in order: [String]) -> [String] {
+        guard source != target,
+              let from = order.firstIndex(of: source),
+              let to = order.firstIndex(of: target)
+        else { return order }
+
+        var ids = order
+        ids.remove(at: from)
+        ids.insert(source, at: to)
+        return ids
+    }
+}
+
+// MARK: Small building blocks
+
+private struct PageHeader: View {
+    let title: String
+    let detail: String
+
+    init(_ title: String, detail: String) {
+        self.title = title
+        self.detail = detail
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.system(size: 19, weight: .semibold, design: .rounded))
+            Text(detail)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct SettingCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.045))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+                    )
+            )
+    }
+}
+
+private struct SettingRow<Control: View>: View {
+    let title: String
+    let detail: String
+    @ViewBuilder var control: Control
+
+    init(_ title: String, detail: String, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.detail = detail
+        self.control = control()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Text(detail)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            control
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+private struct PrivacyLine: View {
+    let title: String
+    let detail: String
+
+    init(_ title: String, _ detail: String) {
+        self.title = title
+        self.detail = detail
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(.green)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Text(detail)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 7)
+    }
+}
+
+private struct SettingDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.06))
+            .frame(height: 1)
     }
 }

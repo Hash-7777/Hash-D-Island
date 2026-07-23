@@ -26,6 +26,9 @@ struct NotchIslandView: View {
     private var showExpanded: Bool { state.isExpanded }
     private var showLive: Bool { !state.isExpanded && presence.hasLive }
 
+    private var motionScale: Double { settings.appearance.motion.responseScale }
+    private var panelRadius: CGFloat { CGFloat(settings.appearance.panelCornerRadius) }
+
     /// The panel drops as a SOLID BLACK box first, then — once this flips true
     /// ~0.2s later — the glass and its contents fade in. That black beat makes
     /// the panel read as the physical notch stretching open before it reveals.
@@ -90,16 +93,20 @@ struct NotchIslandView: View {
                     .onChange(of: geo.size) { _, size in onIslandSize?(size) }
             }
         )
+        // Opening springs overshoot slightly for the water-drop wobble; closing
+        // springs are fully damped, because a bouncing close reads as a crash.
+        // The motion setting scales all four responses together, so calm and
+        // lively stay recognisably the same animation.
         .animation(
             showExpanded
-                ? .spring(response: 0.55, dampingFraction: 0.72)
-                : .spring(response: 0.42, dampingFraction: 0.98),
+                ? .spring(response: 0.55 * motionScale, dampingFraction: 0.72)
+                : .spring(response: 0.42 * motionScale, dampingFraction: 0.98),
             value: showExpanded
         )
         .animation(
             showLive
-                ? .spring(response: 0.45, dampingFraction: 0.82)
-                : .spring(response: 0.38, dampingFraction: 0.98),
+                ? .spring(response: 0.45 * motionScale, dampingFraction: 0.82)
+                : .spring(response: 0.38 * motionScale, dampingFraction: 0.98),
             value: showLive
         )
     }
@@ -144,15 +151,19 @@ struct NotchIslandView: View {
             .background(
                 ZStack {
                     Color.black
-                    ZStack {
-                        VisualEffectView(material: .hudWindow)
-                        Color.black.opacity(0.15)
+                    // Solid black is not "no glass" — it is the black beat held
+                    // permanently, which is why the reveal still crossfades.
+                    if settings.appearance.panelFill == .glass {
+                        ZStack {
+                            VisualEffectView(material: .hudWindow)
+                            Color.black.opacity(0.15)
+                        }
+                        .opacity(panelRevealed ? 1 : 0)
                     }
-                    .opacity(panelRevealed ? 1 : 0)
                 }
-                .clipShape(pillShape(radius: 26))
+                .clipShape(pillShape(radius: panelRadius))
                 .overlay(
-                    pillShape(radius: 26)
+                    pillShape(radius: panelRadius)
                         .strokeBorder(Color.white.opacity(panelRevealed ? 0.12 : 0), lineWidth: 0.7)
                 )
                 .shadow(color: .black.opacity(0.55), radius: 22, y: 14)

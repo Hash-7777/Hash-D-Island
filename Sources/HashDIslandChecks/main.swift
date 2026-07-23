@@ -432,6 +432,86 @@ MainActor.assumeIsolated {
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
 
+    // Reordering: dragging one indicator onto another moves it there, and a
+    // drag that makes no sense leaves the order alone rather than corrupting it.
+    let order = ["media", "tokens", "network", "battery"]
+    check(
+        "dragging down moves the row",
+        SettingsReorder.moving("media", before: "network", in: order)
+            == ["tokens", "network", "media", "battery"]
+    )
+    check(
+        "dragging up moves the row",
+        SettingsReorder.moving("battery", before: "tokens", in: order)
+            == ["media", "battery", "tokens", "network"]
+    )
+    check(
+        "dropping on itself changes nothing",
+        SettingsReorder.moving("media", before: "media", in: order) == order
+    )
+    check(
+        "an unknown row changes nothing",
+        SettingsReorder.moving("ghost", before: "media", in: order) == order
+    )
+    check(
+        "reordering never loses or duplicates a row",
+        Set(SettingsReorder.moving("media", before: "battery", in: order)) == Set(order)
+            && SettingsReorder.moving("media", before: "battery", in: order).count == order.count
+    )
+
+    // Battery saver is one number in one place, and it is the number every
+    // sampler multiplies by.
+    let scaleSuite = "hashdisland.checks.scale.\(UUID().uuidString)"
+    let scaleDefaults = UserDefaults(suiteName: scaleSuite)!
+    let scaled = SettingsStore(defaults: scaleDefaults)
+    check("normally everything samples at its own rate", scaled.samplingScale == 1)
+    scaled.batterySaver = true
+    check("battery saver halves how often things sample", scaled.samplingScale == 2)
+
+    // An accent id that no longer exists must still leave the island tinted.
+    check("a known accent resolves", AccentColor.named("green").name == "Green")
+    check("an unknown accent falls back", AccentColor.named("chartreuse").id == AccentColor.default.id)
+    check("the default accent is in the list", AccentColor.all.contains { $0.id == AccentColor.default.id })
+
+    // Appearance and alert choices survive a restart.
+    scaled.appearance.accentID = "purple"
+    scaled.appearance.panelFill = .solid
+    scaled.appearance.motion = .calm
+    scaled.alerts.noticeSeconds = 7
+    scaled.flush()
+    let reopened = SettingsStore(defaults: scaleDefaults)
+    check("the accent is remembered", reopened.appearance.accentID == "purple")
+    check("the panel fill is remembered", reopened.appearance.panelFill == .solid)
+    check("the motion is remembered", reopened.appearance.motion == .calm)
+    check("the alert length is remembered", reopened.alerts.noticeSeconds == 7)
+    check("battery saver is remembered", reopened.batterySaver)
+    check("calm motion is slower than lively",
+          AppearanceSettings.Motion.calm.responseScale > AppearanceSettings.Motion.lively.responseScale)
+    UserDefaults.standard.removePersistentDomain(forName: scaleSuite)
+
+    // The reader's chosen alert length overrides whatever the poster suggested.
+    let posted = LiveActivity(
+        id: "p", icon: "checkmark", title: "Done", subtitle: nil,
+        progress: nil, endsAt: nil, dismissAfter: 3
+    )
+    let start = Date()
+    check(
+        "the poster's length is used when there is no preference",
+        posted.dismissalDate(firstSeen: start) == start.addingTimeInterval(3)
+    )
+    check(
+        "your preference wins over the poster's",
+        posted.dismissalDate(firstSeen: start, preferring: 8) == start.addingTimeInterval(8)
+    )
+    let countdown = LiveActivity(
+        id: "c", icon: "bicycle", title: "Delivery", subtitle: nil,
+        progress: nil, endsAt: Date().addingTimeInterval(600), dismissAfter: nil
+    )
+    check(
+        "a countdown is never cut short by the notice preference",
+        countdown.dismissalDate(firstSeen: start, preferring: 8) == nil
+    )
+
     // Renaming the app changes the preferences domain, so settings saved under
     // the old name must be carried over exactly once and rewritten under the new
     // key — otherwise an existing install silently comes back reset.

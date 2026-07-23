@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import HashDIslandKit
 
 /// Boots the HUD: builds the registry from the manifest, loads settings, starts
@@ -14,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var power: PowerCoordinator?
     private var screenObserver: NSObjectProtocol?
     private var rebuildWork: DispatchWorkItem?
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let settings = SettingsStore()
@@ -53,10 +55,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.scheduleOverlayRebuild() }
         }
 
+        // Battery saver changes how often everything samples, and a running
+        // sampler's interval is fixed — so the features are restarted, which is
+        // exactly what already happens on screen sleep and wake.
+        settings.$batterySaver
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.restartFeatures() }
+                }
+            }
+            .store(in: &cancellables)
+
         // First launch: show the settings window so the app is easy to find.
         if settings.isFirstRun {
             settingsWindow.show()
         }
+    }
+
+    private func restartFeatures() {
+        guard let registry, let context else { return }
+        registry.stopAll()
+        registry.startAll(context: context)
     }
 
     private func scheduleOverlayRebuild() {

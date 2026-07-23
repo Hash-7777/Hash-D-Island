@@ -27,7 +27,7 @@ public final class ThermalMonitor: ObservableObject {
 
     public init() {}
 
-    public func start(visibility: PanelVisibility) {
+    public func start(visibility: PanelVisibility, scale: Double = 1) {
         state = ProcessInfo.processInfo.thermalState
         observer = NotificationCenter.default.addObserver(
             forName: ProcessInfo.thermalStateDidChangeNotification,
@@ -41,7 +41,7 @@ public final class ThermalMonitor: ObservableObject {
 
         // Sensor reads only matter while their numbers are on screen. The
         // system's own thermal-state notification above still arrives either way.
-        sampler = VisibleSampler(interval: 3.0, visibility: visibility) { [weak self] in
+        sampler = VisibleSampler(interval: 3.0 * scale, visibility: visibility) { [weak self] in
             self?.refresh()
         }
         sampler?.start()

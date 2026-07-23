@@ -164,9 +164,13 @@ those versions, and runs out of process so it can never crash the app.
 Hover the notch to open the panel, then click the **gear** in its top corner.
 There you can:
 
-- turn each indicator on or off,
+- turn each indicator on or off and **drag to reorder** them,
 - choose how it looks (e.g. temperature as a number `52°`, a word `Cool`, or
   just a symbol),
+- pick an accent colour, the panel's fill and roundness, and how eager its
+  motion is,
+- choose how long a finished alert stays before it leaves,
+- turn on **Battery saver** to check everything half as often,
 - turn on **Open at Login** so it comes back every time you start your Mac, and
 - **quit Hash D Island**.
 

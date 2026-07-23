@@ -14,7 +14,7 @@ public final class ActivitiesFeature: NotchFeature {
     public init() {}
 
     public func start(context: FeatureContext) {
-        monitor.start(presence: context.presence)
+        monitor.start(presence: context.presence, settings: context.settings)
     }
 
     public func stop() { monitor.stop() }

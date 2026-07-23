@@ -7,7 +7,12 @@ import Foundation
 /// type to share more — features opt in by reading what they need.
 @MainActor
 public final class FeatureContext {
-    public let theme: Theme
+    /// Visual tokens, re-derived from settings each time they are asked for, so
+    /// a change of accent reaches every feature without any of them subscribing
+    /// to anything.
+    public var theme: Theme { baseTheme.tinted(settings.accent.color) }
+
+    private let baseTheme: Theme
     public let settings: SettingsStore
     public let presence: LivePresence
     /// Whether the panel is open. Features that only draw inside it sample
@@ -24,7 +29,7 @@ public final class FeatureContext {
         presence: LivePresence? = nil,
         visibility: PanelVisibility? = nil
     ) {
-        self.theme = theme
+        self.baseTheme = theme
         self.settings = settings
         self.presence = presence ?? LivePresence()
         self.visibility = visibility ?? PanelVisibility()

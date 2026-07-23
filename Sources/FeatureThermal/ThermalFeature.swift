@@ -27,7 +27,7 @@ public final class ThermalFeature: NotchFeature {
 
     public init() {}
 
-    public func start(context: FeatureContext) { monitor.start(visibility: context.visibility) }
+    public func start(context: FeatureContext) { monitor.start(visibility: context.visibility, scale: context.settings.samplingScale) }
     public func stop() { monitor.stop() }
 
     public func makeView(context: FeatureContext) -> AnyView {

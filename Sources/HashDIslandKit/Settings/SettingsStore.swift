@@ -16,11 +16,78 @@ public struct FeatureConfig: Codable, Equatable {
     }
 }
 
+/// How the island looks. Every value here is wired to something visible — a
+/// setting that changed nothing would be worse than no setting at all.
+public struct AppearanceSettings: Codable, Equatable {
+    /// The open panel's fill. The resting notch and the live strip are always
+    /// solid black so they read as one piece with the hardware.
+    public enum PanelFill: String, Codable, CaseIterable, Sendable {
+        case glass
+        case solid
+
+        public var label: String {
+            switch self {
+            case .glass: return "Frosted glass"
+            case .solid: return "Solid black"
+            }
+        }
+    }
+
+    /// How eager the island's motion is.
+    public enum Motion: String, Codable, CaseIterable, Sendable {
+        case calm
+        case standard
+        case lively
+
+        public var label: String {
+            switch self {
+            case .calm: return "Calm"
+            case .standard: return "Standard"
+            case .lively: return "Lively"
+            }
+        }
+
+        /// Multiplies every spring's response. Higher is slower and softer.
+        public var responseScale: Double {
+            switch self {
+            case .calm: return 1.35
+            case .standard: return 1.0
+            case .lively: return 0.72
+            }
+        }
+    }
+
+    public var panelFill: PanelFill = .glass
+    public var accentID: String = AccentColor.default.id
+    public var motion: Motion = .standard
+    /// The open panel's corner rounding, in points.
+    public var panelCornerRadius: Double = 26
+
+    public init() {}
+}
+
+/// How alerts behave.
+public struct AlertSettings: Codable, Equatable {
+    /// How long a "something finished" notice stays on the notch. The poster
+    /// suggests a duration; this is the reader's preference, and the reader
+    /// wins — it is your notch.
+    public var noticeSeconds: Double = 3
+    /// Whether an alert that is asking for something — a permission prompt —
+    /// waits for you instead of leaving on its own.
+    public var requestsWaitForYou: Bool = true
+
+    public init() {}
+}
+
 /// The whole persisted document. Unknown keys in an older saved document (e.g.
-/// the removed layout block) are ignored on decode.
+/// the removed layout block) are ignored on decode, and missing ones fall back
+/// to their defaults, so a document written by an older build still loads.
 private struct SettingsDocument: Codable {
     var features: [String: FeatureConfig]
     var launchAtLogin: Bool
+    var batterySaver: Bool?
+    var appearance: AppearanceSettings?
+    var alerts: AlertSettings?
 }
 
 /// The single source of truth for user customization, backed by `UserDefaults`.
@@ -32,6 +99,18 @@ private struct SettingsDocument: Codable {
 public final class SettingsStore: ObservableObject {
     @Published public var features: [String: FeatureConfig]
     @Published public var launchAtLogin: Bool
+    /// Halves how often everything samples. Features re-read this when they
+    /// restart, which the app does as soon as it changes.
+    @Published public var batterySaver: Bool = false
+    @Published public var appearance = AppearanceSettings()
+    @Published public var alerts = AlertSettings()
+
+    /// Multiplies every sampling interval. Kept here rather than in each
+    /// monitor so "sample less often" means one number in one place.
+    public var samplingScale: Double { batterySaver ? 2 : 1 }
+
+    /// The accent colour, resolved from the stored id.
+    public var accent: AccentColor { AccentColor.named(appearance.accentID) }
 
     /// True when there was no saved configuration to load (i.e. first ever run).
     /// Used to show the settings window once so the app is easy to find.
@@ -53,16 +132,18 @@ public final class SettingsStore: ObservableObject {
     public init(defaults: UserDefaults = .standard, legacyDefaults: UserDefaults? = nil) {
         self.defaults = defaults
 
-        if let document = Self.load(key: storageKey, from: defaults) {
+        // Carried-over settings come from the app's previous name and are
+        // written back under the new key by the save below, so that path is
+        // taken exactly once.
+        let document = Self.load(key: storageKey, from: defaults)
+            ?? Self.loadLegacy(explicit: legacyDefaults, running: defaults)
+
+        if let document {
             self.features = document.features
             self.launchAtLogin = document.launchAtLogin
-            self.isFirstRun = false
-        } else if let document = Self.loadLegacy(explicit: legacyDefaults, running: defaults) {
-            // Carried over from the previous name, once. It is written back
-            // under the new key by the save below, so this path is not taken
-            // again.
-            self.features = document.features
-            self.launchAtLogin = document.launchAtLogin
+            self.batterySaver = document.batterySaver ?? false
+            self.appearance = document.appearance ?? AppearanceSettings()
+            self.alerts = document.alerts ?? AlertSettings()
             self.isFirstRun = false
         } else {
             self.features = [:]
@@ -138,6 +219,33 @@ public final class SettingsStore: ObservableObject {
         features[id] = config
     }
 
+    /// Rewrite the display order from a list of ids, top to bottom.
+    ///
+    /// Order is stored per feature rather than as a list so that a feature
+    /// added in a later version simply appears at its default position instead
+    /// of being lost from a saved list that predates it.
+    public func setOrder(_ ids: [String]) {
+        for (index, id) in ids.enumerated() {
+            update(id) { $0.order = index }
+        }
+    }
+
+    /// Enabled features, in the order they should be drawn.
+    ///
+    /// Ties break on id so the order is stable rather than dependent on
+    /// dictionary iteration, which would otherwise let two features swap places
+    /// between launches.
+    public func orderedIDs(among list: [NotchFeature]) -> [String] {
+        var ranked: [(id: String, order: Int)] = []
+        for (index, feature) in list.enumerated() {
+            ranked.append((feature.id, config(for: feature, index: index).order))
+        }
+        ranked.sort { left, right in
+            left.order == right.order ? left.id < right.id : left.order < right.order
+        }
+        return ranked.map(\.id)
+    }
+
     /// Force an immediate synchronous save (the automatic save is coalesced to
     /// the next runloop tick; tests and shutdown use this).
     public func flush() { save() }
@@ -145,7 +253,10 @@ public final class SettingsStore: ObservableObject {
     private func save() {
         let document = SettingsDocument(
             features: features,
-            launchAtLogin: launchAtLogin
+            launchAtLogin: launchAtLogin,
+            batterySaver: batterySaver,
+            appearance: appearance,
+            alerts: alerts
         )
         if let data = try? JSONEncoder().encode(document) {
             defaults.set(data, forKey: storageKey)

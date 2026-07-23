@@ -29,6 +29,15 @@ public struct Theme {
         self.cornerRadius = cornerRadius
     }
 
+    /// The same theme in a different accent. Everything that tints — icons,
+    /// bars, highlights — reads `accent`, so changing it here changes every
+    /// feature at once without a single feature knowing a setting exists.
+    public func tinted(_ accent: Color) -> Theme {
+        var copy = self
+        copy.accent = accent
+        return copy
+    }
+
     public static let `default` = Theme(
         upColor: Color(red: 0.94, green: 0.30, blue: 0.36),
         downColor: Color(red: 0.30, green: 0.85, blue: 0.46),
