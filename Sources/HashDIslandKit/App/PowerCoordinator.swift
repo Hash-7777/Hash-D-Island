@@ -47,6 +47,6 @@ public final class PowerCoordinator {
     private func resume() {
         guard isPaused else { return }
         isPaused = false
-        registry.startAll(context: context)
+        registry.syncRunning(context: context)
     }
 }

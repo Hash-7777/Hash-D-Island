@@ -47,6 +47,29 @@ private final class StubFeature: NotchFeature {
     func makeView(context: FeatureContext) -> AnyView { AnyView(EmptyView()) }
 }
 
+/// A stub that remembers whether it is running, so the checks can tell apart a
+/// feature that is hidden from one that has actually been stopped.
+@MainActor
+private final class CountingFeature: NotchFeature {
+    let id: String
+    let title: String
+    let placement: FeaturePlacement = .expanded
+    private(set) var isRunning = false
+    private(set) var starts = 0
+
+    init(id: String) {
+        self.id = id
+        self.title = id
+    }
+
+    func start(context: FeatureContext) {
+        isRunning = true
+        starts += 1
+    }
+    func stop() { isRunning = false }
+    func makeView(context: FeatureContext) -> AnyView { AnyView(EmptyView()) }
+}
+
 MainActor.assumeIsolated {
     print("Hash D Island core checks")
 
@@ -63,6 +86,47 @@ MainActor.assumeIsolated {
     check("filter leading", ordered.features(for: .leading).map(\.id) == ["a", "c"])
     check("filter trailing", ordered.features(for: .trailing).map(\.id) == ["b"])
     check("filter expanded empty", ordered.features(for: .expanded).isEmpty)
+
+    // Switching a feature off stops it, rather than merely hiding it. This is a
+    // privacy promise as much as a battery one: a feature that is off must not
+    // still be listing your Downloads folder or asking your browser what it is
+    // playing.
+    let runSuite = "hashdisland.checks.running.\(UUID().uuidString)"
+    let runDefaults = UserDefaults(suiteName: runSuite)!
+    let runSettings = SettingsStore(defaults: runDefaults)
+    let onFeature = CountingFeature(id: "on")
+    let offFeature = CountingFeature(id: "off")
+    let runRegistry = FeatureRegistry()
+    runRegistry.register([onFeature, offFeature])
+    runSettings.seed(features: runRegistry.features)
+    runSettings.update("off") { $0.enabled = false }
+
+    let runContext = FeatureContext(settings: runSettings)
+    runRegistry.syncRunning(context: runContext)
+    check("a feature that is on is started", onFeature.isRunning)
+    check("a feature that is off is never started", offFeature.isRunning == false)
+    check("only the running feature is tracked", runRegistry.runningIDs == ["on"])
+
+    // Flipping a switch takes effect on the feature itself, both ways.
+    runSettings.update("off") { $0.enabled = true }
+    runRegistry.syncRunning(context: runContext)
+    check("switching a feature on starts it", offFeature.isRunning)
+
+    runSettings.update("on") { $0.enabled = false }
+    runRegistry.syncRunning(context: runContext)
+    check("switching a feature off stops it", onFeature.isRunning == false)
+    check("the other feature is left alone", offFeature.isRunning)
+
+    // Settings publish on every change, including reorders and style changes,
+    // so the sync must be free to run often without restarting anything.
+    let startsBefore = offFeature.starts
+    runRegistry.syncRunning(context: runContext)
+    runRegistry.syncRunning(context: runContext)
+    check("syncing again does not restart a running feature", offFeature.starts == startsBefore)
+
+    runRegistry.stopAll()
+    check("stopping everything clears what is running", runRegistry.runningIDs.isEmpty)
+    UserDefaults.standard.removePersistentDomain(forName: runSuite)
 
     // Island sizing: collapsed matches the notch, expanded is larger.
     let state = NotchState(geometry: NotchGeometry(

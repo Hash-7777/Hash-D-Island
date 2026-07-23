@@ -29,7 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsWindow = SettingsWindowController(settings: settings, registry: registry)
         context.openSettings = { [weak settingsWindow] in settingsWindow?.show() }
 
-        registry.startAll(context: context)
+        // Only the features that are switched on are started at all.
+        registry.syncRunning(context: context)
 
         let controller = NotchWindowController(registry: registry, context: context)
         controller.show()
@@ -68,6 +69,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        // Switching a feature off stops it reading, not just showing. The
+        // whole config dictionary is watched because @Published fires for any
+        // change in it (a reorder, a style); syncRunning only touches a feature
+        // whose on/off state actually differs from what it is doing, so the
+        // extra calls cost nothing. Deferred a hop because @Published fires in
+        // willSet, where the store still holds the previous value.
+        settings.$features
+            .dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.syncFeatures() }
+                }
+            }
+            .store(in: &cancellables)
+
         // Position corrections are watched by the overlay controller itself,
         // which owns the geometry they change.
 
@@ -80,7 +96,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func restartFeatures() {
         guard let registry, let context else { return }
         registry.stopAll()
-        registry.startAll(context: context)
+        registry.syncRunning(context: context)
+    }
+
+    /// Start or stop the features whose switch has just changed.
+    private func syncFeatures() {
+        guard let registry, let context else { return }
+        registry.syncRunning(context: context)
     }
 
     private func scheduleOverlayRebuild() {
