@@ -612,9 +612,61 @@ MainActor.assumeIsolated {
 
     // Only the low-battery warning earns the longer stay on the notch.
     check("a low warning is a warning", BatteryEvent.lowBattery(10).isWarning)
-    check("charging is not a warning", BatteryEvent.startedCharging(50).isWarning == false)
+    check("plugging in is not a warning", BatteryEvent.pluggedIn(50).isWarning == false)
     check("fully charged is not a warning", BatteryEvent.fullyCharged(100).isWarning == false)
     check("unplugging is not a warning", BatteryEvent.unplugged(80).isWarning == false)
+
+    // Plugging in announces on the POWER transition, not on reaching the
+    // charging state. macOS reports external power the instant the cable goes
+    // in while IsCharging is still false, so the real sequence is
+    // discharging → held → charging. Keying the announcement on "reached
+    // charging" matched none of it, and the plug-in alert never fired while
+    // unplugging — which has no such in-between step — announced every time.
+    func announces(from previous: BatteryState, to next: BatteryState) -> String? {
+        guard previous != next else { return nil }
+        let wasOnPower = previous != .discharging
+        let isOnPower = next != .discharging
+        if isOnPower != wasOnPower { return isOnPower ? "pluggedIn" : "unplugged" }
+        if previous == .charging, next == .charged || next == .onHold { return "fullyCharged" }
+        return nil
+    }
+    check(
+        "the cable going in announces even when charging has not begun yet",
+        announces(from: .discharging, to: .onHold) == "pluggedIn"
+    )
+    check(
+        "plugging in straight into a charge announces once",
+        announces(from: .discharging, to: .charging) == "pluggedIn"
+    )
+    check(
+        "plugging in at full announces",
+        announces(from: .discharging, to: .charged) == "pluggedIn"
+    )
+    check(
+        "settling from held into charging does not announce again",
+        announces(from: .onHold, to: .charging) == nil
+    )
+    check(
+        "pulling the cable announces",
+        announces(from: .charging, to: .discharging) == "unplugged"
+    )
+    check(
+        "finishing the charge announces",
+        announces(from: .charging, to: .charged) == "fullyCharged"
+    )
+    check(
+        "a health hold at the end of a charge announces",
+        announces(from: .charging, to: .onHold) == "fullyCharged"
+    )
+    check("nothing changed, nothing announced", announces(from: .charging, to: .charging) == nil)
+
+    // Charge speed is judged on the adapter's own rating, and claims nothing
+    // when the adapter reports none.
+    check("a phone charger is slow", BatteryMonitor.ChargeSpeed.forWatts(20) == .slow)
+    check("an everyday adapter is standard", BatteryMonitor.ChargeSpeed.forWatts(35) == .standard)
+    check("a big adapter is fast", BatteryMonitor.ChargeSpeed.forWatts(96) == .fast)
+    check("the fast threshold is 60W", BatteryMonitor.ChargeSpeed.forWatts(60) == .fast)
+    check("no rating claims no speed", BatteryMonitor.ChargeSpeed.forWatts(0) == nil)
 
     // Downloads: browser part-files are recognized, finished files are not.
     check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))

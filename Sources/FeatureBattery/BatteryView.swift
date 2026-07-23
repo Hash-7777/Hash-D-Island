@@ -91,7 +91,7 @@ struct BatteryEventIconView: View {
 
     private func iconName(_ event: BatteryEvent) -> String {
         switch event {
-        case .startedCharging: return "bolt.fill"
+        case .pluggedIn: return monitor.state == .onHold ? "pause.circle.fill" : "bolt.fill"
         case .lowBattery: return "exclamationmark.triangle.fill"
         case .fullyCharged: return "checkmark.circle.fill"
         case .unplugged: return "powerplug"
@@ -100,7 +100,7 @@ struct BatteryEventIconView: View {
 
     private func iconColor(_ event: BatteryEvent) -> Color {
         switch event {
-        case .startedCharging, .fullyCharged: return theme.downColor
+        case .pluggedIn, .fullyCharged: return theme.downColor
         case .lowBattery: return theme.upColor
         case .unplugged: return theme.subtitleColor
         }
@@ -123,13 +123,29 @@ struct BatteryEventTextView: View {
 
     private func text(_ event: BatteryEvent) -> String {
         switch event {
-        case .startedCharging(let percent):
-            // The time to full is the useful half of "you plugged it in" — the
-            // user can see the cable; what they cannot see is how long.
-            if let minutes = monitor.minutesToFull, minutes > 0 {
-                return "Charging · \(percent)% · \(Formatters.hoursMinutes(minutes)) to full"
+        case .pluggedIn(let percent):
+            // Read from the LIVE state rather than from the moment the cable
+            // went in. macOS needs a second to settle on whether this is a
+            // charge, a health hold, or nothing to do — and because this view
+            // observes the monitor, the line rewrites itself in place as that
+            // answer arrives, rather than committing to a guess and being wrong
+            // for the four seconds it is on screen.
+            switch monitor.state {
+            case .charged:
+                return "Charged · \(percent)%"
+            case .onHold:
+                return "Plugged in · \(percent)% · held for battery health"
+            case .charging, .discharging:
+                // The cable is the part you can see. The time to full, and
+                // whether what you grabbed will actually get you there, is the
+                // part you cannot.
+                var parts = ["\(monitor.chargeSpeed?.label ?? "Charging") · \(percent)%"]
+                if let watts = monitor.adapterWatts, watts > 0 { parts.append("\(watts)W") }
+                if let minutes = monitor.minutesToFull, minutes > 0 {
+                    parts.append("\(Formatters.hoursMinutes(minutes)) to full")
+                }
+                return parts.joined(separator: " · ")
             }
-            return "Charging · \(percent)%"
         case .lowBattery(let percent):
             // Says what to do, not just what happened. Low Power Mode is the
             // one action that buys real time, and on a Mac it lives one click
@@ -274,8 +290,17 @@ struct BatteryDetailView: View {
     private var detailText: String? {
         switch monitor.state {
         case .charging:
-            guard let minutes = monitor.minutesToFull, minutes > 0 else { return nil }
-            return "\(Formatters.hoursMinutes(minutes)) to full"
+            // The two things you actually want while it fills: how long, and
+            // whether the adapter to hand is up to the job.
+            var parts: [String] = []
+            if let minutes = monitor.minutesToFull, minutes > 0 {
+                parts.append("\(Formatters.hoursMinutes(minutes)) to full")
+            }
+            if let watts = monitor.adapterWatts, watts > 0 {
+                let speed = monitor.chargeSpeed.map { $0 == .standard ? "" : " \($0.label.lowercased())" } ?? ""
+                parts.append("\(watts)W\(speed)")
+            }
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
         case .charged:
             return nil
         case .onHold:

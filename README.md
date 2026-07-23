@@ -39,7 +39,7 @@ Artwork, a scrolling title, and full controls for whatever is playing — Spotif
 Upload and download speed, from the kernel's own byte counters.
 
 **Battery**
-Level and time remaining, and it tells charging apart from *held at 80% for battery health*. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
+Level, time remaining, and time to full while charging — with the adapter's wattage and whether that counts as a slow or fast charge. Tells charging apart from *held at 80% for battery health*. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
 
 **AirPods**
 Charge left in each earbud and the case.

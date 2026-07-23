@@ -26,9 +26,10 @@ moment something is.
   Music, and anything else through the system media channel, including video in
   your browser (with the video's thumbnail as artwork).
 - **Internet speed** — live upload and download.
-- **Battery** — level, time remaining or time to full, and a heads-up when you
-  plug in, unplug, reach full, or drop through 20% and 10%. Charging is told
-  apart from *held at 80% for battery health*, and Low Power Mode shows in
+- **Battery** — level, time remaining, and time to full while charging, with
+  the adapter's wattage and whether that is a slow or fast charge. Charging is
+  told apart from *held at 80% for battery health*. A heads-up when you plug
+  in, unplug, reach full, or drop through 20% and 10%, and Low Power Mode in
   yellow with one click through to the setting that owns it.
 - **AirPods** — charge remaining in each earbud and the case.
 - **Temperatures** — real Apple Silicon on-die sensors, grouped into

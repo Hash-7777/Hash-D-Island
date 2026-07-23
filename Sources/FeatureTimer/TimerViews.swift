@@ -130,13 +130,22 @@ struct TimerDetailView: View {
             Button {
                 engine.begin(minutes: customMinutes)
             } label: {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.textColor)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(Capsule(style: .continuous).fill(theme.accent.opacity(0.9)))
-                    .contentShape(Capsule())
+                // A timer glyph and the word, not a play triangle. The triangle
+                // is the universal mark for "play this media", and sitting in a
+                // panel whose other controls genuinely are media controls, it
+                // read as one of them rather than as the thing that starts the
+                // countdown.
+                HStack(spacing: 4) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("Start")
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(theme.textColor)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background(Capsule(style: .continuous).fill(theme.accent.opacity(0.9)))
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
         }

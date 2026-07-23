@@ -6,7 +6,14 @@ import HashDIslandKit
 /// A transient battery moment the island announces like the iPhone does:
 /// plugging in shows a brief charge pill; dropping through 20% / 10% warns.
 public enum BatteryEvent: Equatable {
-    case startedCharging(Int)
+    /// Power was connected. Deliberately not "started charging": at the instant
+    /// the cable goes in, macOS reports external power but `IsCharging` is
+    /// still false while the adapter is negotiated, and a moment later it may
+    /// settle into charging, into a health hold, or into nothing at all if the
+    /// battery is already full. The announcement says what just happened — you
+    /// plugged it in — and the view reads the live state for the rest, so it
+    /// corrects itself within a second rather than having to guess up front.
+    case pluggedIn(Int)
     case lowBattery(Int)
     /// Reached full, or reached the level macOS is holding it at.
     case fullyCharged(Int)
@@ -59,6 +66,9 @@ public final class BatteryMonitor: ObservableObject {
     /// Whether macOS Low Power Mode is on. Read-only: macOS offers no public
     /// way to switch it, so the app reports it and can open the pane that does.
     @Published public private(set) var isLowPowerMode: Bool = false
+    /// The connected adapter's rating in watts, when it reports one. Nil on
+    /// battery, and nil for an adapter that declines to say.
+    @Published public private(set) var adapterWatts: Int?
 
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
@@ -177,6 +187,42 @@ public final class BatteryMonitor: ObservableObject {
         return nil
     }
 
+    /// How quickly the connected adapter can fill this Mac.
+    ///
+    /// Judged on the adapter's own rating, which is the only figure available
+    /// without measuring current draw over time — and the one that actually
+    /// decides the answer, since a laptop charges as fast as what it is plugged
+    /// into allows. The thresholds are deliberately coarse and named after what
+    /// they mean in practice rather than pretending to a precision the number
+    /// does not carry: below 30W is a phone-class charger that will crawl,
+    /// 30–60W is the everyday case, and 60W and up is what Apple's own fast
+    /// charging needs.
+    public enum ChargeSpeed: Equatable {
+        case slow
+        case standard
+        case fast
+
+        /// Ready to open a line, since that is where it is read.
+        public var label: String {
+            switch self {
+            case .slow: return "Slow charge"
+            case .standard: return "Charging"
+            case .fast: return "Fast charge"
+            }
+        }
+
+        package static func forWatts(_ watts: Int) -> ChargeSpeed? {
+            guard watts > 0 else { return nil }
+            if watts < 30 { return .slow }
+            return watts < 60 ? .standard : .fast
+        }
+    }
+
+    /// The speed of the connected adapter, when it reports a rating.
+    public var chargeSpeed: ChargeSpeed? {
+        adapterWatts.flatMap(ChargeSpeed.forWatts)
+    }
+
     /// What the battery is doing, from the three things IOKit reports.
     ///
     /// Pure and package-visible so the checks can pin every combination without
@@ -249,19 +295,36 @@ public final class BatteryMonitor: ObservableObject {
                 onPower: onPower, isCharging: newCharging, percentage: newPercentage
             )
 
-            // Transient announcements. Each fires on a real transition rather
-            // than on a level, so none of them can repeat while nothing moves.
+            // The adapter's rating, straight from the public power-source API.
+            // Nil on battery, and nil for an adapter that reports no wattage —
+            // in which case nothing about speed is claimed at all, rather than
+            // a number being invented for the sake of having one.
+            let watts = onPower
+                ? (IOPSCopyExternalPowerAdapterDetails()?.takeRetainedValue()
+                    as? [String: Any])?[kIOPSPowerAdapterWattsKey] as? Int
+                : nil
+            if adapterWatts != watts { adapterWatts = watts }
+
+            // Transient announcements, keyed on whether POWER is connected
+            // rather than on the finer state.
+            //
+            // Keying them on the fine state is what swallowed the plug-in
+            // alert. Plugging in fires the IOKit notification immediately, and
+            // at that instant macOS reports external power while `IsCharging`
+            // is still false — so the first sample lands on "held", not
+            // "charging". The old rule only announced discharging → charging,
+            // so the real sequence (discharging → held → charging) matched
+            // nothing at all, while unplugging, which has no such intermediate
+            // step, announced every time. Exactly the asymmetry that showed up
+            // in use: pulling the cable spoke, putting it back said nothing.
             if let previous = lastState, previous != newState {
-                switch newState {
-                case .charging where previous == .discharging:
-                    announce(.startedCharging(newPercentage))
-                case .charged, .onHold:
-                    // Only worth saying when it just got there by charging.
-                    if previous == .charging { announce(.fullyCharged(newPercentage)) }
-                case .discharging:
-                    announce(.unplugged(newPercentage))
-                default:
-                    break
+                let wasOnPower = previous != .discharging
+                let isOnPower = newState != .discharging
+                if isOnPower != wasOnPower {
+                    announce(isOnPower ? .pluggedIn(newPercentage) : .unplugged(newPercentage))
+                } else if previous == .charging, newState == .charged || newState == .onHold {
+                    // Still on power, but done filling.
+                    announce(.fullyCharged(newPercentage))
                 }
             }
             if !onPower, let lastPct = lastPercentage,
