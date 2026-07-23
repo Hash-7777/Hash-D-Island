@@ -38,6 +38,8 @@ public final class DownloadsFeature: NotchFeature {
     public let id = "downloads"
     public let title = "Downloads"
     public let placement: FeaturePlacement = .expanded
+    // A finished download is a six-second announcement, then gone.
+    public let livePriority = LivePriority.announcement
 
     private let monitor = DownloadsMonitor()
 

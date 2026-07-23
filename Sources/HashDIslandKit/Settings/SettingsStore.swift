@@ -86,6 +86,7 @@ private struct SettingsDocument: Codable {
     var features: [String: FeatureConfig]
     var launchAtLogin: Bool
     var batterySaver: Bool?
+    var canSwitchLowPowerMode: Bool?
     var appearance: AppearanceSettings?
     var alerts: AlertSettings?
     /// Hand-made position corrections, keyed by display.
@@ -104,6 +105,17 @@ public final class SettingsStore: ObservableObject {
     /// Halves how often everything samples. Features re-read this when they
     /// restart, which the app does as soon as it changes.
     @Published public var batterySaver: Bool = false
+    /// Whether the panel may switch Low Power Mode itself, which costs an
+    /// administrator password every single time.
+    ///
+    /// Off by default, and deliberately so. macOS has no public way to change
+    /// this setting; the only thing that can is a root command, so switching it
+    /// from the panel means macOS asking for a password on every toggle. That
+    /// is a fair trade for someone who wants it and a nasty surprise for
+    /// everyone else, which is exactly what an opt-in is for. With this off the
+    /// panel still shows the state and offers one click to the pane that owns
+    /// it.
+    @Published public var canSwitchLowPowerMode: Bool = false
     @Published public var appearance = AppearanceSettings()
     @Published public var alerts = AlertSettings()
     /// Position corrections per display. A display with no entry is automatic.
@@ -159,6 +171,7 @@ public final class SettingsStore: ObservableObject {
             self.features = document.features
             self.launchAtLogin = document.launchAtLogin
             self.batterySaver = document.batterySaver ?? false
+            self.canSwitchLowPowerMode = document.canSwitchLowPowerMode ?? false
             self.appearance = document.appearance ?? AppearanceSettings()
             self.alerts = document.alerts ?? AlertSettings()
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
@@ -273,6 +286,7 @@ public final class SettingsStore: ObservableObject {
             features: features,
             launchAtLogin: launchAtLogin,
             batterySaver: batterySaver,
+            canSwitchLowPowerMode: canSwitchLowPowerMode,
             appearance: appearance,
             alerts: alerts,
             adjustments: adjustments

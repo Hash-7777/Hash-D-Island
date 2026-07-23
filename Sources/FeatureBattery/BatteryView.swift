@@ -152,7 +152,9 @@ struct BatteryEventTextView: View {
 /// one action worth offering when it is running out.
 struct BatteryDetailView: View {
     @ObservedObject var monitor: BatteryMonitor
+    @ObservedObject var settings: SettingsStore
     let theme: Theme
+    @State private var working = false
 
     /// When the Low Power Mode line appears: while it is on (so it is never a
     /// mystery why the Mac feels slower), and while the battery is low enough
@@ -190,22 +192,31 @@ struct BatteryDetailView: View {
         .animation(.snappy, value: monitor.isLowPowerMode)
     }
 
-    /// macOS offers no public way to switch Low Power Mode, so this reports it
-    /// and opens the pane that does rather than pretending to a control it
-    /// cannot have. See `BatteryMonitor.openEnergySettings`.
+    /// Low Power Mode, by whichever route the user has chosen.
+    ///
+    /// By default this opens the Battery pane, because macOS offers no public
+    /// way to switch the setting and the only thing that can needs root. Turn
+    /// on "Switch Low Power Mode from the panel" in Settings and the row
+    /// becomes a real toggle that asks macOS for an administrator password each
+    /// time — worth it to some people, a nasty surprise to everyone else, which
+    /// is why it is opt-in rather than a judgement made on their behalf.
     private var lowPowerRow: some View {
-        Button(action: BatteryMonitor.openEnergySettings) {
+        Button(action: activate) {
             HStack(spacing: 6) {
                 Image(systemName: "battery.25")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.yellow)
-                Text(monitor.isLowPowerMode ? "Low Power Mode is on" : "Turn on Low Power Mode")
+                Text(label)
                     .font(.system(size: 10))
                     .foregroundStyle(theme.textColor)
                 Spacer(minLength: 6)
-                Image(systemName: "arrow.up.forward")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(theme.subtitleColor)
+                if working {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: canSwitchDirectly ? "chevron.right" : "arrow.up.forward")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(theme.subtitleColor)
+                }
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
@@ -216,7 +227,31 @@ struct BatteryDetailView: View {
             .frame(width: Panel.rowWidth, alignment: .leading)
         }
         .buttonStyle(.plain)
+        .disabled(working)
         .transition(.opacity.combined(with: .offset(y: -4)))
+    }
+
+    private var canSwitchDirectly: Bool { settings.canSwitchLowPowerMode }
+
+    private var label: String {
+        if working { return monitor.isLowPowerMode ? "Turning off…" : "Turning on…" }
+        if monitor.isLowPowerMode {
+            return canSwitchDirectly ? "Low Power Mode is on — turn off" : "Low Power Mode is on"
+        }
+        return "Turn on Low Power Mode"
+    }
+
+    private func activate() {
+        guard canSwitchDirectly else {
+            BatteryMonitor.openEnergySettings()
+            return
+        }
+        working = true
+        // The monitor is watching the system's own power-state notification, so
+        // the new value arrives on its own — there is nothing to write back
+        // here, and nothing to get out of step if the password prompt is
+        // cancelled or the change is made somewhere else entirely.
+        BatteryMonitor.setLowPowerMode(!monitor.isLowPowerMode) { _ in working = false }
     }
 
     private var stateSymbol: String? {

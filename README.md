@@ -104,6 +104,11 @@ script, or Apple Shortcut can write:
 `icon` is any SF Symbol name; `endsAt` (ISO 8601) drives a live countdown;
 activities merge by `id` and expired ones disappear on their own.
 
+Two optional extras: `image` is a path to a logo shown instead of the symbol,
+and `app` is a path to an `.app` bundle — set it and the activity's row in the
+panel becomes clickable, bringing that app forward. It must name a real app
+bundle, and nothing happens until you click.
+
 There are two kinds. A **countdown** is something still happening, and shows
 its time left. A **notice** is something that already happened — set
 `dismissAfter` (seconds) instead, and it draws no timer and leaves on its own.
@@ -158,6 +163,12 @@ Work in another window and let the notch tell you the moment an AI tool is done
   follow app updates on its own. Running the installer again is safe at any
   time, and it tells you what it did — installed, already current, or updated
   from one version to the next.
+
+  **Want Claude's logo instead of the checkmark?** Drop a square PNG at
+  `~/.hashdisland/logos/claude.png` and the notch wears it. No logo ships with
+  the app — these marks belong to the tools they represent, not to this one —
+  so the symbol is what you get until you supply one. The folder has a note in
+  it explaining the same thing.
 
 - **HashCortX** and **HashCerebrum** — built in, nothing to install. HashCortX
   flashes "HashCortX finished" when a run completes; HashCerebrum lights up when

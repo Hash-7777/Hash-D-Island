@@ -28,6 +28,14 @@ public struct LiveActivity: Identifiable, Equatable {
     /// activity always has something to draw.
     public let imagePath: String?
 
+    /// An app to bring forward when this activity is clicked in the panel.
+    ///
+    /// What turns "Claude needs you" from a notification into something you can
+    /// act on: the poster names the window that is waiting, and one click goes
+    /// there instead of hunting through Spaces for the right terminal. Nil when
+    /// the poster named nothing, or named something that is not an app.
+    public let appPath: String?
+
     public init(
         id: String,
         icon: String,
@@ -36,7 +44,8 @@ public struct LiveActivity: Identifiable, Equatable {
         progress: Double?,
         endsAt: Date?,
         dismissAfter: TimeInterval?,
-        imagePath: String? = nil
+        imagePath: String? = nil,
+        appPath: String? = nil
     ) {
         self.id = id
         self.icon = icon
@@ -46,6 +55,7 @@ public struct LiveActivity: Identifiable, Equatable {
         self.endsAt = endsAt
         self.dismissAfter = dismissAfter
         self.imagePath = imagePath
+        self.appPath = appPath
     }
 
     /// True when this counts down to something, rather than announcing
@@ -116,6 +126,7 @@ package enum ActivitiesReader {
         let endsAt: String?
         let dismissAfter: Double?
         let image: String?
+        let app: String?
     }
 
     static func read() -> [LiveActivity] {
@@ -151,7 +162,8 @@ package enum ActivitiesReader {
                 dismissAfter: dto.dismissAfter.map {
                     min(max($0, minDismissAfter), maxDismissAfter)
                 },
-                imagePath: dto.image.flatMap(safeImagePath)
+                imagePath: dto.image.flatMap(safeImagePath),
+                appPath: dto.app.flatMap(safeAppPath)
             )
             if !activity.isExpired { result.append(activity) }
         }
@@ -198,6 +210,29 @@ package enum ActivitiesReader {
 
         let size = (try? resolved.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
         guard let size, size > 0, size <= maxImageBytes else { return nil }
+        return resolved.path
+    }
+
+    /// An app path the panel is willing to bring forward.
+    ///
+    /// The feed is world-writable by anything running as you, so this is
+    /// deliberately the narrowest capability that still does the job: it must
+    /// name an existing `.app` bundle, and the panel only ever acts on it when
+    /// the user clicks the row. Nothing here can run a loose executable, pass an
+    /// argument, or open a document — the app is asked to come forward and
+    /// that is all. Resolved before it is judged, so `..` cannot smuggle in a
+    /// path that reads as something else.
+    private static func safeAppPath(_ raw: String) -> String? {
+        let trimmed = String(raw.prefix(1024))
+        guard !trimmed.isEmpty else { return nil }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        let resolved = URL(fileURLWithPath: expanded).standardizedFileURL
+        guard resolved.pathExtension.lowercased() == "app" else { return nil }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: resolved.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else { return nil }
         return resolved.path
     }
 

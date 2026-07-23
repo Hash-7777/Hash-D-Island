@@ -99,23 +99,33 @@ struct ActivitiesTitleView: View {
 
     var body: some View {
         if let activity = monitor.activities.first {
-            HStack(spacing: 7) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(activity.title)
-                        .foregroundStyle(theme.textColor)
+            // One line, not two.
+            //
+            // The strip is exactly as tall as the notch — 28 points on this
+            // hardware — and an 11pt title stacked on a 9pt subtitle fills
+            // essentially all of it, leaving the pair looking jammed against
+            // each other with no room to breathe. The subtitle is worth
+            // keeping (it says WHICH project finished), so it goes beside the
+            // title, dimmed, where the eye reads it as one phrase. The full
+            // two-line treatment still exists in the panel, which has room.
+            HStack(spacing: 5) {
+                Text(activity.title)
+                    .foregroundStyle(theme.textColor)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                if !activity.showsCountdown, let subtitle = activity.subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.subtitleColor)
                         .lineLimit(1)
-                    if !activity.showsCountdown, let subtitle = activity.subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundStyle(theme.subtitleColor)
-                            .lineLimit(1)
-                    }
+                        .truncationMode(.middle)
                 }
                 if let text = Formatters2.timeLeft(activity.secondsLeft(now: monitor.now)) {
                     Text(text)
                         .foregroundStyle(theme.subtitleColor)
                         .monospacedDigit()
                         .contentTransition(.numericText())
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .frame(maxWidth: 150, alignment: .leading)
@@ -141,7 +151,35 @@ struct ActivitiesDetailView: View {
         }
     }
 
+    @ViewBuilder
     private func row(_ activity: LiveActivity) -> some View {
+        // An activity that named the app it belongs to becomes a way back to
+        // it. "Claude needs you" that you can only read is a notification; one
+        // click from it to the window that is waiting is the whole difference
+        // between being told and being able to do something about it.
+        if activity.appPath != nil {
+            Button { activate(activity) } label: {
+                rowBody(activity, showsJump: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            rowBody(activity, showsJump: false)
+        }
+    }
+
+    private func activate(_ activity: LiveActivity) {
+        guard let path = activity.appPath else { return }
+        // Bring it forward, never launch it fresh: this is a way back to a
+        // window that already exists. `activates` is what puts it in front
+        // rather than merely running it.
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(
+            at: URL(fileURLWithPath: path), configuration: configuration
+        )
+    }
+
+    private func rowBody(_ activity: LiveActivity, showsJump: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 ActivityMark(activity: activity, theme: theme, size: 20)
@@ -162,6 +200,11 @@ struct ActivitiesDetailView: View {
                         .foregroundStyle(theme.textColor)
                         .monospacedDigit()
                 }
+                if showsJump {
+                    Image(systemName: "arrow.up.forward.app.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.accent)
+                }
             }
             if let progress = activity.progress {
                 ProgressView(value: min(max(progress, 0), 1))
@@ -170,6 +213,7 @@ struct ActivitiesDetailView: View {
             }
         }
         .frame(width: Panel.rowWidth, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }
 

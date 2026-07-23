@@ -66,8 +66,24 @@ public protocol NotchFeature: AnyObject {
     /// (media playing, an activity running) — like the iPhone's compact Dynamic
     /// Island. Leading sits to the left of the notch, trailing to the right.
     /// Return `nil` (the default) for none.
+    ///
+    /// Only ONE feature is shown on the strip at a time — see `livePriority`.
     func makeCompactLeadingView(context: FeatureContext) -> AnyView?
     func makeCompactTrailingView(context: FeatureContext) -> AnyView?
+
+    /// Who gets the strip when more than one feature is live at once. Higher
+    /// wins; ties go to whichever was registered first.
+    ///
+    /// The strip is one pill either side of a notch, and its width is fixed by
+    /// the hardware, not by how much there is to say. Showing every live
+    /// feature at once was never a layout that could work: two features'
+    /// content simply overran the budget and spilled across the notch. So the
+    /// strip behaves like the thing it imitates — it shows one thing, and the
+    /// most urgent thing wins.
+    ///
+    /// Use `LivePriority` rather than a bare number so the ordering is one
+    /// readable list instead of magic constants scattered across modules.
+    var livePriority: Int { get }
 
     /// Begin sampling / observing. Called when the HUD starts. The context gives
     /// access to shared services (e.g. `presence` for signalling live content).
@@ -84,4 +100,22 @@ public extension NotchFeature {
     func makeCompactTrailingView(context: FeatureContext) -> AnyView? { nil }
     func start(context: FeatureContext) {}
     func stop() {}
+    var livePriority: Int { LivePriority.ongoing }
+}
+
+/// The order features take the live strip in, read as one list.
+///
+/// The rule behind the numbers: something that just HAPPENED beats something
+/// that is merely still true. A track plays for an hour and will still be
+/// playing in a moment; a job that just finished, a warning about the battery,
+/// or a request waiting on an answer each have a few seconds in which they
+/// matter, and then never again. Handing those the strip briefly and giving it
+/// back is exactly what the iPhone does when a timer goes off over music.
+public enum LivePriority {
+    /// Something that is simply still true — music, a running timer.
+    public static let ongoing = 0
+    /// Something that just happened and will leave on its own.
+    public static let announcement = 20
+    /// Something that has stopped and is waiting on the user.
+    public static let needsYou = 40
 }

@@ -128,6 +128,53 @@ MainActor.assumeIsolated {
     check("stopping everything clears what is running", runRegistry.runningIDs.isEmpty)
     UserDefaults.standard.removePersistentDomain(forName: runSuite)
 
+    // Only one feature may own the live strip. Two of them at once is what put
+    // "Claude finished" on top of the song title: the pill grew past the width
+    // its own centring is derived from and slid across the notch.
+    func stripOwner(_ candidates: [(id: String, priority: Int)], live: Set<String>) -> String? {
+        var best: (id: String, priority: Int, index: Int)?
+        for (index, candidate) in candidates.enumerated() where live.contains(candidate.id) {
+            if let current = best,
+               candidate.priority < current.priority
+                || (candidate.priority == current.priority && index > current.index) {
+                continue
+            }
+            best = (candidate.id, candidate.priority, index)
+        }
+        return best?.id
+    }
+
+    let strip = [
+        (id: "media", priority: LivePriority.ongoing),
+        (id: "timer", priority: LivePriority.ongoing),
+        (id: "downloads", priority: LivePriority.announcement),
+        (id: "activities", priority: LivePriority.needsYou),
+    ]
+    check("nothing live means nothing on the strip", stripOwner(strip, live: []) == nil)
+    check("one live feature owns it", stripOwner(strip, live: ["media"]) == "media")
+    check(
+        "a finished job takes the strip from the music",
+        stripOwner(strip, live: ["media", "activities"]) == "activities"
+    )
+    check(
+        "a battery notice outranks a playing track",
+        stripOwner(strip, live: ["media", "downloads"]) == "downloads"
+    )
+    check(
+        "something waiting on you outranks a passing notice",
+        stripOwner(strip, live: ["downloads", "activities"]) == "activities"
+    )
+    check(
+        "equal priority falls back to registration order, never to chance",
+        stripOwner(strip, live: ["timer", "media"]) == "media"
+    )
+    check(
+        "the strip returns to the music once the notice leaves",
+        stripOwner(strip, live: ["media"]) == "media"
+    )
+    check("an announcement outranks something merely ongoing", LivePriority.announcement > LivePriority.ongoing)
+    check("waiting on you outranks an announcement", LivePriority.needsYou > LivePriority.announcement)
+
     // Island sizing: collapsed matches the notch, expanded is larger.
     let state = NotchState(geometry: NotchGeometry(
         screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 982),
@@ -345,6 +392,32 @@ MainActor.assumeIsolated {
     let emptyLogo = logoDir.appendingPathComponent("empty.png")
     try? Data().write(to: emptyLogo)
     check("an empty image is refused", imagePath(forFeed: emptyLogo.path) == nil)
+
+    // The app an activity names is a capability, so it is bounded like every
+    // other field from the feed: a real .app bundle or nothing. Clicking a row
+    // may bring a window forward; it may never run a loose executable.
+    func appPath(forFeed value: String) -> String? {
+        let file = tempFile("[{\"id\":\"A\",\"title\":\"Jump\",\"app\":\"\(value)\"}]")
+        defer { try? FileManager.default.removeItem(at: file) }
+        return ActivitiesReader.read(from: file).first?.appPath
+    }
+
+    let fakeApp = logoDir.appendingPathComponent("Pretend.app")
+    try? FileManager.default.createDirectory(at: fakeApp, withIntermediateDirectories: true)
+    check("a real app bundle is accepted", appPath(forFeed: fakeApp.path) == fakeApp.path)
+    check("a loose executable is refused", appPath(forFeed: "/bin/sh") == nil)
+    check("a plain file named .app is refused", appPath(forFeed: notAnImage.path) == nil)
+    check("a missing bundle is refused", appPath(forFeed: logoDir.appendingPathComponent("Gone.app").path) == nil)
+    check("an empty app path is refused", appPath(forFeed: "") == nil)
+    check(
+        "an app path that climbs out is resolved before it is judged",
+        appPath(forFeed: logoDir.appendingPathComponent("../../../bin/sh").path) == nil
+    )
+    check(
+        "an activity that names no app simply has none",
+        ActivitiesReader.read(from: tempFile("[{\"id\":\"N\",\"title\":\"None\"}]"))
+            .first?.appPath == nil
+    )
     check(
         "an activity with no image still has its symbol",
         ActivitiesReader.read(from: tempFile("[{\"id\":\"S\",\"title\":\"Sym\",\"icon\":\"bolt.fill\"}]"))

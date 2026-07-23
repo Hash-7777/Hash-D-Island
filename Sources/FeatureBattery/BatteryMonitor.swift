@@ -126,16 +126,46 @@ public final class BatteryMonitor: ObservableObject {
 
     /// Opens System Settings at the Battery pane.
     ///
-    /// This is as close to the iPhone's one-tap Low Power Mode as macOS allows.
-    /// There is no public API to switch it, and the command line that can
-    /// (`pmset -a lowpowermode 1`) demands root — so the honest options were an
-    /// administrator password prompt every time, or a privileged background
-    /// helper installed for the life of the app. Both are a far larger ask than
-    /// the setting is worth, and this app's whole case is that it asks for
-    /// almost nothing. So: one click to the exact pane, one switch there.
+    /// The default route to Low Power Mode, and the one that costs nothing.
+    /// macOS has no public API to switch it, so this is one click from the
+    /// panel to the switch that owns it.
     public static func openEnergySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.battery") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    /// Switches Low Power Mode directly, at the cost of an administrator
+    /// password prompt. Only ever called when the user has opted in.
+    ///
+    /// `pmset` is the only thing on macOS that can set this and it requires
+    /// root, so there is no version of this that happens quietly. The prompt is
+    /// macOS's own — the password goes to the system's authorisation service
+    /// and never passes through this app, which is the reason this is done with
+    /// a one-shot privileged command rather than by installing a helper that
+    /// would hold that privilege for the life of the app.
+    ///
+    /// The command is fixed text with a single interpolated 0 or 1 derived from
+    /// a Bool, so there is nothing here a caller could steer.
+    public static func setLowPowerMode(_ enabled: Bool, completion: @escaping (Bool) -> Void) {
+        let value = enabled ? 1 : 0
+        let script = """
+        do shell script "/usr/bin/pmset -a lowpowermode \(value)" with administrator privileges
+        """
+        DispatchQueue.global(qos: .userInitiated).async {
+            var error: NSDictionary?
+            let ok = NSAppleScript(source: script)?.executeAndReturnError(&error) != nil && error == nil
+            if let error {
+                // A cancelled password prompt is a decision, not a fault, and
+                // reporting it as one would be noise on every second use.
+                let code = error[NSAppleScript.errorNumber] as? Int ?? 0
+                if code != -128 {
+                    FileHandle.standardError.write(Data(
+                        "Hash D Island: could not change Low Power Mode — \(error)\n".utf8
+                    ))
+                }
+            }
+            DispatchQueue.main.async { completion(ok) }
+        }
     }
 
     /// The low-battery threshold (20 or 10) that `new` crossed downward from

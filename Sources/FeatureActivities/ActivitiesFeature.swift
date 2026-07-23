@@ -8,6 +8,10 @@ public final class ActivitiesFeature: NotchFeature {
     public let id = "activities"
     public let title = "Live activities"
     public let placement: FeaturePlacement = .leading
+    // A posted activity is either something that just finished or something
+    // waiting on an answer. Either way it beats a track that will still be
+    // playing in ten seconds, and it hands the strip back when it leaves.
+    public let livePriority = LivePriority.needsYou
 
     private let monitor = ActivitiesMonitor()
 

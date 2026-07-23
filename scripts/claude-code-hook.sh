@@ -17,7 +17,7 @@ set -euo pipefail
 # is what lets the installer say "updated v1 to v2" rather than replacing the
 # file in silence, which is how a fixed alert can go on looking broken for
 # months. Read with: grep HOOK_VERSION= ~/.hashdisland/claude-code-hook.sh
-HOOK_VERSION=2
+HOOK_VERSION=3
 
 EVENT="${1:-stop}"
 # A logo to show instead of the symbol, if one has been placed here. Claude's
@@ -28,14 +28,42 @@ PAYLOAD="$(cat 2>/dev/null || true)"
 FEED="$HOME/.hashdisland/activities.json"
 mkdir -p "$(dirname "$FEED")"
 
+# Which app is Claude running inside — the terminal, the editor, or Claude's own
+# desktop app. Written into the activity so that clicking "Claude needs you" in
+# the panel brings that window forward instead of leaving you to hunt for it.
+#
+# Found by walking up the process tree to the nearest ancestor living inside an
+# .app bundle, rather than by reading TERM_PROGRAM: that variable is unset
+# entirely under the desktop app, and wrong whenever a shell has been re-exec'd.
+# Walking up costs a handful of `ps` calls once per alert.
+owning_app() {
+  local pid=$PPID ppid comm
+  local depth=0
+  while [ "$pid" -gt 1 ] && [ "$depth" -lt 12 ]; do
+    read -r ppid comm <<< "$(ps -o ppid=,comm= -p "$pid" 2>/dev/null || true)"
+    [ -z "${ppid:-}" ] && return 0
+    case "$comm" in
+      *.app/Contents/MacOS/*)
+        # Keep everything up to and including the .app itself.
+        printf '%s' "${comm%%.app/Contents/MacOS/*}.app"
+        return 0
+        ;;
+    esac
+    pid="$ppid"
+    depth=$((depth + 1))
+  done
+}
+APP="$(owning_app || true)"
+
 # All JSON handling in JavaScript-for-Automation (always present on macOS —
 # no jq or python needed). Arguments pass as argv, so payload quoting is safe.
-osascript -l JavaScript - "$FEED" "$EVENT" "$PAYLOAD" "$LOGO" >/dev/null <<'JXA'
+osascript -l JavaScript - "$FEED" "$EVENT" "$PAYLOAD" "$LOGO" "$APP" >/dev/null <<'JXA'
 function run(argv) {
   ObjC.import('Foundation');
   const feedPath = argv[0];
   const event = argv[1];
   const logoPath = argv[3] || '';
+  const appPath = argv[4] || '';
   let payload = {};
   try { payload = JSON.parse(argv[2] || '{}'); } catch (e) {}
 
@@ -76,6 +104,8 @@ function run(argv) {
   // The app ignores an image it cannot read, so pointing at a missing file is
   // harmless — it simply falls back to the symbol.
   if (logoPath) activity.image = logoPath;
+  // The window to bring forward when this is clicked in the panel.
+  if (appPath) activity.app = appPath;
   if (dismissAfter !== null) {
     // dismissAfter says "no timer, and leave after this long". endsAt is
     // written alongside it purely so the entry expires from the file on its

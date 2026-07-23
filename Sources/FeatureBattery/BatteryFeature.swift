@@ -15,6 +15,10 @@ public final class BatteryFeature: NotchFeature {
     public let id = "battery"
     public let title = "Battery"
     public let placement: FeaturePlacement = .trailing
+    // Plugged in, unplugged, full, or running out — all of them are moments
+    // rather than states, and the low warning is the one message in the app
+    // that must not be buried under whatever is playing.
+    public let livePriority = LivePriority.announcement
 
     public let displayOptions: [FeatureOption] = [
         FeatureOption(id: BatteryStyle.iconAndPercent.rawValue, title: "Icon and percent"),
@@ -44,6 +48,8 @@ public final class BatteryFeature: NotchFeature {
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(BatteryDetailView(monitor: monitor, theme: context.theme))
+        AnyView(BatteryDetailView(
+            monitor: monitor, settings: context.settings, theme: context.theme
+        ))
     }
 }

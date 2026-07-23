@@ -264,9 +264,8 @@ struct NotchIslandView: View {
             // ends right after the name instead of reserving dead black space.
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                ForEach(enabledFeatures, id: \.id) { feature in
-                    if let view = feature.makeCompactLeadingView(context: context) { view }
-                }
+                if let feature = liveFeature,
+                   let view = feature.makeCompactLeadingView(context: context) { view }
             }
             .padding(.trailing, 6)
             .frame(width: state.liveLeadingWidth, alignment: .trailing)
@@ -274,12 +273,17 @@ struct NotchIslandView: View {
             Color.clear.frame(width: state.notchWidth, height: state.notchHeight)
 
             HStack(spacing: 6) {
-                ForEach(enabledFeatures, id: \.id) { feature in
-                    if let view = feature.makeCompactTrailingView(context: context) { view }
-                }
+                if let feature = liveFeature,
+                   let view = feature.makeCompactTrailingView(context: context) { view }
             }
             .padding(.leading, 18)
             .padding(.trailing, 12)
+            // The trailing side is what actually overran: two features' titles
+            // came to roughly twice the strip's whole budget, so the pill grew
+            // past the width its own centring is computed from and slid across
+            // the notch. One feature fits; the cap makes that structural rather
+            // than a thing each feature has to remember.
+            .frame(maxWidth: state.liveTrailingWidth, alignment: .leading)
         }
         .fixedSize(horizontal: true, vertical: false)
         .frame(height: state.notchHeight)
@@ -310,6 +314,27 @@ struct NotchIslandView: View {
             }
         }
         .offset(x: 6, y: -10)
+    }
+
+    /// The one feature that owns the strip right now.
+    ///
+    /// Highest `livePriority` among those that are actually live, ties going to
+    /// whichever was registered first so the choice never wobbles between
+    /// redraws. When the winner's moment passes — a notice dismissing itself,
+    /// a warning timing out — it drops out of `activeIDs` and the strip hands
+    /// straight back to whatever was underneath, usually the music.
+    private var liveFeature: NotchFeature? {
+        var best: (feature: NotchFeature, priority: Int, index: Int)?
+        for (index, feature) in enabledFeatures.enumerated()
+        where presence.activeIDs.contains(feature.id) {
+            let priority = feature.livePriority
+            if let current = best,
+               priority < current.priority || (priority == current.priority && index > current.index) {
+                continue
+            }
+            best = (feature, priority, index)
+        }
+        return best?.feature
     }
 
     private var enabledFeatures: [NotchFeature] {

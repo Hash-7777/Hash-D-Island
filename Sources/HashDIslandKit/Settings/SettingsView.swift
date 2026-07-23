@@ -355,6 +355,15 @@ public struct SettingsView: View {
                 ) {
                     Toggle("", isOn: $settings.alerts.requestsWaitForYou).labelsHidden()
                 }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Switch Low Power Mode from the panel",
+                    detail: "Off, the panel shows Low Power Mode and takes you to it in System Settings. On, it switches it for you — but macOS asks for your password every single time, because changing this setting needs an administrator and there is no way around that."
+                ) {
+                    Toggle("", isOn: $settings.canSwitchLowPowerMode).labelsHidden()
+                }
             }
 
             Spacer(minLength: 0)

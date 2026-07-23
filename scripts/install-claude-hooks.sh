@@ -29,6 +29,32 @@ fi
 
 mkdir -p "$HOME/.hashdisland" "$HOME/.claude"
 
+# Explain the logo slot, because an empty folder explains nothing.
+#
+# The hook points the activity at ~/.hashdisland/logos/claude.png and the app
+# quietly draws its checkmark symbol when no such file exists — which is correct
+# behaviour and completely invisible, so "why is there no logo?" has had no
+# answer anywhere. No mark is shipped: Claude's logo belongs to Anthropic, not
+# to this app, and an app that ships someone else's brand has helped itself to
+# it. Put one there yourself and the notch wears it.
+LOGO_DIR="$HOME/.hashdisland/logos"
+mkdir -p "$LOGO_DIR"
+if [ ! -f "$LOGO_DIR/README.txt" ]; then
+  cat > "$LOGO_DIR/README.txt" <<'NOTE'
+Logos shown on the notch instead of a symbol.
+
+Drop a square PNG here named after the tool and the island will use it in place
+of the built-in symbol for that tool's alerts:
+
+    claude.png      shown for the Claude Code alerts
+
+Anything readable works — PNG, JPEG, TIFF, HEIC, PDF — up to 4 MB. Small is
+fine; it is drawn about 21 points wide. Remove the file and the symbol comes
+back. Nothing here is downloaded or shipped with the app: these marks belong to
+the tools they represent, so you supply the ones you want to see.
+NOTE
+fi
+
 # Say out loud when an older hook is being replaced.
 #
 # The hook is COPIED here, so it does not follow app updates: an install done
