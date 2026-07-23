@@ -44,7 +44,11 @@ public final class BatteryMonitor: ObservableObject {
             powerSource = source
         }
 
-        sampler = PollingSampler(interval: 10.0) { [weak self] in self?.sample() }
+        // IOKit above reports every real change — plugged in, unplugged, each
+        // step down — the instant it happens, so this poll is only a backstop
+        // behind it. It does not need to be brisk, and a battery readout is the
+        // last thing that should be spending battery.
+        sampler = PollingSampler(interval: 60.0) { [weak self] in self?.sample() }
         sampler?.start()
     }
 

@@ -23,7 +23,7 @@ public final class TokensFeature: NotchFeature {
 
     public init() {}
 
-    public func start(context: FeatureContext) { monitor.start() }
+    public func start(context: FeatureContext) { monitor.start(visibility: context.visibility) }
     public func stop() { monitor.stop() }
 
     public func makeView(context: FeatureContext) -> AnyView {

@@ -135,6 +135,17 @@ public final class NotchWindowController {
             }
             .store(in: &cancellables)
 
+        // Tell the panel-only features whether anyone is looking, so they can
+        // stop sampling entirely while the panel is shut. This reads the value
+        // the sink is handed, not the property — @Published fires in willSet,
+        // where the property still holds the old one.
+        state.$isExpanded
+            .removeDuplicates()
+            .sink { [weak context] expanded in
+                MainActor.assumeIsolated { context?.visibility.setOpen(expanded) }
+            }
+            .store(in: &cancellables)
+
         // Refit the window whenever the island's state changes. @Published fires
         // in willSet — BEFORE the property updates — so the refit is deferred to
         // the next main-runloop hop, by which point isExpanded / activeIDs hold

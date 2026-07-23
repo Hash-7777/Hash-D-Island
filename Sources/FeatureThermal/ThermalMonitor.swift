@@ -22,12 +22,12 @@ public final class ThermalMonitor: ObservableObject {
     @Published public private(set) var hottestCelsius: Double?
 
     private let reader = AppleSiliconThermal()
-    private var sampler: PollingSampler?
+    private var sampler: VisibleSampler?
     private var observer: NSObjectProtocol?
 
     public init() {}
 
-    public func start() {
+    public func start(visibility: PanelVisibility) {
         state = ProcessInfo.processInfo.thermalState
         observer = NotificationCenter.default.addObserver(
             forName: ProcessInfo.thermalStateDidChangeNotification,
@@ -39,7 +39,11 @@ public final class ThermalMonitor: ObservableObject {
             }
         }
 
-        sampler = PollingSampler(interval: 3.0) { [weak self] in self?.refresh() }
+        // Sensor reads only matter while their numbers are on screen. The
+        // system's own thermal-state notification above still arrives either way.
+        sampler = VisibleSampler(interval: 3.0, visibility: visibility) { [weak self] in
+            self?.refresh()
+        }
         sampler?.start()
     }
 

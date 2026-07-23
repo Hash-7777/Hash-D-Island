@@ -9,15 +9,20 @@ import HashDIslandKit
 public final class AirPodsMonitor: ObservableObject {
     @Published public private(set) var battery: AirPodsBattery?
 
-    private var sampler: PollingSampler?
+    private var sampler: VisibleSampler?
     private let queue = DispatchQueue(label: "com.hashdisland.airpods", qos: .utility)
     private var inFlight = false
 
     public init() {}
 
-    public func start() {
+    public func start(visibility: PanelVisibility) {
         sample()
-        sampler = PollingSampler(interval: 20.0) { [weak self] in self?.sample() }
+        // Each sample runs system_profiler, a whole subprocess. Doing that
+        // every twenty seconds for a readout nobody can see was the single most
+        // expensive idle habit the app had.
+        sampler = VisibleSampler(interval: 20.0, visibility: visibility) { [weak self] in
+            self?.sample()
+        }
         sampler?.start()
     }
 

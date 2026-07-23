@@ -44,6 +44,7 @@ public final class MediaMonitor: ObservableObject {
     private var lastCommand = Date.distantPast
     private static let commandSettleWindow: TimeInterval = 1.5
     private var audioObserver: AudioActivityObserver?
+    private var samplingInterval: TimeInterval = 0
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
@@ -72,8 +73,28 @@ public final class MediaMonitor: ObservableObject {
             })
         }
 
-        sampler = PollingSampler(interval: 2.0) { [weak self] in self?.refresh() }
-        sampler?.start()
+        startSampling(interval: Self.idleInterval)
+    }
+
+    /// Only actual playback earns the brisk poll, because only actual playback
+    /// changes anything: the position advances and the progress bar has to keep
+    /// up. A paused track sits perfectly still, and an empty notch has nothing
+    /// to show at all — in both cases each poll would spend an osascript
+    /// subprocess to learn that nothing happened.
+    ///
+    /// Dropping the rate costs no responsiveness: pressing play is caught by
+    /// the CoreAudio and player broadcasts above within a fraction of a second,
+    /// and this poll is only the safety net behind them.
+    private static let activeInterval: TimeInterval = 2
+    private static let idleInterval: TimeInterval = 12
+
+    private func startSampling(interval: TimeInterval) {
+        guard samplingInterval != interval || sampler == nil else { return }
+        samplingInterval = interval
+        sampler?.stop()
+        let sampler = PollingSampler(interval: interval) { [weak self] in self?.refresh() }
+        self.sampler = sampler
+        sampler.start()
     }
 
     public func stop() {
@@ -207,6 +228,11 @@ public final class MediaMonitor: ObservableObject {
         }
 
         presence?.setActive("media", shown != nil)
+        // Follow the music, not merely the track: a paused song holds the strip
+        // but changes nothing, so it is polled as lazily as silence.
+        startSampling(
+            interval: shown?.isPlaying == true ? Self.activeInterval : Self.idleInterval
+        )
     }
 
     /// Whether a polled play state should be trusted, or the state the button

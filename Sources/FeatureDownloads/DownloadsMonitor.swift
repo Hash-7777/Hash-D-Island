@@ -20,6 +20,7 @@ public struct FinishedDownload: Identifiable, Equatable {
 public final class DownloadsMonitor: ObservableObject {
     @Published public private(set) var latest: FinishedDownload?
 
+    private var watcher: DirectoryWatcher?
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var known: Set<String> = []
@@ -40,11 +41,22 @@ public final class DownloadsMonitor: ObservableObject {
         // Seed the baseline so pre-existing files never announce on launch.
         known = currentNames()
         sawPartFile = known.contains(where: isPartName)
-        sampler = PollingSampler(interval: 2.0) { [weak self] in self?.scan() }
-        sampler?.start()
+
+        // A download finishing IS a change to the folder, so wait to be told
+        // instead of re-listing it every couple of seconds forever. A folder
+        // nobody is writing to then costs nothing at all to watch.
+        watcher = DirectoryWatcher(url: downloadsURL) { [weak self] in self?.scan() }
+        if watcher == nil {
+            // No Downloads folder, or no permission to watch it. Fall back to
+            // the poll rather than quietly never noticing anything again.
+            sampler = PollingSampler(interval: 3.0) { [weak self] in self?.scan() }
+            sampler?.start()
+        }
     }
 
     public func stop() {
+        watcher?.stop()
+        watcher = nil
         sampler?.stop()
         sampler = nil
         clearWork?.cancel()

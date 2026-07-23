@@ -9,19 +9,25 @@ public final class NetworkMonitor: ObservableObject {
     @Published public private(set) var uploadBytesPerSec: Double = 0
     @Published public private(set) var downloadBytesPerSec: Double = 0
 
-    private var sampler: PollingSampler?
+    private static let interval: TimeInterval = 1.0
+
+    private var sampler: VisibleSampler?
     private var lastRx: UInt64 = 0
     private var lastTx: UInt64 = 0
     private var lastTime: TimeInterval = 0
 
     public init() {}
 
-    public func start() {
+    public func start(visibility: PanelVisibility) {
         let counters = Self.counters()
         lastRx = counters.rx
         lastTx = counters.tx
         lastTime = Date().timeIntervalSinceReferenceDate
-        sampler = PollingSampler(interval: 1.0) { [weak self] in self?.sample() }
+        // Throughput is only ever drawn in the panel, so it is measured only
+        // while the panel is open.
+        sampler = VisibleSampler(interval: Self.interval, visibility: visibility) { [weak self] in
+            self?.sample()
+        }
         sampler?.start()
     }
 
@@ -30,10 +36,34 @@ public final class NetworkMonitor: ObservableObject {
         sampler = nil
     }
 
+    /// Whether the previous reading is too old to diff against.
+    ///
+    /// Throughput is a difference over time, so it is only meaningful between
+    /// two readings taken a moment apart. After the panel has been shut — or
+    /// the Mac asleep — the last reading can be hours old, and diffing against
+    /// it would report an average over that whole period as if it were the
+    /// speed right now. Such a reading is thrown away and used as the new
+    /// baseline instead, costing one interval before the first number appears.
+    ///
+    /// Pure and package-visible so the checks can pin it.
+    package nonisolated static func isStaleBaseline(
+        dt: TimeInterval,
+        interval: TimeInterval
+    ) -> Bool {
+        dt > interval * 3
+    }
+
     private func sample() {
         let now = Date().timeIntervalSinceReferenceDate
         let dt = max(0.001, now - lastTime)
         let counters = Self.counters()
+
+        guard !Self.isStaleBaseline(dt: dt, interval: Self.interval) else {
+            lastRx = counters.rx
+            lastTx = counters.tx
+            lastTime = now
+            return
+        }
 
         // Counters can wrap (32-bit) or reset; treat a decrease as zero delta.
         let dRx = counters.rx >= lastRx ? counters.rx - lastRx : 0

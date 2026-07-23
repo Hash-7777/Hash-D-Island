@@ -9,13 +9,17 @@ import HashDIslandKit
 public final class TokensMonitor: ObservableObject {
     @Published public private(set) var today = TokenTotals()
 
-    private var sampler: PollingSampler?
+    private var sampler: VisibleSampler?
     private let queue = DispatchQueue(label: "com.hashdisland.tokens", qos: .utility)
 
     public init() {}
 
-    public func start() {
-        sampler = PollingSampler(interval: 30.0) { [weak self] in self?.refresh() }
+    public func start(visibility: PanelVisibility) {
+        // Counting tokens walks every Claude Code transcript touched today.
+        // That is far too much work to repeat forever behind a shut panel.
+        sampler = VisibleSampler(interval: 30.0, visibility: visibility) { [weak self] in
+            self?.refresh()
+        }
         sampler?.start()
     }
 

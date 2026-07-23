@@ -8,6 +8,7 @@ import FeatureTokens
 import FeatureBattery
 import FeatureDownloads
 import FeatureAirPods
+import FeatureNetwork
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -144,6 +145,62 @@ MainActor.assumeIsolated {
     check("an agreeing poll is never overridden", settles(0.2, true, true) == false)
     check("the player wins once the window has passed", settles(2.0, false, true) == false)
     check("the window is exclusive at its edge", settles(1.5, false, true) == false)
+
+    // Panel-only readouts sample only while anyone can see them.
+    let visibility = PanelVisibility()
+    var samples = 0
+    let visible = VisibleSampler(interval: 60, visibility: visibility) { samples += 1 }
+    visible.start()
+    check("a shut panel samples nothing", samples == 0)
+    visibility.setOpen(true)
+    check("opening the panel samples at once", samples == 1)
+    visibility.setOpen(true)
+    check("staying open does not resample", samples == 1)
+    visibility.setOpen(false)
+    visibility.setOpen(true)
+    check("reopening samples again", samples == 2)
+    visible.stop()
+    visibility.setOpen(false)
+    visibility.setOpen(true)
+    check("a stopped sampler ignores the panel", samples == 2)
+
+    // Watching a folder replaces re-listing it on a timer, so it has to
+    // actually fire — a silent failure here would mean a finished download is
+    // never announced again.
+    let watchDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("hashdisland-watch-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: watchDir, withIntermediateDirectories: true)
+    var changes = 0
+    let watcher = DirectoryWatcher(url: watchDir, coalesce: 0.05) { changes += 1 }
+    check("a folder that exists can be watched", watcher != nil)
+
+    try? "x".write(to: watchDir.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+    check("writing into the folder reports a change", changes >= 1)
+
+    let afterFirst = changes
+    try? "y".write(to: watchDir.appendingPathComponent("b.txt"), atomically: true, encoding: .utf8)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+    check("the watch keeps working after the first change", changes > afterFirst)
+
+    watcher?.stop()
+    let afterStop = changes
+    try? "z".write(to: watchDir.appendingPathComponent("c.txt"), atomically: true, encoding: .utf8)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+    check("a stopped watch reports nothing", changes == afterStop)
+
+    check(
+        "a folder that does not exist is not watched",
+        DirectoryWatcher(url: watchDir.appendingPathComponent("nope"), onChange: {}) == nil
+    )
+    try? FileManager.default.removeItem(at: watchDir)
+
+    // Throughput is a difference over time, so a reading taken after the panel
+    // was shut (or the Mac asleep) is too old to diff against and is used as a
+    // fresh baseline instead of being reported as the current speed.
+    check("a fresh reading is usable", NetworkMonitor.isStaleBaseline(dt: 1.0, interval: 1.0) == false)
+    check("a slightly late reading is usable", NetworkMonitor.isStaleBaseline(dt: 2.5, interval: 1.0) == false)
+    check("a reading from minutes ago is not", NetworkMonitor.isStaleBaseline(dt: 600, interval: 1.0))
 
     // Activities feed: other processes write it, so every field is bounded
     // before it reaches the UI.

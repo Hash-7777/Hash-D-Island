@@ -14,7 +14,7 @@ public final class AirPodsFeature: NotchFeature {
 
     public init() {}
 
-    public func start(context: FeatureContext) { monitor.start() }
+    public func start(context: FeatureContext) { monitor.start(visibility: context.visibility) }
     public func stop() { monitor.stop() }
 
     // Required by the protocol; the island renders the compact strip and the
