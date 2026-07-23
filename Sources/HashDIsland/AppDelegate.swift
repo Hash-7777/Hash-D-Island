@@ -68,17 +68,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // A position correction changes the overlay's own geometry, which is
-        // fixed when the controller is built — so the overlay is rebuilt, the
-        // same way a display change already rebuilds it. Debounced, because
-        // dragging a slider emits a value per tick.
-        settings.$adjustments
-            .removeDuplicates()
-            .dropFirst()
-            .sink { [weak self] _ in
-                MainActor.assumeIsolated { self?.scheduleOverlayRebuild() }
-            }
-            .store(in: &cancellables)
+        // Position corrections are watched by the overlay controller itself,
+        // which owns the geometry they change.
 
         // First launch: show the settings window so the app is easy to find.
         if settings.isFirstRun {

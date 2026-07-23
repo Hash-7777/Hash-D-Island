@@ -68,7 +68,10 @@ public struct SettingsView: View {
             ScrollView { page.padding(24) }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 700, height: 520)
+        // Wide enough for the longest row of display-style buttons. Too narrow
+        // and SwiftUI takes the space back from the sidebar, which clipped its
+        // own title off the left edge.
+        .frame(width: 820, height: 560)
         .background(Color(red: 0.07, green: 0.07, blue: 0.08))
         .preferredColorScheme(.dark)
         .tint(settings.accent.color)
@@ -93,6 +96,11 @@ public struct SettingsView: View {
         .frame(width: 172)
         .frame(maxHeight: .infinity)
         .background(Color.white.opacity(0.03))
+        // The sidebar keeps its width no matter how wide the page beside it
+        // wants to be. Without this a long row of buttons steals space from
+        // here, and the first thing to go is the title's opening letters.
+        .fixedSize(horizontal: true, vertical: false)
+        .layoutPriority(1)
     }
 
     private func sidebarRow(_ item: Section) -> some View {

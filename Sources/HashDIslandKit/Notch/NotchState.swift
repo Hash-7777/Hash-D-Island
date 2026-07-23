@@ -11,33 +11,41 @@ public final class NotchState: ObservableObject {
     /// Whether the island is expanded (dropped down) or collapsed.
     @Published public var isExpanded: Bool = false
 
-    public let notchWidth: CGFloat
-    public let notchHeight: CGFloat
+    /// Published rather than fixed, so dragging a size slider in Settings
+    /// reshapes the island under your hand instead of after you let go.
+    @Published public private(set) var notchWidth: CGFloat = 0
+    @Published public private(set) var notchHeight: CGFloat = 0
 
-    public let collapsedWidth: CGFloat
-    public let collapsedHeight: CGFloat
-    public let liveLeadingWidth: CGFloat
-    public let liveTrailingWidth: CGFloat
-    public let liveWidth: CGFloat
-    public let liveHeight: CGFloat
-    public let expandedWidth: CGFloat
-    public let expandedHeight: CGFloat
+    @Published public private(set) var collapsedWidth: CGFloat = 0
+    @Published public private(set) var collapsedHeight: CGFloat = 0
+    @Published public private(set) var liveLeadingWidth: CGFloat = 56
+    @Published public private(set) var liveTrailingWidth: CGFloat = 170
+    @Published public private(set) var liveWidth: CGFloat = 0
+    @Published public private(set) var liveHeight: CGFloat = 0
+    @Published public private(set) var expandedWidth: CGFloat = 0
+    @Published public private(set) var expandedHeight: CGFloat = 460
 
     public init(geometry: NotchGeometry) {
+        apply(geometry: geometry)
+    }
+
+    /// Resize to a new measurement. Called at launch, when the display changes,
+    /// and on every tick of a size slider.
+    public func apply(geometry: NotchGeometry) {
         let width = geometry.notchRect.width
         let height = max(geometry.notchRect.height, 28)
-        self.notchWidth = width
-        self.notchHeight = height
+        notchWidth = width
+        notchHeight = height
 
         // Collapsed: EXACTLY the physical notch, so the idle black shape is
         // invisible against the hardware — no lip poking out below it.
-        self.collapsedWidth = width
-        self.collapsedHeight = height
+        collapsedWidth = width
+        collapsedHeight = height
 
         // Expanded: width sized to the content; height is generous only for the
         // hover zone (the panel itself sizes to its content).
-        self.expandedWidth = max(width + 120, 300)
-        self.expandedHeight = 460
+        expandedWidth = max(width + 120, 300)
+        expandedHeight = 460
 
         // Compact-live: content hugs the notch — a small art tile on the left,
         // a title on the right — like the iPhone's compact Dynamic Island.
@@ -46,10 +54,10 @@ public final class NotchState: ObservableObject {
         // breathing room) — the pill hugs the actual content within it, and
         // this max only sizes the positioning box, the hover zone, and the
         // window so a fully-scrolling long title is always covered.
-        self.liveLeadingWidth = 56
-        self.liveTrailingWidth = 170
-        self.liveWidth = width + self.liveLeadingWidth + self.liveTrailingWidth
-        self.liveHeight = height
+        liveLeadingWidth = 56
+        liveTrailingWidth = 170
+        liveWidth = width + liveLeadingWidth + liveTrailingWidth
+        liveHeight = height
     }
 
     /// How far RIGHT the live strip must shift so its internal notch gap sits

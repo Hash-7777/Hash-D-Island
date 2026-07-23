@@ -504,6 +504,47 @@ MainActor.assumeIsolated {
     check("corrections survive a restart", reloadedPositions.adjustment(for: "display-1").horizontal == 12)
     UserDefaults.standard.removePersistentDomain(forName: posSuite)
 
+    // Dragging a Position slider must move the island under your hand. That
+    // means the overlay reshapes in place on every value, rather than being
+    // rebuilt behind a debounce — which only ever landed once you let go.
+    if NotchGeometry.preferredScreen() != nil {
+        let liveSuite = "hashdisland.checks.live.\(UUID().uuidString)"
+        let liveDefaults = UserDefaults(suiteName: liveSuite)!
+        let liveSettings = SettingsStore(defaults: liveDefaults)
+        let liveContext = FeatureContext(settings: liveSettings)
+        let liveController = NotchWindowController(registry: FeatureRegistry(), context: liveContext)
+
+        let before = liveController.currentWindowFrame
+        let key = NotchGeometry.preferredScreen().map { NotchGeometry.displayKey(for: $0) } ?? ""
+        var slide = IslandAdjustment()
+        slide.horizontal = 50
+        liveSettings.setAdjustment(slide, for: key)
+        let after = liveController.currentWindowFrame
+        check("a correction moves the island immediately", after.midX == before.midX + 50)
+
+        slide.horizontal = 80
+        liveSettings.setAdjustment(slide, for: key)
+        check(
+            "each further value moves it again",
+            liveController.currentWindowFrame.midX == before.midX + 80
+        )
+
+        liveSettings.setAdjustment(IslandAdjustment(), for: key)
+        check("clearing it returns the island", liveController.currentWindowFrame.midX == before.midX)
+
+        var taller = IslandAdjustment()
+        taller.height = 20
+        liveSettings.setAdjustment(taller, for: key)
+        check(
+            "a size correction resizes it immediately",
+            liveController.currentWindowFrame.height > before.height
+        )
+        liveSettings.setAdjustment(IslandAdjustment(), for: key)
+        UserDefaults.standard.removePersistentDomain(forName: liveSuite)
+    } else {
+        print("  note no screen attached, live-adjustment checks skipped")
+    }
+
     // Reordering: dragging one indicator onto another moves it there, and a
     // drag that makes no sense leaves the order alone rather than corrupting it.
     let order = ["media", "tokens", "network", "battery"]

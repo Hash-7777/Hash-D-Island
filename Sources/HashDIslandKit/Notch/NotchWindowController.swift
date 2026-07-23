@@ -24,14 +24,16 @@ public final class NotchWindowController {
     private let state: NotchState
     private let registry: FeatureRegistry
     private let context: FeatureContext
-    private let collapsedHoverRect: CGRect
-    private let liveHoverRect: CGRect
-    private let expandedHoverRect: CGRect
-    private let screenFrame: CGRect
-    private let notchRect: CGRect
+    // All four vary with the measured geometry, which a size or position
+    // slider changes live.
+    private var collapsedHoverRect: CGRect = .zero
+    private var liveHoverRect: CGRect = .zero
+    private var expandedHoverRect: CGRect = .zero
+    private var screenFrame: CGRect
+    private var notchRect: CGRect
     /// The y coordinate the island hangs from — the screen's top edge on a
     /// notched display, the bottom of the menu bar otherwise.
-    private let islandTop: CGFloat
+    private var islandTop: CGFloat
     private var hoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var scrollMonitor: Any?
@@ -92,39 +94,7 @@ public final class NotchWindowController {
         )
         self.window = NotchWindow(contentRect: initial)
 
-        // Hover zones in screen coordinates (bottom-left origin). Opening uses a
-        // TIGHT zone hugging the real notch so the panel never opens from far
-        // away; the live and expanded zones cover their visible content so the
-        // panel stays open while the cursor is over it.
-        let notch = geometry.notchRect
-        // Hover zones hang from the island's own top edge, which is the screen
-        // edge only when there is a notch to sit in.
-        let top = geometry.islandTop
-        // Collapsed: the notch itself plus a hair of slop, reaching a little
-        // below its lower edge so it is easy to catch.
-        self.collapsedHoverRect = CGRect(
-            x: notch.minX - 6,
-            y: top - (state.collapsedHeight + 6),
-            width: notch.width + 12,
-            height: state.collapsedHeight + 6
-        )
-        // Live: the strip's actual extent (leading reach left of the notch,
-        // trailing reach right of it), plus a little slop.
-        let leftReach = state.liveLeadingWidth + notch.width / 2
-        let rightReach = notch.width / 2 + state.liveTrailingWidth
-        self.liveHoverRect = CGRect(
-            x: notch.midX - leftReach - 8,
-            y: top - (state.liveHeight + 6),
-            width: leftReach + rightReach + 16,
-            height: state.liveHeight + 6
-        )
-        // Expanded: the whole dropped panel.
-        self.expandedHoverRect = CGRect(
-            x: notch.midX - (state.expandedWidth / 2 + 6),
-            y: top - (state.expandedHeight + 6),
-            width: state.expandedWidth + 12,
-            height: state.expandedHeight + 6
-        )
+        updateHoverRects()
 
         let root = NotchIslandView(
             state: state,
@@ -160,6 +130,22 @@ public final class NotchWindowController {
             }
             .store(in: &cancellables)
 
+        // A position correction reshapes the island in place, on every tick of
+        // the slider. Deliberately undebounced: this is what makes the sliders
+        // move the island under your hand rather than after you let go. The
+        // controller watches for it itself because the geometry is its own.
+        context.settings.$adjustments
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] adjustments in
+                // The NEW value is taken from the publisher, never re-read from
+                // the store: @Published fires in willSet, where the property
+                // still holds the old value, so re-reading it here would move
+                // the island to where it already was.
+                MainActor.assumeIsolated { self?.refreshGeometry(using: adjustments) }
+            }
+            .store(in: &cancellables)
+
         // Tell the panel-only features whether anyone is looking, so they can
         // stop sampling entirely while the panel is shut. This reads the value
         // the sink is handed, not the property — @Published fires in willSet,
@@ -190,6 +176,81 @@ public final class NotchWindowController {
                 DispatchQueue.main.async { MainActor.assumeIsolated { self?.refitWindow() } }
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: Live geometry
+
+    /// The overlay's current frame. Package-visible so the checks can prove a
+    /// correction actually moves the window.
+    package var currentWindowFrame: NSRect { window.frame }
+
+    /// Re-measure the current screen, apply the user's correction for it, and
+    /// reshape everything in place.
+    ///
+    /// This is what lets the Position sliders move the island under your hand.
+    /// Rebuilding the whole overlay on every tick of a drag would be far too
+    /// heavy — and, being debounced, it only landed once you let go, which is
+    /// exactly the lag this replaces.
+    public func refreshGeometry() {
+        refreshGeometry(using: context.settings.adjustments)
+    }
+
+    /// As above, but told which corrections to use rather than reading them.
+    private func refreshGeometry(using adjustments: [String: IslandAdjustment]) {
+        guard let screen = NotchGeometry.preferredScreen() else { return }
+        let measured = NotchGeometry.current(for: screen)
+        let adjustment = adjustments[NotchGeometry.displayKey(for: screen)] ?? IslandAdjustment()
+        apply(geometry: adjustment.applied(to: measured))
+    }
+
+    private func apply(geometry: NotchGeometry) {
+        screenFrame = geometry.screenFrame
+        notchRect = geometry.notchRect
+        islandTop = geometry.islandTop
+        state.apply(geometry: geometry)
+        updateHoverRects()
+        // Straight to the exact frame: an animated resize per slider tick would
+        // trail the drag rather than follow it.
+        let target = targetWindowFrame()
+        if window.frame != target { window.setFrame(target, display: true) }
+        updateHover()
+    }
+
+    /// Hover zones in screen coordinates (bottom-left origin). Opening uses a
+    /// TIGHT zone hugging the real notch so the panel never opens from far
+    /// away; the live and expanded zones cover their visible content so the
+    /// panel stays open while the cursor is over it. All of them hang from the
+    /// island's own top edge, which is the screen's edge only when there is a
+    /// notch to sit in.
+    private func updateHoverRects() {
+        let notch = notchRect
+        let top = islandTop
+
+        // Collapsed: the notch itself plus a hair of slop, reaching a little
+        // below its lower edge so it is easy to catch.
+        collapsedHoverRect = CGRect(
+            x: notch.minX - 6,
+            y: top - (state.collapsedHeight + 6),
+            width: notch.width + 12,
+            height: state.collapsedHeight + 6
+        )
+        // Live: the strip's actual extent (leading reach left of the notch,
+        // trailing reach right of it), plus a little slop.
+        let leftReach = state.liveLeadingWidth + notch.width / 2
+        let rightReach = notch.width / 2 + state.liveTrailingWidth
+        liveHoverRect = CGRect(
+            x: notch.midX - leftReach - 8,
+            y: top - (state.liveHeight + 6),
+            width: leftReach + rightReach + 16,
+            height: state.liveHeight + 6
+        )
+        // Expanded: the whole dropped panel.
+        expandedHoverRect = CGRect(
+            x: notch.midX - (state.expandedWidth / 2 + 6),
+            y: top - (state.expandedHeight + 6),
+            width: state.expandedWidth + 12,
+            height: state.expandedHeight + 6
+        )
     }
 
     // MARK: Window fitting (the window hugs the island)
