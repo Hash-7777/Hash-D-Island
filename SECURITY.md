@@ -18,6 +18,21 @@ in `Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
 checks). The fetch uses an ephemeral session, so no artwork is ever written to
 disk. Nothing else in the app touches the network.
 
+## What it writes
+
+Almost nothing. The app itself writes **no files at all** — its only persistent
+state is its own settings, stored where every Mac app stores them
+(`~/Library/Preferences/com.hashnotch.app.plist`). It never writes to the files
+it reads, and artwork is fetched through an ephemeral session so not even an
+image cache lands on disk.
+
+The one folder that carries HashNotch's name, `~/.hashnotch`, is written by
+*you* — by the optional helper scripts in `scripts/`, or by anything else you
+choose to post activities with. The app only ever reads it.
+
+Removing HashNotch is correspondingly short, and the README's
+[Remove it](README.md#remove-it) section lists every trace.
+
 ## What it reads, and why
 
 | What | How | Why |
@@ -25,7 +40,7 @@ disk. Nothing else in the app touches the network.
 | Network speed | Kernel per-interface byte counters (`getifaddrs`) | The up/down readout. It counts bytes only — it can never see what you send or receive. |
 | Battery | IOKit power-source info | Level, charging state, time remaining. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). Browsers are asked **once per video**, not once per poll: the answer is remembered whether or not a thumbnail was found, and only re-asked when the track changes. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Downloads | Lists the file names in your `~/Downloads` folder | The "download finished" notice. It reads names and dates only — it never opens, moves, or uploads a file — and shows the name of a file that just completed. |
@@ -40,10 +55,13 @@ disk. Nothing else in the app touches the network.
 - **Automation (control your browser)** — asked only if a web video is playing
   and nothing else already provided artwork. HashNotch then reads your open
   browser tabs' addresses and titles to find the one whose title matches what's
-  playing, and derives only that video's thumbnail. The tab list never leaves
-  the helper subprocess — only the single matching thumbnail URL is returned to
-  the app, and only its image (from YouTube's thumbnail host) is fetched. Deny
-  this and Now Playing simply shows a placeholder tile instead.
+  playing, and derives only that video's thumbnail. This happens once per
+  video, not continuously: the result is remembered — including "no thumbnail
+  for this one" — so a track that has no web thumbnail does not cause a repeat
+  scan. The tab list never leaves the helper subprocess: only the single
+  matching thumbnail URL is returned to the app, and only its image (from
+  YouTube's thumbnail host) is fetched. Deny this and Now Playing simply shows
+  a placeholder tile instead.
 - **Notifications** — asked the first time you start the timer, so it can post
   a banner when the timer ends. Deny it and the timer still chimes and shows
   "Time's up" in the notch.

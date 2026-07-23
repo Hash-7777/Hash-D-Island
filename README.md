@@ -21,10 +21,17 @@ glance away.
 
 ## What it shows
 
-- **Live internet usage** — upload and download speed plus running totals
-- **Battery** — level, charging state, health, and time remaining
-- **Temperatures** — CPU, GPU, and other chip sensors
-- **App interaction** — media controls and reactions to what's running
+- **Now Playing** — artwork, a scrolling title, and full controls for whatever
+  is playing, including video in your browser
+- **Live internet usage** — upload and download speed
+- **Battery** — level, charging state, and time remaining, plus a heads-up the
+  moment you plug in or run low
+- **AirPods** — the charge left in each earbud and the case
+- **Temperatures** — processor, graphics, storage, and battery sensors
+- **AI token usage** — how much you have used today, per tool
+- **A timer** — start it from the panel, watch it count down at the notch
+- **Finished downloads** — a quiet notice when one lands
+- **Live activities** — anything your own scripts, Shortcuts, or AI tools post
 - **Motion** — expands, pulses, and animates as events happen
 
 ## Built for Apple Silicon
@@ -49,9 +56,11 @@ accounts, no cloud, no data collection.
    the bottom, and click **Open Anyway** next to HashNotch. Confirm once and it
    launches; every time after that it opens normally. (On older macOS you can
    instead right-click the app and choose **Open**.)
-3. HashNotch has no Dock icon — it lives around the notch and in the menu bar.
-   Click the **gear** in its panel for **HashNotch Settings…** to choose what
-   shows and to turn on **Open at Login**.
+3. HashNotch has no Dock icon and adds nothing to your menu bar — it lives
+   entirely around the notch. **Hover the notch** to open its panel, then click
+   the **gear** for settings: choose what shows, turn on **Open at Login**, and
+   quit the app. (Settings also opens by itself the very first time, so you
+   know where it is.)
 
 > **Why the extra step to open it?** HashNotch reads system-wide Now Playing and
 > the real Apple Silicon temperature sensors, which need Apple APIs the Mac App
@@ -62,12 +71,13 @@ accounts, no cloud, no data collection.
 
 ## How it works
 
-The notch stays a clean black shape at the top of your screen. **Hover it** and
-it smoothly drops down into a rounded black panel — like the iPhone's Dynamic
-Island — showing your internet speed, battery, temperatures, and AI token usage.
-When something is live (a running activity), a slim strip appears below the notch
-even without hovering. Because everything opens *below* the menu bar, it never
-overlaps your menus or status icons.
+The notch stays a clean black shape at the top of your screen. **Hover it** (or
+swipe down on it with two fingers) and it smoothly drops into a rounded panel —
+like the iPhone's Dynamic Island — showing your internet speed, battery,
+temperatures, AI token usage, and more. When something is live — music playing,
+a timer running, an activity in progress — a slim strip appears *beside* the
+notch without you hovering at all. Because everything opens below the menu bar,
+it never overlaps your menus or status icons.
 
 ## Live activities
 
@@ -143,13 +153,35 @@ those versions, and runs out of process so it can never crash the app.
 
 ## Customize it
 
-HashNotch adds a small item to the menu bar. Click it for **HashNotch
-Settings…**, where you can:
+Hover the notch to open the panel, then click the **gear** in its top corner.
+There you can:
 
 - turn each indicator on or off,
 - choose how it looks (e.g. temperature as a number `52°`, a word `Cool`, or
-  just a symbol), and
-- turn on **Open at Login** so it comes back every time you start your Mac.
+  just a symbol),
+- turn on **Open at Login** so it comes back every time you start your Mac, and
+- **quit HashNotch**.
+
+There is no menu-bar item and no Dock icon by design — the notch is the whole
+interface, so the app takes up none of your menu bar.
+
+## Remove it
+
+Nothing about HashNotch is hidden, and taking it off your Mac is quick:
+
+1. Open settings (gear in the panel) and turn **Open at Login** off, then
+   click **Quit HashNotch**.
+2. Drag **HashNotch** from your Applications folder to the Trash.
+3. Delete `~/.hashnotch` — the activities feed and, if you installed it, the
+   Claude Code hook script.
+4. If you ran `install-claude-hooks.sh`, remove the two entries mentioning
+   `claude-code-hook.sh` from `~/.claude/settings.json`. (The installer saved a
+   backup of that file next to it.)
+5. To clear its saved settings:
+   `defaults delete com.hashnotch.app`
+
+That's everything it ever wrote. There is nothing else to clean up — no
+launch agents, no caches, no receipts.
 
 ## Develop
 
@@ -158,7 +190,7 @@ Tools alone — no full Xcode required to try it.
 
 ```sh
 swift build               # compile everything
-swift run HashNotch       # launch the notch overlay + menu-bar item
+swift run HashNotch       # launch the notch overlay
 swift run HashNotchChecks # run the core checks
 ./scripts/build_app.sh    # assemble build/HashNotch.app (needed for login item)
 ```

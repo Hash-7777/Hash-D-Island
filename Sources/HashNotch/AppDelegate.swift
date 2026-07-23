@@ -2,7 +2,8 @@ import AppKit
 import HashNotchKit
 
 /// Boots the HUD: builds the registry from the manifest, loads settings, starts
-/// the features, shows the notch overlay, and installs the menu-bar control.
+/// the features, and shows the notch overlay. There is no menu-bar item — the
+/// panel's gear button is the way into settings.
 /// Deliberately thin — all behavior lives in the core and the feature modules.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {

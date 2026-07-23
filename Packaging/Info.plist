@@ -22,8 +22,8 @@
 	<string>14.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
-	<!-- Agent app: no Dock icon, no app-switcher entry — just the notch overlay
-	     and the menu-bar item. -->
+	<!-- Agent app: no Dock icon, no app-switcher entry, and no menu-bar item
+	     either — the notch overlay is the whole interface. -->
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
