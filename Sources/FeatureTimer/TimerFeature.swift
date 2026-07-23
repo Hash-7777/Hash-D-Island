@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// A countdown timer that lives in the notch: start it from the panel, watch
 /// it flank the notch while it runs, get a chime when it ends.

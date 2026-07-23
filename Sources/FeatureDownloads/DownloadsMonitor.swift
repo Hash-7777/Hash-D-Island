@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// A file that just finished downloading.
 public struct FinishedDownload: Identifiable, Equatable {

@@ -46,7 +46,7 @@ extension NowPlaying: Equatable {
 /// HTTPS and points at Spotify's own image CDN — never an arbitrary host, never
 /// a non-HTTPS scheme (a `file://` or `http://` URL is refused outright). This
 /// is the app's only network access, so the policy is deliberately narrow and
-/// covered by HashNotchChecks.
+/// covered by HashDIslandChecks.
 package enum ArtworkPolicy {
     /// Hosts artwork may come from: Spotify's album-art CDNs and YouTube's
     /// thumbnail server (for web videos).
@@ -76,10 +76,10 @@ package enum ArtworkPolicy {
 /// The script is passed inline via `-e` — nothing is written to disk, so there
 /// is no temp file another process could swap out between write and execute.
 final class MediaRemoteReader {
-    private let queue = DispatchQueue(label: "com.hashnotch.media.nowplaying")
+    private let queue = DispatchQueue(label: "com.hashdisland.media.nowplaying")
     /// Commands run on their own queue so a click NEVER waits behind an
     /// in-flight fetch — play/pause must feel instant.
-    private let commandQueue = DispatchQueue(label: "com.hashnotch.media.commands", qos: .userInitiated)
+    private let commandQueue = DispatchQueue(label: "com.hashdisland.media.commands", qos: .userInitiated)
 
     private let stateLock = NSLock()
     private var inFlight = false

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to HashNotch are recorded here.
+All notable changes to Hash D Island are recorded here.
 
 ## 1.0.0 — first release
 
@@ -59,7 +59,7 @@ moment something is.
 
 ### Known limitations
 
-- HashNotch is built for Macs with a notch. On a display without one it falls
+- Hash D Island is built for Macs with a notch. On a display without one it falls
   back to a virtual notch at the top centre of the screen, which is useful for
   development but is not the intended experience.
 - Because it reads system-wide Now Playing and the real temperature sensors, it

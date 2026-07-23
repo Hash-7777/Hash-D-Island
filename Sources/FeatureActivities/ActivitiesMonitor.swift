@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Watches the activity feed file and keeps a live `now` clock so countdowns
 /// tick. Only re-reads the file when it changes; only publishes the clock while

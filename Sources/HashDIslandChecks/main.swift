@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 import CoreGraphics
-import HashNotchKit
+import HashDIslandKit
 import FeatureMedia
 import FeatureActivities
 import FeatureTokens
@@ -12,7 +12,7 @@ import FeatureAirPods
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
     let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("hashnotch-check-\(UUID().uuidString).json")
+        .appendingPathComponent("hashdisland-check-\(UUID().uuidString).json")
     try? content.write(to: url, atomically: true, encoding: .utf8)
     return url
 }
@@ -47,7 +47,7 @@ private final class StubFeature: NotchFeature {
 }
 
 MainActor.assumeIsolated {
-    print("HashNotch core checks")
+    print("Hash D Island core checks")
 
     // Registry keeps registration order.
     let ordered = FeatureRegistry()
@@ -291,7 +291,7 @@ MainActor.assumeIsolated {
     }
 
     // Settings: defaults, updates, and persistence round-trip.
-    let suite = "hashnotch.checks.\(UUID().uuidString)"
+    let suite = "hashdisland.checks.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
     let store = SettingsStore(defaults: defaults)
     let stub = StubFeature(id: "x", placement: .leading)
@@ -308,6 +308,49 @@ MainActor.assumeIsolated {
     check("settings persist enabled", reloaded.isEnabled("x") == false)
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
+
+    // Renaming the app changes the preferences domain, so settings saved under
+    // the old name must be carried over exactly once and rewritten under the new
+    // key — otherwise an existing install silently comes back reset.
+    let legacySuite = "hashdisland.checks.legacy.\(UUID().uuidString)"
+    let freshSuite = "hashdisland.checks.fresh.\(UUID().uuidString)"
+    let emptySuite = "hashdisland.checks.empty.\(UUID().uuidString)"
+    let noLegacySuite = "hashdisland.checks.nolegacy.\(UUID().uuidString)"
+    let legacyDefaults = UserDefaults(suiteName: legacySuite)!
+    let freshDefaults = UserDefaults(suiteName: freshSuite)!
+    let legacyDocument = """
+    {"features":{"x":{"enabled":false,"placement":"trailing","styleID":"word","order":4}},"launchAtLogin":true}
+    """
+    legacyDefaults.set(Data(legacyDocument.utf8), forKey: "hashnotch.settings.v2")
+
+    let migrated = SettingsStore(defaults: freshDefaults, legacyDefaults: legacyDefaults)
+    check("settings carry over from the old name", migrated.isEnabled("x") == false)
+    check("settings carry over the style", migrated.style(for: "x") == "word")
+    check("settings carry over launch at login", migrated.launchAtLogin)
+    check("carried-over settings are not a first run", migrated.isFirstRun == false)
+    migrated.flush()
+    check(
+        "carried-over settings are rewritten under the new key",
+        freshDefaults.data(forKey: "hashdisland.settings.v2") != nil
+    )
+
+    // Once rewritten, the old copy is never needed again.
+    legacyDefaults.removeObject(forKey: "hashnotch.settings.v2")
+    let afterMigration = SettingsStore(defaults: freshDefaults, legacyDefaults: legacyDefaults)
+    check("settings survive without the old copy", afterMigration.style(for: "x") == "word")
+
+    // A genuinely new install still counts as a first run.
+    check(
+        "a clean install is still a first run",
+        SettingsStore(
+            defaults: UserDefaults(suiteName: emptySuite)!,
+            legacyDefaults: UserDefaults(suiteName: noLegacySuite)!
+        ).isFirstRun
+    )
+
+    for name in [legacySuite, freshSuite, emptySuite, noLegacySuite] {
+        UserDefaults.standard.removePersistentDomain(forName: name)
+    }
 }
 
 if failures == 0 {

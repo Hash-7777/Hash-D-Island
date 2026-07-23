@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// System-wide Now Playing media (music, video), shown in the notch like the
 /// iPhone's Dynamic Island.

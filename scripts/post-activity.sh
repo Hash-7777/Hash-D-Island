@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Post a live activity to HashNotch. Any app, script, or Apple Shortcut can do
-# the same by writing ~/.hashnotch/activities.json (an array of activities).
+# Post a live activity to HashDIsland. Any app, script, or Apple Shortcut can do
+# the same by writing ~/.hashdisland/activities.json (an array of activities).
 # Activities MERGE by id — posting replaces your previous activity with the
 # same id and leaves other posters' activities alone.
 #
@@ -15,7 +15,7 @@
 #
 set -euo pipefail
 
-FEED="$HOME/.hashnotch/activities.json"
+FEED="$HOME/.hashdisland/activities.json"
 mkdir -p "$(dirname "$FEED")"
 
 if [ "${1:-}" = "--clear" ]; then

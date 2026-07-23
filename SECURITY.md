@@ -1,11 +1,11 @@
 # Security & Privacy
 
-HashNotch is designed so you can verify every claim below by reading the
+Hash D Island is designed so you can verify every claim below by reading the
 source. This page says exactly what the app reads, what it never does, and why.
 
 ## Everything stays on your Mac
 
-No accounts. No analytics. No telemetry. No servers. HashNotch never uploads
+No accounts. No analytics. No telemetry. No servers. Hash D Island never uploads
 anything, anywhere.
 
 There is exactly **one** kind of network request the app can ever make:
@@ -22,15 +22,15 @@ disk. Nothing else in the app touches the network.
 
 Almost nothing. The app itself writes **no files at all** — its only persistent
 state is its own settings, stored where every Mac app stores them
-(`~/Library/Preferences/com.hashnotch.app.plist`). It never writes to the files
+(`~/Library/Preferences/com.hashdisland.app.plist`). It never writes to the files
 it reads, and artwork is fetched through an ephemeral session so not even an
 image cache lands on disk.
 
-The one folder that carries HashNotch's name, `~/.hashnotch`, is written by
+The one folder that carries Hash D Island's name, `~/.hashdisland`, is written by
 *you* — by the optional helper scripts in `scripts/`, or by anything else you
 choose to post activities with. The app only ever reads it.
 
-Removing HashNotch is correspondingly short, and the README's
+Removing Hash D Island is correspondingly short, and the README's
 [Remove it](README.md#remove-it) section lists every trace.
 
 ## What it reads, and why
@@ -44,7 +44,7 @@ Removing HashNotch is correspondingly short, and the README's
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Downloads | Lists the file names in your `~/Downloads` folder | The "download finished" notice. It reads names and dates only — it never opens, moves, or uploads a file — and shows the name of a file that just completed. |
-| Live activities | `~/.hashnotch/activities.json`, written by your own scripts or Shortcuts | The activity strip. Treated as untrusted input: capped at 256 KB and 8 activities, text length-limited, progress clamped. The optional Claude Code integration is a hook script YOU install (`scripts/install-claude-hooks.sh`, which backs up your Claude settings first); the hook writes only this feed file and reads nothing. |
+| Live activities | `~/.hashdisland/activities.json`, written by your own scripts or Shortcuts | The activity strip. Treated as untrusted input: capped at 256 KB and 8 activities, text length-limited, progress clamped. The optional Claude Code integration is a hook script YOU install (`scripts/install-claude-hooks.sh`, which backs up your Claude settings first); the hook writes only this feed file and reads nothing. |
 | Mouse position | Global observe-only monitors for position and scrolling | So the island opens when you hover the notch, and a two-finger swipe on the notch opens/closes the panel — scroll events are only ever acted on while the cursor is on the island. It never captures keystrokes. The overlay is fully click-through except while the panel is open — only then does the panel itself receive clicks (for the media buttons), and it turns click-through again the moment it closes. |
 
 ## Permissions it may ask for
@@ -53,7 +53,7 @@ Removing HashNotch is correspondingly short, and the README's
   time Now Playing asks Spotify or Music for the current track. Deny it and
   every other feature keeps working.
 - **Automation (control your browser)** — asked only if a web video is playing
-  and nothing else already provided artwork. HashNotch then reads your open
+  and nothing else already provided artwork. Hash D Island then reads your open
   browser tabs' addresses and titles to find the one whose title matches what's
   playing, and derives only that video's thumbnail. This happens once per
   video, not continuously: the result is remembered — including "no thumbnail
@@ -66,7 +66,7 @@ Removing HashNotch is correspondingly short, and the README's
   a banner when the timer ends. Deny it and the timer still chimes and shows
   "Time's up" in the notch.
 
-That is the complete list. HashNotch never asks for Accessibility, Input
+That is the complete list. Hash D Island never asks for Accessibility, Input
 Monitoring, Screen Recording, or Full Disk Access.
 
 ## Private APIs, stated openly
@@ -80,7 +80,7 @@ Two features use non-public Apple APIs, both read-only:
   temperature sensors.
 
 If Apple changes either, those readouts degrade to a placeholder and the rest
-of the app keeps working. Because of these APIs, HashNotch is distributed
+of the app keeps working. Because of these APIs, Hash D Island is distributed
 directly rather than through the Mac App Store.
 
 ## Verify it yourself
@@ -89,7 +89,7 @@ The whole app builds from source with the Command Line Tools alone:
 
 ```sh
 swift build
-swift run HashNotchChecks   # the automated checks, including the policies above
+swift run HashDIslandChecks   # the automated checks, including the policies above
 ```
 
 All commits on this repository are SSH-signed.

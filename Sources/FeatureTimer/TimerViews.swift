@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Compact-live: a small timer glyph left of the notch while counting down.
 struct TimerIconView: View {

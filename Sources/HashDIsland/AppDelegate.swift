@@ -1,5 +1,5 @@
 import AppKit
-import HashNotchKit
+import HashDIslandKit
 
 /// Boots the HUD: builds the registry from the manifest, loads settings, starts
 /// the features, and shows the notch overlay. There is no menu-bar item — the

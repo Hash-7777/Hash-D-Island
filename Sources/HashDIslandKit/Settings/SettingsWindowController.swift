@@ -21,7 +21,7 @@ public final class SettingsWindowController {
                 rootView: SettingsView(settings: settings, features: descriptors)
             )
             let window = NSWindow(contentViewController: hosting)
-            window.title = "HashNotch"
+            window.title = "Hash D Island"
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.isReleasedWhenClosed = false
             window.center()

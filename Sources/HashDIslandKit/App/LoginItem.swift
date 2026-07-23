@@ -3,7 +3,7 @@ import ServiceManagement
 
 /// Thin wrapper over `SMAppService` for "open at login".
 ///
-/// This only takes effect when HashNotch runs as a proper `.app` bundle (see
+/// This only takes effect when Hash D Island runs as a proper `.app` bundle (see
 /// scripts/build_app.sh); from a bare `swift run` binary the register call is a
 /// no-op that throws, which callers treat as "not available yet".
 public enum LoginItem {

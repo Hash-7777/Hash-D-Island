@@ -38,7 +38,7 @@ public struct SettingsView: View {
                 Toggle("Open at login", isOn: launchAtLoginBinding)
                     .disabled(!LoginItem.isSupported)
                 if !LoginItem.isSupported {
-                    Text("Available once HashNotch is installed as an app.")
+                    Text("Available once Hash D Island is installed as an app.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -46,7 +46,7 @@ public struct SettingsView: View {
 
             // With no menu-bar item, this window is also where you quit.
             Section {
-                Button("Quit HashNotch", role: .destructive) {
+                Button("Quit Hash D Island", role: .destructive) {
                     NSApp.terminate(nil)
                 }
             }

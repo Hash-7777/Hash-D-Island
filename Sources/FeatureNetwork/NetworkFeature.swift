@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Which throughput directions the readout shows.
 enum NetworkStyle: String {

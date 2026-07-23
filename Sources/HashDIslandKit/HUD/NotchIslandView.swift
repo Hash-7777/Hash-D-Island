@@ -257,6 +257,6 @@ private struct CornerButton: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
-        .help(symbol == "power" ? "Quit HashNotch" : "Settings")
+        .help(symbol == "power" ? "Quit Hash D Island" : "Settings")
     }
 }

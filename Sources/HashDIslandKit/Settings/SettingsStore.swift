@@ -38,14 +38,29 @@ public final class SettingsStore: ObservableObject {
     public let isFirstRun: Bool
 
     private let defaults: UserDefaults
-    private let storageKey = "hashnotch.settings.v2"
+    private let storageKey = "hashdisland.settings.v2"
     private var saveCancellable: AnyCancellable?
 
-    public init(defaults: UserDefaults = .standard) {
+    /// Where settings lived before the app was renamed. Preferences are keyed by
+    /// bundle identifier, so without this an existing install would silently
+    /// come back with every choice reset.
+    private static let legacyKey = "hashnotch.settings.v2"
+    private static let legacyDomain = "com.hashnotch.app"
+
+    /// `legacyDefaults` is where settings written under the app's previous name
+    /// are looked for. It is a parameter purely so the checks can prove the
+    /// carry-over works without touching the real preferences.
+    public init(defaults: UserDefaults = .standard, legacyDefaults: UserDefaults? = nil) {
         self.defaults = defaults
 
-        if let data = defaults.data(forKey: storageKey),
-           let document = try? JSONDecoder().decode(SettingsDocument.self, from: data) {
+        if let document = Self.load(key: storageKey, from: defaults) {
+            self.features = document.features
+            self.launchAtLogin = document.launchAtLogin
+            self.isFirstRun = false
+        } else if let document = Self.loadLegacy(explicit: legacyDefaults, running: defaults) {
+            // Carried over from the previous name, once. It is written back
+            // under the new key by the save below, so this path is not taken
+            // again.
             self.features = document.features
             self.launchAtLogin = document.launchAtLogin
             self.isFirstRun = false
@@ -60,6 +75,29 @@ public final class SettingsStore: ObservableObject {
             .sink { [weak self] in
                 DispatchQueue.main.async { self?.save() }
             }
+
+        // Write the carried-over settings straight away, so they survive even
+        // if the app is quit before anything else changes.
+        if !isFirstRun, defaults.data(forKey: storageKey) == nil { save() }
+    }
+
+    private static func load(key: String, from defaults: UserDefaults) -> SettingsDocument? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(SettingsDocument.self, from: data)
+    }
+
+    /// Settings saved under the app's previous name. Checked in the running
+    /// defaults first (an unbundled `swift run` build shares one domain), then
+    /// in the old bundle's own domain, which is where a real installed copy
+    /// kept them.
+    private static func loadLegacy(
+        explicit: UserDefaults?,
+        running: UserDefaults
+    ) -> SettingsDocument? {
+        if let explicit { return load(key: legacyKey, from: explicit) }
+        if let document = load(key: legacyKey, from: running) { return document }
+        guard let legacy = UserDefaults(suiteName: legacyDomain) else { return nil }
+        return load(key: legacyKey, from: legacy)
     }
 
     // MARK: Reading

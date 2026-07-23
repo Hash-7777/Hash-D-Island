@@ -1,5 +1,5 @@
 import Foundation
-import HashNotchKit
+import HashDIslandKit
 
 /// One temperature sensor reading.
 public struct TempSensor: Identifiable, Equatable {

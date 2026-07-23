@@ -1,6 +1,6 @@
 import SwiftUI
 import AppKit
-import HashNotchKit
+import HashDIslandKit
 
 /// Leading compact-live: album artwork to the left of the notch.
 /// Shows while a track is present — playing or paused — so the artwork stays

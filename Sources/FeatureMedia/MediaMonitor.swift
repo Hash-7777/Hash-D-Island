@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Track position, published separately from `NowPlaying` so a steadily
 /// playing track causes no identity churn — views interpolate from here.

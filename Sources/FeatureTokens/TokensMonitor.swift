@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Publishes today's AI token usage, refreshed on a light interval. The file
 /// scan runs on a background queue so the HUD never stutters; results are
@@ -10,7 +10,7 @@ public final class TokensMonitor: ObservableObject {
     @Published public private(set) var today = TokenTotals()
 
     private var sampler: PollingSampler?
-    private let queue = DispatchQueue(label: "com.hashnotch.tokens", qos: .utility)
+    private let queue = DispatchQueue(label: "com.hashdisland.tokens", qos: .utility)
 
     public init() {}
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Posts a HashNotch live activity when Claude Code finishes a reply or is
+# Posts a HashDIsland live activity when Claude Code finishes a reply or is
 # waiting for your permission. Wired into ~/.claude/settings.json as a Stop +
 # Notification hook by scripts/install-claude-hooks.sh. Reads the hook payload
 # Claude Code sends on stdin (JSON) and writes ONLY the local activities feed
-# (~/.hashnotch/activities.json) — nothing else, nowhere else.
+# (~/.hashdisland/activities.json) — nothing else, nowhere else.
 #
 #   claude-code-hook.sh stop           # "Claude finished"
 #   claude-code-hook.sh notification   # "Claude needs you" (+ the reason)
@@ -13,7 +13,7 @@ set -euo pipefail
 
 EVENT="${1:-stop}"
 PAYLOAD="$(cat 2>/dev/null || true)"
-FEED="$HOME/.hashnotch/activities.json"
+FEED="$HOME/.hashdisland/activities.json"
 mkdir -p "$(dirname "$FEED")"
 
 # All JSON handling in JavaScript-for-Automation (always present on macOS —

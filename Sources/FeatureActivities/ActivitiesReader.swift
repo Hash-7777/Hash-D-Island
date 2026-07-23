@@ -1,9 +1,9 @@
 import Foundation
 
-/// One live activity posted to HashNotch by another app, a script, or a
+/// One live activity posted to Hash D Island by another app, a script, or a
 /// Shortcut. This is the macOS-honest version of iPhone Live Activities: since
 /// no system API lets us read another app's activity, apps push to a local feed
-/// and HashNotch renders it.
+/// and Hash D Island renders it.
 public struct LiveActivity: Identifiable, Equatable {
     public let id: String
     public let icon: String        // SF Symbol name, e.g. "bicycle"
@@ -26,7 +26,7 @@ public struct LiveActivity: Identifiable, Equatable {
 
 /// Reads the activity feed file. Missing/empty/invalid file → no activities.
 ///
-/// Feed: `~/.hashnotch/activities.json`, an array of objects:
+/// Feed: `~/.hashdisland/activities.json`, an array of objects:
 ///   {"id","icon","title","subtitle"?,"progress"?,"endsAt"? (ISO8601)}
 ///
 /// The feed is written by other processes, so everything is bounded before it
@@ -46,7 +46,7 @@ package enum ActivitiesReader {
 
     static var feedURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".hashnotch/activities.json")
+            .appendingPathComponent(".hashdisland/activities.json")
     }
 
     private struct ActivityDTO: Decodable {

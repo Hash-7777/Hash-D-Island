@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// How the temperature readout is shown.
 enum ThermalStyle: String {

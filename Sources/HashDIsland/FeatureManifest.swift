@@ -1,4 +1,4 @@
-import HashNotchKit
+import HashDIslandKit
 import FeatureNetwork
 import FeatureBattery
 import FeatureThermal
@@ -20,7 +20,7 @@ import FeatureAirPods
 /// ── To REMOVE a feature ───────────────────────────────────────────
 ///   Delete its line below. (Optionally delete its module + Package.swift entry.)
 ///
-/// The core (HashNotchKit) never changes for either.
+/// The core (HashDIslandKit) never changes for either.
 enum FeatureManifest {
     @MainActor
     static func enabledFeatures() -> [NotchFeature] {

@@ -1,6 +1,6 @@
 import Foundation
 import IOKit.ps
-import HashNotchKit
+import HashDIslandKit
 
 /// A transient battery moment the island announces like the iPhone does:
 /// plugging in shows a brief charge pill; dropping through 20% / 10% warns.

@@ -1,5 +1,5 @@
 import SwiftUI
-import HashNotchKit
+import HashDIslandKit
 
 /// Leading compact-live: the top activity's icon, to the left of the notch.
 struct ActivitiesIconView: View {
