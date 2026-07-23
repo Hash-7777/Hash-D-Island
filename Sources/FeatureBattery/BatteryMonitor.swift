@@ -74,7 +74,8 @@ public final class BatteryMonitor: ObservableObject {
     private weak var presence: LivePresence?
     private var powerSource: CFRunLoopSource?
     private var eventWork: DispatchWorkItem?
-    private var settleWork: [DispatchWorkItem] = []
+    private var settleSampler: PollingSampler?
+    private var settleDeadline = Date.distantPast
     private var lowPowerObserver: NSObjectProtocol?
     private var lastCharging: Bool?
     private var lastPercentage: Int?
@@ -131,7 +132,7 @@ public final class BatteryMonitor: ObservableObject {
         }
         eventWork?.cancel()
         eventWork = nil
-        cancelSettle()
+        stopSettling()
         event = nil
         presence?.setActive("battery", false)
     }
@@ -253,32 +254,74 @@ public final class BatteryMonitor: ObservableObject {
     private static let noticeSeconds: TimeInterval = 4
     private static let warningSeconds: TimeInterval = 8
 
-    /// Re-read a few times over the half-minute after power is connected or
-    /// pulled, then stop.
+    /// Keep re-reading while the answer is still incomplete, and stop the
+    /// moment it is not.
     ///
-    /// Spread rather than evenly spaced because the two things being waited for
-    /// arrive at different times: the charging flag within a couple of seconds,
-    /// the estimate of time to full anywhere up to half a minute later. Six
-    /// extra reads on an event that happens a handful of times a day costs
-    /// nothing measurable, and it is the difference between a panel that is
-    /// right when you look at it and one that is right a minute after you
-    /// stopped.
-    private static let settleDelays: [TimeInterval] = [1, 2, 4, 8, 15, 30]
+    /// A fixed burst of reads was the wrong shape. IOKit announces the cable
+    /// and goes quiet, and what comes next has no schedule at all: charging may
+    /// begin in a second or in a minute, and the estimate of time to full
+    /// arrives whenever macOS is confident enough to give one — sometimes not
+    /// for several minutes, and sometimes never, which is exactly what its own
+    /// menu shows as "no estimate". A burst that ran for thirty seconds simply
+    /// stopped watching before any of that happened and left the panel holding
+    /// its first impression until the next minute-long poll came round.
+    ///
+    /// So the condition, not the clock, decides. Poll briskly while something
+    /// is still expected, give up after a few minutes so a genuine health hold
+    /// does not keep this running all afternoon, and stop immediately once
+    /// there is nothing left to wait for.
+    private static let settleInterval: TimeInterval = 4
+    private static let settleWindow: TimeInterval = 240
 
-    private func scheduleSettle() {
-        cancelSettle()
-        for delay in Self.settleDelays {
-            let work = DispatchWorkItem { [weak self] in
-                MainActor.assumeIsolated { self?.sample() }
-            }
-            settleWork.append(work)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    /// Development aid, off unless `HASHDISLAND_DEBUG` asks for it. What the
+    /// system reports about power settles over minutes rather than at once, and
+    /// none of it is visible from outside the app — so watching it arrive is
+    /// the only way to tell "the app is stuck" from "macOS has not decided".
+    private static let logsReadings =
+        (ProcessInfo.processInfo.environment["HASHDISLAND_DEBUG"] ?? "").contains("battery")
+
+    /// Nothing further is expected from the system.
+    ///
+    /// Pure and package-visible so the checks can pin it: the state this is
+    /// deciding about lasts seconds and needs a cable in someone's hand to
+    /// produce, which makes it exactly the thing that should not rely on being
+    /// caught by eye.
+    package nonisolated static func isSettled(
+        state: BatteryState,
+        minutesToFull: Int?
+    ) -> Bool {
+        switch state {
+        case .discharging, .charged:
+            return true
+        case .charging:
+            // Charging is only half the answer; the useful half is how long.
+            return minutesToFull != nil
+        case .onHold:
+            // Might be a moment before charging starts, might be an all-day
+            // hold at 80%. The window decides which.
+            return false
         }
     }
 
-    private func cancelSettle() {
-        settleWork.forEach { $0.cancel() }
-        settleWork.removeAll()
+    private var isSettled: Bool {
+        Self.isSettled(state: state, minutesToFull: minutesToFull)
+    }
+
+    private func beginSettling() {
+        settleDeadline = Date().addingTimeInterval(Self.settleWindow)
+        guard settleSampler == nil else { return }
+        let sampler = PollingSampler(interval: Self.settleInterval) { [weak self] in
+            guard let self else { return }
+            self.sample()
+            if self.isSettled || Date() > self.settleDeadline { self.stopSettling() }
+        }
+        settleSampler = sampler
+        sampler.start()
+    }
+
+    private func stopSettling() {
+        settleSampler?.stop()
+        settleSampler = nil
     }
 
     private func announce(_ newEvent: BatteryEvent) {
@@ -366,7 +409,7 @@ public final class BatteryMonitor: ObservableObject {
                     // reading "held for battery health" while the menu bar said
                     // charging — right at the moment the user is looking at it,
                     // because plugging in is exactly when people glance.
-                    scheduleSettle()
+                    beginSettling()
                 } else if previous == .charging, newState == .charged || newState == .onHold {
                     // Still on power, but done filling.
                     announce(.fullyCharged(newPercentage))
@@ -384,6 +427,11 @@ public final class BatteryMonitor: ObservableObject {
             if percentage != newPercentage { percentage = newPercentage }
             if isCharging != newCharging { isCharging = newCharging }
             if state != newState { state = newState }
+            if Self.logsReadings {
+                FileHandle.standardError.write(Data(
+                    "[battery] \(newState) \(newPercentage)% charging=\(newCharging) toFull=\(newToFull.map(String.init) ?? "-") watts=\(watts.map(String.init) ?? "-") settling=\(settleSampler != nil)\n".utf8
+                ))
+            }
             if minutesRemaining != newRemaining { minutesRemaining = newRemaining }
             if minutesToFull != newToFull { minutesToFull = newToFull }
             if !hasBattery { hasBattery = true }

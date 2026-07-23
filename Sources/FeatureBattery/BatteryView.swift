@@ -141,6 +141,9 @@ struct BatteryEventTextView: View {
                 // part you cannot.
                 var parts = ["\(monitor.chargeSpeed?.label ?? "Charging") · \(percent)%"]
                 if let watts = monitor.adapterWatts, watts > 0 { parts.append("\(watts)W") }
+                // Only when there is one. On the strip there is no room to
+                // explain that macOS has not decided yet, and a four-second
+                // glance is the wrong place to raise the question.
                 if let minutes = monitor.minutesToFull, minutes > 0 {
                     parts.append("\(Formatters.hoursMinutes(minutes)) to full")
                 }
@@ -295,12 +298,19 @@ struct BatteryDetailView: View {
             var parts: [String] = []
             if let minutes = monitor.minutesToFull, minutes > 0 {
                 parts.append("\(Formatters.hoursMinutes(minutes)) to full")
+            } else {
+                // macOS often has no estimate for the first minutes of a
+                // charge, and sometimes never — its own menu says "no
+                // estimate" in exactly this situation. Saying so is better
+                // than a blank space, which reads as the app having failed to
+                // notice it is charging at all.
+                parts.append("estimating time to full")
             }
             if let watts = monitor.adapterWatts, watts > 0 {
                 let speed = monitor.chargeSpeed.map { $0 == .standard ? "" : " \($0.label.lowercased())" } ?? ""
                 parts.append("\(watts)W\(speed)")
             }
-            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+            return parts.joined(separator: " · ")
         case .charged:
             return nil
         case .onHold:

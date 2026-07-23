@@ -674,6 +674,34 @@ MainActor.assumeIsolated {
     check("the fast threshold is 60W", BatteryMonitor.ChargeSpeed.forWatts(60) == .fast)
     check("no rating claims no speed", BatteryMonitor.ChargeSpeed.forWatts(0) == nil)
 
+    // After the cable moves, the app keeps re-reading until there is nothing
+    // left to wait for. A fixed burst was the wrong shape: charging can begin a
+    // second or a minute after the cable goes in, and macOS may take several
+    // minutes to estimate a time to full — its own menu says "no estimate"
+    // meanwhile. Stopping on a clock left the panel holding its first
+    // impression, which is how "held for battery health" survived on screen
+    // while the menu bar said charging.
+    check(
+        "on battery there is nothing to wait for",
+        BatteryMonitor.isSettled(state: .discharging, minutesToFull: nil)
+    )
+    check(
+        "a full battery is settled",
+        BatteryMonitor.isSettled(state: .charged, minutesToFull: nil)
+    )
+    check(
+        "charging without an estimate keeps watching",
+        BatteryMonitor.isSettled(state: .charging, minutesToFull: nil) == false
+    )
+    check(
+        "charging with an estimate is settled",
+        BatteryMonitor.isSettled(state: .charging, minutesToFull: 89)
+    )
+    check(
+        "a hold keeps watching, in case it is only the adapter negotiating",
+        BatteryMonitor.isSettled(state: .onHold, minutesToFull: nil) == false
+    )
+
     // Downloads: browser part-files are recognized, finished files are not.
     check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))
     check("part download", DownloadsMonitor.isPartFileName("photo.jpg.download"))
