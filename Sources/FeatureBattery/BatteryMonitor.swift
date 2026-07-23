@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import IOKit.ps
 import HashDIslandKit
@@ -7,6 +8,37 @@ import HashDIslandKit
 public enum BatteryEvent: Equatable {
     case startedCharging(Int)
     case lowBattery(Int)
+    /// Reached full, or reached the level macOS is holding it at.
+    case fullyCharged(Int)
+    /// Unplugged — the counterpart to plugging in, so the pair reads as one
+    /// idea rather than an announcement that only ever happens in one
+    /// direction.
+    case unplugged(Int)
+
+    /// A warning is worth interrupting for and worth reading twice; the rest
+    /// are pleasantries and should leave quickly. Package-visible so the checks
+    /// can pin which announcements earn the longer stay.
+    package var isWarning: Bool {
+        if case .lowBattery = self { return true }
+        return false
+    }
+}
+
+/// What the battery is doing, as the iPhone distinguishes it.
+///
+/// "Plugged in" and "charging" are not the same thing and macOS separates them
+/// for a real reason: optimised charging parks the battery at around 80% for
+/// its health, and Macs on permanent desk power sit there for weeks. Showing a
+/// charging bolt for that is a small lie that makes people think something is
+/// broken, so the state that says "connected, deliberately not filling" exists
+/// on its own.
+public enum BatteryState: Equatable {
+    case discharging
+    case charging
+    /// On power, at 100%.
+    case charged
+    /// On power, deliberately not charging — usually optimised charging.
+    case onHold
 }
 
 /// Reads charge level, charging state, and time remaining from IOKit power
@@ -20,13 +52,22 @@ public final class BatteryMonitor: ObservableObject {
     @Published public private(set) var hasBattery: Bool = false
     /// A short-lived announcement for the compact strip; nil when idle.
     @Published public private(set) var event: BatteryEvent?
+    /// What the battery is doing — charging, held, full, or on its own.
+    @Published public private(set) var state: BatteryState = .discharging
+    /// Minutes until full while charging, when macOS is willing to estimate.
+    @Published public private(set) var minutesToFull: Int?
+    /// Whether macOS Low Power Mode is on. Read-only: macOS offers no public
+    /// way to switch it, so the app reports it and can open the pane that does.
+    @Published public private(set) var isLowPowerMode: Bool = false
 
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var powerSource: CFRunLoopSource?
     private var eventWork: DispatchWorkItem?
+    private var lowPowerObserver: NSObjectProtocol?
     private var lastCharging: Bool?
     private var lastPercentage: Int?
+    private var lastState: BatteryState?
 
     public init() {}
 
@@ -44,6 +85,20 @@ public final class BatteryMonitor: ObservableObject {
             powerSource = source
         }
 
+        // Low Power Mode announces its own changes, so it never needs polling —
+        // including when the user turns it on from the pane this app can open
+        // for them, or when macOS turns it on by itself at 20%.
+        isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        lowPowerObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+                if self.isLowPowerMode != enabled { self.isLowPowerMode = enabled }
+            }
+        }
+
         // IOKit above reports every real change — plugged in, unplugged, each
         // step down — the instant it happens, so this poll is only a backstop
         // behind it. It does not need to be brisk, and a battery readout is the
@@ -59,10 +114,28 @@ public final class BatteryMonitor: ObservableObject {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), powerSource, .defaultMode)
             self.powerSource = nil
         }
+        if let lowPowerObserver {
+            NotificationCenter.default.removeObserver(lowPowerObserver)
+            self.lowPowerObserver = nil
+        }
         eventWork?.cancel()
         eventWork = nil
         event = nil
         presence?.setActive("battery", false)
+    }
+
+    /// Opens System Settings at the Battery pane.
+    ///
+    /// This is as close to the iPhone's one-tap Low Power Mode as macOS allows.
+    /// There is no public API to switch it, and the command line that can
+    /// (`pmset -a lowpowermode 1`) demands root — so the honest options were an
+    /// administrator password prompt every time, or a privileged background
+    /// helper installed for the life of the app. Both are a far larger ask than
+    /// the setting is worth, and this app's whole case is that it asks for
+    /// almost nothing. So: one click to the exact pane, one switch there.
+    public static func openEnergySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.battery") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     /// The low-battery threshold (20 or 10) that `new` crossed downward from
@@ -73,6 +146,30 @@ public final class BatteryMonitor: ObservableObject {
         }
         return nil
     }
+
+    /// What the battery is doing, from the three things IOKit reports.
+    ///
+    /// Pure and package-visible so the checks can pin every combination without
+    /// a Mac in that state — "plugged in at 80% and deliberately not charging"
+    /// being the one that is hard to produce on demand and easy to get wrong.
+    package static func state(
+        onPower: Bool,
+        isCharging: Bool,
+        percentage: Int
+    ) -> BatteryState {
+        guard onPower else { return .discharging }
+        if isCharging { return .charging }
+        return percentage >= 95 ? .charged : .onHold
+    }
+
+    /// How long an announcement stays.
+    ///
+    /// A warning earns longer than a pleasantry. "Charging" is a courtesy the
+    /// user already knows about — they just plugged the cable in — while 10%
+    /// is the one message in the app that must not be missed, and it is worth
+    /// the extra seconds even on a surface built for glances.
+    private static let noticeSeconds: TimeInterval = 4
+    private static let warningSeconds: TimeInterval = 8
 
     private func announce(_ newEvent: BatteryEvent) {
         event = newEvent
@@ -85,7 +182,8 @@ public final class BatteryMonitor: ObservableObject {
             }
         }
         eventWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: work)
+        let seconds = newEvent.isWarning ? Self.warningSeconds : Self.noticeSeconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
     }
 
     private func sample() {
@@ -104,28 +202,52 @@ public final class BatteryMonitor: ObservableObject {
             let maximum = description[kIOPSMaxCapacityKey as String] as? Int ?? 100
             let newPercentage = maximum > 0 ? Int((Double(current) / Double(maximum)) * 100.0) : current
 
-            let state = description[kIOPSPowerSourceStateKey as String] as? String
-            let newCharging = (description[kIOPSIsChargingKey as String] as? Bool)
-                ?? (state == kIOPSACPowerValue)
+            // Being on power and being charged BY it are separate facts, and
+            // only IsCharging answers the second. Falling back to the power
+            // state when it is missing is what made a Mac parked at 80% by
+            // optimised charging claim it was charging.
+            let onPower = (description[kIOPSPowerSourceStateKey as String] as? String)
+                == kIOPSACPowerValue
+            let newCharging = (description[kIOPSIsChargingKey as String] as? Bool) ?? false
 
             let timeToEmpty = description[kIOPSTimeToEmptyKey as String] as? Int
             let newRemaining = (timeToEmpty ?? -1) > 0 ? timeToEmpty : nil
+            let timeToFull = description[kIOPSTimeToFullChargeKey as String] as? Int
+            let newToFull = (timeToFull ?? -1) > 0 ? timeToFull : nil
 
-            // Transient announcements: plugged in, or dropped through 20%/10%.
-            if let last = lastCharging, last != newCharging, newCharging {
-                announce(.startedCharging(newPercentage))
+            let newState = Self.state(
+                onPower: onPower, isCharging: newCharging, percentage: newPercentage
+            )
+
+            // Transient announcements. Each fires on a real transition rather
+            // than on a level, so none of them can repeat while nothing moves.
+            if let previous = lastState, previous != newState {
+                switch newState {
+                case .charging where previous == .discharging:
+                    announce(.startedCharging(newPercentage))
+                case .charged, .onHold:
+                    // Only worth saying when it just got there by charging.
+                    if previous == .charging { announce(.fullyCharged(newPercentage)) }
+                case .discharging:
+                    announce(.unplugged(newPercentage))
+                default:
+                    break
+                }
             }
-            if !newCharging, let lastPct = lastPercentage,
+            if !onPower, let lastPct = lastPercentage,
                Self.crossedLowThreshold(from: lastPct, to: newPercentage) != nil {
                 announce(.lowBattery(newPercentage))
             }
             lastCharging = newCharging
             lastPercentage = newPercentage
+            lastState = newState
 
             // Assign only on real change so identical samples cause no redraws.
             if percentage != newPercentage { percentage = newPercentage }
             if isCharging != newCharging { isCharging = newCharging }
+            if state != newState { state = newState }
             if minutesRemaining != newRemaining { minutesRemaining = newRemaining }
+            if minutesToFull != newToFull { minutesToFull = newToFull }
             if !hasBattery { hasBattery = true }
             return
         }

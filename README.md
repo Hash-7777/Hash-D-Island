@@ -24,8 +24,10 @@ glance away.
 - **Now Playing** — artwork, a scrolling title, and full controls for whatever
   is playing, including video in your browser
 - **Live internet usage** — upload and download speed
-- **Battery** — level, charging state, and time remaining, plus a heads-up the
-  moment you plug in or run low
+- **Battery** — level, time remaining or time to full, and a heads-up when you
+  plug in, unplug, reach full, or drop through 20% and 10%. It tells charging
+  apart from *held at 80% for battery health*, and shows Low Power Mode in
+  yellow the way iPhone does
 - **AirPods** — the charge left in each earbud and the case
 - **Temperatures** — processor, graphics, storage, and battery sensors
 - **AI token usage** — how much you have used today, per tool

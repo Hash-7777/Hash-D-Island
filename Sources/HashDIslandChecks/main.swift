@@ -470,6 +470,41 @@ MainActor.assumeIsolated {
     check("low silent inside band", BatteryMonitor.crossedLowThreshold(from: 19, to: 15) == nil)
     check("low silent when rising", BatteryMonitor.crossedLowThreshold(from: 9, to: 30) == nil)
 
+    // Being on power and being charged by it are different facts. The state a
+    // Mac is hardest to catch in — plugged in, parked at 80% by optimised
+    // charging, deliberately not charging — is the one that must not claim to
+    // be charging, so every combination is pinned here rather than waited for.
+    check(
+        "unplugged is discharging",
+        BatteryMonitor.state(onPower: false, isCharging: false, percentage: 64) == .discharging
+    )
+    check(
+        "plugged in and filling is charging",
+        BatteryMonitor.state(onPower: true, isCharging: true, percentage: 64) == .charging
+    )
+    check(
+        "plugged in and full is charged",
+        BatteryMonitor.state(onPower: true, isCharging: false, percentage: 100) == .charged
+    )
+    check(
+        "plugged in and parked at 80 is on hold, not charging",
+        BatteryMonitor.state(onPower: true, isCharging: false, percentage: 80) == .onHold
+    )
+    check(
+        "a full battery still reads charged just under 100",
+        BatteryMonitor.state(onPower: true, isCharging: false, percentage: 96) == .charged
+    )
+    check(
+        "power state alone never implies charging",
+        BatteryMonitor.state(onPower: true, isCharging: false, percentage: 50) != .charging
+    )
+
+    // Only the low-battery warning earns the longer stay on the notch.
+    check("a low warning is a warning", BatteryEvent.lowBattery(10).isWarning)
+    check("charging is not a warning", BatteryEvent.startedCharging(50).isWarning == false)
+    check("fully charged is not a warning", BatteryEvent.fullyCharged(100).isWarning == false)
+    check("unplugging is not a warning", BatteryEvent.unplugged(80).isWarning == false)
+
     // Downloads: browser part-files are recognized, finished files are not.
     check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))
     check("part download", DownloadsMonitor.isPartFileName("photo.jpg.download"))
