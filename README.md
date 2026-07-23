@@ -10,12 +10,12 @@ glance away.
 ## See it in action
 
 <p align="center">
-  <img src="docs/media/hero.png" width="300"
+  <img src="docs/media/hero.png" width="149"
        alt="The Hash D Island panel dropped below the notch — Now Playing, today's AI tokens, internet speed, temperatures, and a timer">
 </p>
 
 <p align="center">
-  <img src="docs/media/live.png" width="360"
+  <img src="docs/media/live.png" width="164"
        alt="The live strip beside the notch — album art, the track title, and audio bars that dance while it plays">
 </p>
 
