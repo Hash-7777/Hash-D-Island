@@ -269,6 +269,18 @@ MainActor.assumeIsolated {
         "a path that climbs out is resolved before it is judged",
         imagePath(forFeed: logoDir.appendingPathComponent("../../etc/passwd").path) == nil
     )
+
+    // Size is part of the same judgement: the logo is decoded on the main
+    // thread, so an oversized one is refused before it can ever reach it.
+    let hugeLogo = logoDir.appendingPathComponent("huge.png")
+    var oversized = onePixelPNG
+    oversized.append(Data(count: ActivitiesReader.maxImageBytes))
+    try? oversized.write(to: hugeLogo)
+    check("an oversized image is refused", imagePath(forFeed: hugeLogo.path) == nil)
+
+    let emptyLogo = logoDir.appendingPathComponent("empty.png")
+    try? Data().write(to: emptyLogo)
+    check("an empty image is refused", imagePath(forFeed: emptyLogo.path) == nil)
     check(
         "an activity with no image still has its symbol",
         ActivitiesReader.read(from: tempFile("[{\"id\":\"S\",\"title\":\"Sym\",\"icon\":\"bolt.fill\"}]"))

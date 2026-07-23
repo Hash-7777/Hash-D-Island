@@ -20,6 +20,41 @@ struct ActivitiesIconView: View {
     }
 }
 
+/// Logos already read from disk, so drawing one does not open and decode the
+/// file again.
+///
+/// `ActivityMark` is drawn inside a view that re-renders at least once a second
+/// while a countdown ticks, and far more often while the island animates.
+/// Loading in `body` meant a disk read and a full image decode on the main
+/// thread every one of those times, for a picture that had not changed since
+/// the last one.
+///
+/// The entry is keyed by path *and* modification date, so replacing the file
+/// still shows the new mark: a stat costs microseconds where the decode costs
+/// milliseconds, which is the whole point of the cache. Only a handful of
+/// posters ever have a logo, so a full clear when it fills is a fairer trade
+/// than eviction machinery for a dictionary that rarely passes one entry.
+@MainActor
+private enum ActivityLogoCache {
+    private struct Key: Hashable {
+        let path: String
+        let modified: Date?
+    }
+
+    private static var entries: [Key: NSImage] = [:]
+    private static let maxEntries = 8
+
+    static func image(atPath path: String) -> NSImage? {
+        let modified = (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+        let key = Key(path: path, modified: modified)
+        if let cached = entries[key] { return cached }
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        if entries.count >= maxEntries { entries.removeAll() }
+        entries[key] = image
+        return image
+    }
+}
+
 /// The badge an activity shows: its own logo when it has one, otherwise a
 /// symbol in a tinted disc.
 ///
@@ -32,7 +67,7 @@ struct ActivityMark: View {
     let size: CGFloat
 
     var body: some View {
-        if let path = activity.imagePath, let image = NSImage(contentsOfFile: path) {
+        if let path = activity.imagePath, let image = ActivityLogoCache.image(atPath: path) {
             Image(nsImage: image)
                 .resizable()
                 .interpolation(.high)

@@ -174,6 +174,15 @@ package enum ActivitiesReader {
     /// looks like an image.
     private static let allowedImageTypes: Set<String> = ["png", "jpg", "jpeg", "tiff", "pdf", "heic"]
 
+    /// The largest logo file the notch will open.
+    ///
+    /// A mark drawn at 21 points is a few kilobytes; this is generous by orders
+    /// of magnitude and exists only as a ceiling. Size is bounded here rather
+    /// than at the drawing site because decoding happens on the main thread —
+    /// an unbounded file named by a feed anyone can write is the one field in
+    /// it that could cost the island its smoothness rather than just look wrong.
+    package static let maxImageBytes = 4_000_000
+
     private static func safeImagePath(_ raw: String) -> String? {
         let trimmed = String(raw.prefix(1024))
         guard !trimmed.isEmpty else { return nil }
@@ -186,6 +195,9 @@ package enum ActivitiesReader {
               !isDirectory.boolValue,
               FileManager.default.isReadableFile(atPath: resolved.path)
         else { return nil }
+
+        let size = (try? resolved.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+        guard let size, size > 0, size <= maxImageBytes else { return nil }
         return resolved.path
     }
 
