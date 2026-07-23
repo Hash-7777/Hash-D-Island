@@ -14,17 +14,52 @@
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOK_SRC="$ROOT/scripts/claude-code-hook.sh"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# The hook always sits beside this script — in the repo's scripts/ folder, or in
+# Contents/Resources/scripts inside the app bundle for anyone who downloaded the
+# app rather than the source.
+HOOK_SRC="$HERE/claude-code-hook.sh"
 HOOK_DST="$HOME/.hashdisland/claude-code-hook.sh"
 SETTINGS="$HOME/.claude/settings.json"
 
+if [ ! -f "$HOOK_SRC" ]; then
+  echo "Cannot find claude-code-hook.sh next to this script ($HERE)." >&2
+  exit 1
+fi
+
 mkdir -p "$HOME/.hashdisland" "$HOME/.claude"
+
+# Say out loud when an older hook is being replaced.
+#
+# The hook is COPIED here, so it does not follow app updates: an install done
+# months ago keeps posting in the format that was current that day. That is how
+# an alert already fixed in the app went on looking broken at the notch, with
+# nothing anywhere saying why. Version in, version out, every time.
+version_of() { [ -f "$1" ] && sed -n 's/^HOOK_VERSION=\([0-9][0-9]*\).*/\1/p' "$1" | head -1; }
+OLD_VERSION="$(version_of "$HOOK_DST" || true)"
+NEW_VERSION="$(version_of "$HOOK_SRC" || true)"
+
 cp "$HOOK_SRC" "$HOOK_DST"
 chmod +x "$HOOK_DST"
 
+if [ -z "${OLD_VERSION:-}" ]; then
+  echo "Installed the notch hook (v${NEW_VERSION:-?})."
+elif [ "$OLD_VERSION" != "${NEW_VERSION:-}" ]; then
+  echo "Updated the notch hook: v$OLD_VERSION to v${NEW_VERSION:-?}."
+else
+  echo "The notch hook was already current (v${NEW_VERSION:-?})."
+fi
+
 if [ -f "$SETTINGS" ]; then
   cp "$SETTINGS" "$SETTINGS.hashdisland-backup-$(date +%s)"
+  # Keep the three most recent and delete the rest of OUR OWN backups. This is
+  # safe to re-run at any time, and re-running it is exactly what the README now
+  # tells people to do after every update — without a limit, being helpful once
+  # a version turns into a drawer full of near-identical files in a folder this
+  # app does not own. Only the .hashdisland-backup-* names are ever touched.
+  ls -t "$SETTINGS".hashdisland-backup-* 2>/dev/null \
+    | tail -n +4 \
+    | while IFS= read -r stale; do rm -f "$stale"; done
 fi
 
 RESULT="$(osascript -l JavaScript - "$SETTINGS" "$HOOK_DST" <<'JXA'

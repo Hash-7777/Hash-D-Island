@@ -11,6 +11,14 @@
 #
 set -euo pipefail
 
+# Bumped whenever this script's OUTPUT changes. The installer copies this file
+# into ~/.hashdisland, so an installed hook keeps running whatever version was
+# current the day it was installed — it does not follow app updates. Stamping it
+# is what lets the installer say "updated v1 to v2" rather than replacing the
+# file in silence, which is how a fixed alert can go on looking broken for
+# months. Read with: grep HOOK_VERSION= ~/.hashdisland/claude-code-hook.sh
+HOOK_VERSION=2
+
 EVENT="${1:-stop}"
 # A logo to show instead of the symbol, if one has been placed here. Claude's
 # own mark is not shipped with this app — drop a PNG at this path and the notch

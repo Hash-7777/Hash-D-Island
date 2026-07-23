@@ -136,6 +136,13 @@ Work in another window and let the notch tell you the moment an AI tool is done
   ./scripts/install-claude-hooks.sh
   ```
 
+  If you installed the app rather than building it, the same scripts travel
+  inside the bundle:
+
+  ```sh
+  "/Applications/Hash D Island.app/Contents/Resources/scripts/install-claude-hooks.sh"
+  ```
+
   From then on the island lights up the moment Claude **finishes a reply** — a
   checkmark and the project name, for about three seconds, then gone — or is
   **waiting for your permission**, which stays put until you deal with it. It
@@ -143,6 +150,12 @@ Work in another window and let the notch tell you the moment an AI tool is done
   only the local activities feed, and the installer backs up your Claude
   settings before touching them (and replaces its own older entry if you run it
   again).
+
+  **Re-run it after updating Hash D Island.** The hook is copied into your home
+  folder so you can read exactly what it does, which also means it does not
+  follow app updates on its own. Running the installer again is safe at any
+  time, and it tells you what it did — installed, already current, or updated
+  from one version to the next.
 
 - **HashCortX** and **HashCerebrum** — built in, nothing to install. HashCortX
   flashes "HashCortX finished" when a run completes; HashCerebrum lights up when

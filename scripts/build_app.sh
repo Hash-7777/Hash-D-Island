@@ -45,6 +45,21 @@ if [ -f "$MASTER" ] && { [ ! -f "$ICNS" ] || [ "$MASTER" -nt "$ICNS" ]; }; then
 fi
 cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
 
+# The optional helper scripts travel inside the bundle.
+#
+# Without this the only thing a released build contains is the executable, so
+# anyone who downloaded the app rather than the source had no way to run the
+# Claude Code installer the README tells them to run — the feature was
+# effectively source-only while being documented as everyone's. Shipping them
+# here also means updating the app updates the scripts, which is what stops an
+# installed hook drifting a version behind the app that documents it.
+mkdir -p "$APP/Contents/Resources/scripts"
+cp "$ROOT/scripts/claude-code-hook.sh" \
+   "$ROOT/scripts/install-claude-hooks.sh" \
+   "$ROOT/scripts/post-activity.sh" \
+   "$APP/Contents/Resources/scripts/"
+chmod +x "$APP/Contents/Resources/scripts/"*.sh
+
 # Signing the bundle covers its single main executable; --deep is unnecessary
 # (and deprecated) because there is no nested code.
 if [ "$IDENTITY" = "-" ]; then
