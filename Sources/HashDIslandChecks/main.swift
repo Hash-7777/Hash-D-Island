@@ -107,6 +107,44 @@ MainActor.assumeIsolated {
     check("artwork refuses file scheme", !ArtworkPolicy.isTrustedURL("file:///etc/passwd"))
     check("artwork refuses garbage", !ArtworkPolicy.isTrustedURL("not a url"))
 
+    // Playback commands. Play and pause are separate on purpose: a toggle sent
+    // to a player that has released the now-playing session is accepted,
+    // reported as successful, and ignored — which is exactly how a paused track
+    // used to refuse to resume. Pinning the mapping here means the two can
+    // never be swapped silently.
+    check("play scripts as play", MediaCommand.play.scriptVerb == "play")
+    check("pause scripts as pause", MediaCommand.pause.scriptVerb == "pause")
+    check("next scripts as next track", MediaCommand.next.scriptVerb == "next track")
+    check(
+        "previous scripts as previous track",
+        MediaCommand.previous.scriptVerb == "previous track"
+    )
+    check("play is remote code 0", MediaCommand.play.remoteCode == 0)
+    check("pause is remote code 1", MediaCommand.pause.remoteCode == 1)
+    check("next is remote code 4", MediaCommand.next.remoteCode == 4)
+    check("previous is remote code 5", MediaCommand.previous.remoteCode == 5)
+    check(
+        "no command is ever a toggle",
+        ![MediaCommand.play, .pause, .next, .previous]
+            .contains { $0.remoteCode == 2 }
+    )
+
+    // A player takes a beat to obey a command. Inside that beat the button
+    // keeps what it showed; outside it the player is always right.
+    func settles(_ since: TimeInterval, _ polled: Bool, _ optimistic: Bool) -> Bool {
+        MediaMonitor.keepsOptimisticPlayState(
+            secondsSinceCommand: since,
+            window: 1.5,
+            polledIsPlaying: polled,
+            optimisticIsPlaying: optimistic
+        )
+    }
+    check("a stale poll right after pressing play is ignored", settles(0.2, false, true))
+    check("a stale poll right after pressing pause is ignored", settles(0.2, true, false))
+    check("an agreeing poll is never overridden", settles(0.2, true, true) == false)
+    check("the player wins once the window has passed", settles(2.0, false, true) == false)
+    check("the window is exclusive at its edge", settles(1.5, false, true) == false)
+
     // Activities feed: other processes write it, so every field is bounded
     // before it reaches the UI.
     let future = ISO8601DateFormatter().string(from: Date().addingTimeInterval(600))

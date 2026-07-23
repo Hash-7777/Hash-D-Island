@@ -37,6 +37,12 @@ public final class MediaMonitor: ObservableObject {
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
     private var lastVolumeTouch = Date.distantPast
+    /// When the last playback command was sent. A player takes a moment to
+    /// react, and a poll landing inside that moment reports the state we were
+    /// changing away from — which used to snap the button straight back and
+    /// read as "the button did nothing".
+    private var lastCommand = Date.distantPast
+    private static let commandSettleWindow: TimeInterval = 1.5
     private var audioObserver: AudioActivityObserver?
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
@@ -96,10 +102,13 @@ public final class MediaMonitor: ObservableObject {
 
     public func togglePlayPause() {
         guard let media = nowPlaying else { return }
-        // Optimistic flip so the button feels instant; the follow-up refresh
-        // (and every poll after) corrects us if the player disagreed.
-        setPlaying(!media.isPlaying)
-        reader?.send(.playPause, to: media.source)
+        let wantsToPlay = !media.isPlaying
+        // Optimistic flip so the button feels instant, and an explicit play or
+        // pause rather than a toggle so the player is told what we showed
+        // rather than asked to guess.
+        setPlaying(wantsToPlay)
+        lastCommand = Date()
+        reader?.send(wantsToPlay ? .play : .pause, to: media.source)
         scheduleRefresh()
     }
 
@@ -172,7 +181,7 @@ public final class MediaMonitor: ObservableObject {
         // compact strip and the panel card stay up while a track is present so
         // the artwork and controls survive a pause; they clear only when the
         // system reports no item at all (the app quit, the tab closed).
-        let shown = snapshot
+        let shown = settling(snapshot)
 
         if shown != nowPlaying {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { nowPlaying = shown }
@@ -198,5 +207,48 @@ public final class MediaMonitor: ObservableObject {
         }
 
         presence?.setActive("media", shown != nil)
+    }
+
+    /// Whether a polled play state should be trusted, or the state the button
+    /// already showed kept for a moment longer.
+    ///
+    /// A player takes a beat to obey. A poll landing inside that beat reports
+    /// the state we were changing away from, and taking it at face value snaps
+    /// the button back — which reads as the button having done nothing, even
+    /// though the track starts a moment later. Outside the window the player is
+    /// always right: it is the user's Spotify, not our guess, that decides.
+    ///
+    /// Pure and package-visible so the checks can pin it without a player.
+    package nonisolated static func keepsOptimisticPlayState(
+        secondsSinceCommand: TimeInterval,
+        window: TimeInterval,
+        polledIsPlaying: Bool,
+        optimisticIsPlaying: Bool
+    ) -> Bool {
+        guard polledIsPlaying != optimisticIsPlaying else { return false }
+        return secondsSinceCommand < window
+    }
+
+    /// Everything a poll reports is taken as-is — the track, the artwork, the
+    /// position — except the play state while a command is still settling.
+    private func settling(_ snapshot: NowPlaying?) -> NowPlaying? {
+        guard let snapshot, let optimistic = nowPlaying else { return snapshot }
+        guard Self.keepsOptimisticPlayState(
+            secondsSinceCommand: Date().timeIntervalSince(lastCommand),
+            window: Self.commandSettleWindow,
+            polledIsPlaying: snapshot.isPlaying,
+            optimisticIsPlaying: optimistic.isPlaying
+        ) else { return snapshot }
+
+        return NowPlaying(
+            title: snapshot.title,
+            artist: snapshot.artist,
+            isPlaying: optimistic.isPlaying,
+            artwork: snapshot.artwork,
+            source: snapshot.source,
+            elapsed: snapshot.elapsed,
+            duration: snapshot.duration,
+            fetchedAt: snapshot.fetchedAt
+        )
     }
 }

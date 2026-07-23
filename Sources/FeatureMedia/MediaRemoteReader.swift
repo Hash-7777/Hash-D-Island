@@ -9,10 +9,40 @@ public enum MediaSource: String {
 }
 
 /// A playback command the user can send from the panel.
+///
+/// Play and pause are deliberately separate rather than one toggle. A toggle
+/// obeys whoever it reaches, which is wrong twice over: if our idea of the play
+/// state has drifted it does the opposite of what the button showed, and the
+/// system media channel accepts a toggle for a player that has already released
+/// the now-playing session, reports success, and changes nothing — which is
+/// exactly how a paused track ends up refusing to resume.
 public enum MediaCommand {
-    case playPause
+    case play
+    case pause
     case next
     case previous
+
+    /// The verb a scriptable player (Spotify, Music) understands.
+    public var scriptVerb: String {
+        switch self {
+        case .play: return "play"
+        case .pause: return "pause"
+        case .next: return "next track"
+        case .previous: return "previous track"
+        }
+    }
+
+    /// The system media-channel code: kMRPlay = 0, kMRPause = 1,
+    /// kMRNextTrack = 4, kMRPreviousTrack = 5. Note the absence of 2,
+    /// kMRTogglePlayPause — see the type's note above.
+    public var remoteCode: Int {
+        switch self {
+        case .play: return 0
+        case .pause: return 1
+        case .next: return 4
+        case .previous: return 5
+        }
+    }
 }
 
 /// The current track/video playing anywhere on the Mac.
@@ -283,60 +313,73 @@ final class MediaRemoteReader {
     private static let thumbRetryInterval: TimeInterval = 60
 
     /// Sends a playback command. Spotify and Music get their exact scripting
-    /// verb; everything else (browser video, any app) goes through the
-    /// system's MediaRemote command channel — the same one the keyboard's
-    /// media keys use. Fixed commands only — no user-controlled text ever
-    /// reaches a script. Runs on the same serial queue as fetches so osascript
-    /// calls never overlap, with the same watchdog so a stalled permission
-    /// dialog cannot wedge the queue.
+    /// verb, which is the only channel that reliably resumes them: once either
+    /// is paused it releases the now-playing session, and the system media
+    /// channel then accepts a play command, reports success, and does nothing.
+    /// Everything else (browser video, any other app) has no scripting
+    /// interface we can count on, so it goes through the system channel — the
+    /// same one the keyboard's media keys use.
+    ///
+    /// Fixed commands only — no user-controlled text ever reaches a script.
+    /// Runs on its own queue so a click never waits behind a fetch, with a
+    /// watchdog so a stalled permission dialog cannot wedge it.
     func send(_ command: MediaCommand, to source: MediaSource) {
         let arguments: [String]
         switch source {
         case .spotify, .music:
             let app = source == .spotify ? "Spotify" : "Music"
-            let verb: String
-            switch command {
-            case .playPause: verb = "playpause"
-            case .next: verb = "next track"
-            case .previous: verb = "previous track"
-            }
-            arguments = ["-e", "tell application \"\(app)\" to \(verb)"]
+            arguments = ["-e", "tell application \"\(app)\" to \(command.scriptVerb)"]
         case .other:
-            // kMRTogglePlayPause = 2, kMRNextTrack = 4, kMRPreviousTrack = 5.
-            let code: Int
-            switch command {
-            case .playPause: code = 2
-            case .next: code = 4
-            case .previous: code = 5
-            }
             arguments = ["-l", "JavaScript", "-e", """
             ObjC.import('Foundation');
             $.NSBundle.bundleWithPath('/System/Library/PrivateFrameworks/MediaRemote.framework/').load;
             ObjC.bindFunction('MRMediaRemoteSendCommand', ['bool', ['int', 'id']]);
-            $.MRMediaRemoteSendCommand(\(code), $());
+            $.MRMediaRemoteSendCommand(\(command.remoteCode), $());
             """]
         }
-        runCommand(arguments)
+        runCommand(arguments, describing: command)
     }
 
-    private func runCommand(_ arguments: [String]) {
+    private func runCommand(_ arguments: [String], describing command: MediaCommand) {
         commandQueue.async {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: Self.osascript)
             process.arguments = arguments
             process.qualityOfService = .userInitiated
             process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            do { try process.run() } catch { return }
+            // Keep the error text rather than discarding it: a refused
+            // Automation permission is the difference between "the button does
+            // nothing" and a one-line explanation of why.
+            let errors = Pipe()
+            process.standardError = errors
+            do { try process.run() } catch {
+                Self.report(command, "could not start osascript: \(error.localizedDescription)")
+                return
+            }
 
             let watchdog = DispatchWorkItem {
                 if process.isRunning { process.terminate() }
             }
             DispatchQueue.global(qos: .utility)
                 .asyncAfter(deadline: .now() + Self.fetchTimeout, execute: watchdog)
+            let errorData = errors.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             watchdog.cancel()
+
+            guard process.terminationStatus != 0 else { return }
+            let message = String(data: errorData, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            Self.report(command, message.isEmpty ? "exit \(process.terminationStatus)" : message)
         }
+    }
+
+    /// A failed playback command is worth one line on stderr. It is never shown
+    /// in the island — a control that quietly did nothing is confusing, but a
+    /// panel that shouts about it would be worse.
+    private static func report(_ command: MediaCommand, _ message: String) {
+        FileHandle.standardError.write(
+            Data("Hash D Island: \(command) command failed — \(message)\n".utf8)
+        )
     }
 
     private func run() -> NowPlaying? {
