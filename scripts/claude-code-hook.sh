@@ -17,7 +17,7 @@ set -euo pipefail
 # is what lets the installer say "updated v1 to v2" rather than replacing the
 # file in silence, which is how a fixed alert can go on looking broken for
 # months. Read with: grep HOOK_VERSION= ~/.hashdisland/claude-code-hook.sh
-HOOK_VERSION=3
+HOOK_VERSION=4
 
 EVENT="${1:-stop}"
 # A logo to show instead of the symbol, if one has been placed here. Claude's
@@ -80,8 +80,11 @@ function run(argv) {
   } else {
     icon = 'checkmark.circle.fill';
     title = 'Claude finished';
-    const cwd = String(payload.cwd || '');
-    subtitle = cwd ? cwd.split('/').filter(Boolean).pop() : null;
+    // No subtitle. This carried the working folder's name, which on a glance
+    // surface is noise: it is usually the folder you are already looking at,
+    // and a path fragment beside "finished" reads as debris rather than as
+    // information. "Claude needs you" keeps its subtitle, because there the
+    // text is the reason it is asking.
     dismissAfter = 3;
   }
 

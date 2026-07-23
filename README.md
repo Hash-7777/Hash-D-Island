@@ -133,7 +133,7 @@ Installed the app rather than the source? The same scripts travel inside the bun
 "/Applications/Hash D Island.app/Contents/Resources/scripts/install-claude-hooks.sh"
 ```
 
-From then on the island lights up when Claude **finishes a reply** — a checkmark and the project name, about three seconds, then gone — or is **waiting for your permission**, which stays until you deal with it. Click that one in the panel and it brings the waiting window straight to the front.
+From then on the island lights up when Claude **finishes a reply** — a checkmark, about three seconds, then gone — or is **waiting for your permission**, which stays until you deal with it and tells you what it is asking for. Click that one in the panel and it brings the waiting window straight to the front.
 
 It uses Claude Code's own hook system. The hook is a small script that writes only the local activities feed, and the installer backs up your Claude settings before touching them.
 
