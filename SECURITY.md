@@ -40,6 +40,7 @@ Removing Hash D Island is correspondingly short, and the README's
 | Network speed | Kernel per-interface byte counters (`getifaddrs`) | The up/down readout. It counts bytes only — it can never see what you send or receive. |
 | Battery | IOKit power-source info | Level, charging state, time remaining. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
+| AirPods battery | A short `/usr/sbin/system_profiler SPBluetoothDataType` subprocess — the same public report the System Information app shows you | The AirPods readout. That report lists every paired Bluetooth device; the app reads the battery percentages under the AirPods entry and discards the rest. Read-only, runs out of process so it can never wedge the app, and is killed if it takes more than 5 seconds. |
 | Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). Browsers are asked **once per video**, not once per poll: the answer is remembered whether or not a thumbnail was found, and only re-asked when the track changes. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
@@ -62,12 +63,28 @@ Removing Hash D Island is correspondingly short, and the README's
   matching thumbnail URL is returned to the app, and only its image (from
   YouTube's thumbnail host) is fetched. Deny this and Now Playing simply shows
   a placeholder tile instead.
+- **Your Downloads folder** — macOS protects it, so the first time the download
+  notice looks there, macOS asks. Deny it and every other feature keeps
+  working; you simply get no "download finished" notice.
 - **Notifications** — asked the first time you start the timer, so it can post
   a banner when the timer ends. Deny it and the timer still chimes and shows
   "Time's up" in the notch.
 
 That is the complete list. Hash D Island never asks for Accessibility, Input
 Monitoring, Screen Recording, or Full Disk Access.
+
+## Off means off
+
+Every row in the table above belongs to a feature you can switch off in
+**Settings → Indicators**, and switching one off **stops the work, not just the
+display**. A feature that is off is never started: it opens no files, runs no
+subprocess, and can trigger none of the permission prompts above. Turn
+Downloads off and the folder is never listed; turn Now Playing off and your
+media apps and browsers are never asked anything.
+
+The same holds while your screen is asleep — all sampling stops until it wakes
+— and a feature you switched off does not quietly come back on wake. This is
+covered by the automated checks (`FeatureRegistry.syncRunning`).
 
 ## Private APIs, stated openly
 

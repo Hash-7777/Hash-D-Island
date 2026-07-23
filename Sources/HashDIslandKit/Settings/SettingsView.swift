@@ -478,7 +478,12 @@ public struct SettingsView: View {
                 SettingDivider()
                 PrivacyLine(
                     "Permissions",
-                    "Automation for your media apps, and notifications for the timer. Never Accessibility, Screen Recording or Full Disk Access."
+                    "Automation for your media apps, and for your browser only while a web video is playing. Your Downloads folder, for the download notice. Notifications, for the timer. Never Accessibility, Screen Recording or Full Disk Access."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Turning one off",
+                    "Stops the work, not just the display. An indicator switched off in Indicators is never started, so it reads nothing and asks for nothing."
                 )
             }
 

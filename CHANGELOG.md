@@ -51,6 +51,8 @@ moment something is.
 
 - No accounts, no analytics, no telemetry, no servers.
 - The app writes no files; its only persistent state is its own settings.
+- Switching an indicator off stops it reading, not just showing — a feature
+  that is off is never started at all.
 - One kind of network request exists at all — fetching album or video artwork —
   restricted to Spotify's and YouTube's image hosts over HTTPS, size-capped,
   and refused if a redirect would leave those hosts.
@@ -59,9 +61,12 @@ moment something is.
 
 ### Known limitations
 
-- Hash D Island is built for Macs with a notch. On a display without one it falls
-  back to a virtual notch at the top centre of the screen, which is useful for
-  development but is not the intended experience.
+- Hash D Island is built for Macs with a notch, where the island is measured to
+  match the hardware exactly. A display without one — an external monitor, an
+  iMac, an older Air — gets a small pill hanging just below the menu bar
+  instead; everything works, but it is not the shape the app was drawn for.
+  Either way you can nudge its position and size per display in
+  **Settings → Position**.
 - Because it reads system-wide Now Playing and the real temperature sensors, it
   uses Apple APIs the Mac App Store does not allow, so it is distributed
   directly and macOS asks you to confirm the first launch. See

@@ -225,9 +225,13 @@ single manifest line and never the core — see
 ## Privacy & security
 
 Everything runs and stays on your Mac — no accounts, no analytics, no servers.
-The only network request Hash D Island can ever make is fetching album artwork
-from Spotify's own image server while Spotify is playing. Exactly what the app
-reads, why, and the one permission it may ask for are spelled out in
+The only network request Hash D Island can ever make is fetching the picture for
+what's playing: album art from Spotify's image servers, or a video's thumbnail
+from YouTube's. Nothing else ever leaves.
+
+Turning an indicator off stops the work, not just the display — a feature you
+switch off is never started, so it reads nothing and asks for nothing. Exactly
+what the app reads, why, and every permission it may ask for are spelled out in
 [SECURITY.md](SECURITY.md).
 
 ## What's new
