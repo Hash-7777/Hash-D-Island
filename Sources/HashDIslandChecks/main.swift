@@ -662,7 +662,13 @@ MainActor.assumeIsolated {
 
     // Charge speed is judged on the adapter's own rating, and claims nothing
     // when the adapter reports none.
-    check("a phone charger is slow", BatteryMonitor.ChargeSpeed.forWatts(20) == .slow)
+    check("a phone charger is slow", BatteryMonitor.ChargeSpeed.forWatts(12) == .slow)
+    check("20W is where a charger stops being a phone charger", BatteryMonitor.ChargeSpeed.forWatts(20) == .standard)
+    // 29 and 30 are both real Apple adapters and both the stock supply for a
+    // laptop this size. Calling either of them slow, for want of being the
+    // biggest one sold, would be wrong about a charger doing its job.
+    check("a 29W adapter is not slow", BatteryMonitor.ChargeSpeed.forWatts(29) == .standard)
+    check("a 30W adapter is not slow", BatteryMonitor.ChargeSpeed.forWatts(30) == .standard)
     check("an everyday adapter is standard", BatteryMonitor.ChargeSpeed.forWatts(35) == .standard)
     check("a big adapter is fast", BatteryMonitor.ChargeSpeed.forWatts(96) == .fast)
     check("the fast threshold is 60W", BatteryMonitor.ChargeSpeed.forWatts(60) == .fast)

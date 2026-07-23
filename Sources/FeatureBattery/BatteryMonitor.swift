@@ -74,6 +74,7 @@ public final class BatteryMonitor: ObservableObject {
     private weak var presence: LivePresence?
     private var powerSource: CFRunLoopSource?
     private var eventWork: DispatchWorkItem?
+    private var settleWork: [DispatchWorkItem] = []
     private var lowPowerObserver: NSObjectProtocol?
     private var lastCharging: Bool?
     private var lastPercentage: Int?
@@ -130,6 +131,7 @@ public final class BatteryMonitor: ObservableObject {
         }
         eventWork?.cancel()
         eventWork = nil
+        cancelSettle()
         event = nil
         presence?.setActive("battery", false)
     }
@@ -192,11 +194,15 @@ public final class BatteryMonitor: ObservableObject {
     /// Judged on the adapter's own rating, which is the only figure available
     /// without measuring current draw over time — and the one that actually
     /// decides the answer, since a laptop charges as fast as what it is plugged
-    /// into allows. The thresholds are deliberately coarse and named after what
-    /// they mean in practice rather than pretending to a precision the number
-    /// does not carry: below 30W is a phone-class charger that will crawl,
-    /// 30–60W is the everyday case, and 60W and up is what Apple's own fast
-    /// charging needs.
+    /// into allows.
+    ///
+    /// The thresholds are coarse on purpose and drawn where they mean
+    /// something. Below 20W is a phone charger: it will hold the machine up but
+    /// barely fill it. From there to 60W is the everyday range, and that is
+    /// where the stock adapter for a laptop of this size sits — calling it slow
+    /// because it is not the biggest one Apple sells would be both wrong and
+    /// discouraging about a charger that is doing its job. 60W and up is what
+    /// Apple's own fast charging requires across the line.
     public enum ChargeSpeed: Equatable {
         case slow
         case standard
@@ -213,7 +219,7 @@ public final class BatteryMonitor: ObservableObject {
 
         package static func forWatts(_ watts: Int) -> ChargeSpeed? {
             guard watts > 0 else { return nil }
-            if watts < 30 { return .slow }
+            if watts < 20 { return .slow }
             return watts < 60 ? .standard : .fast
         }
     }
@@ -246,6 +252,34 @@ public final class BatteryMonitor: ObservableObject {
     /// the extra seconds even on a surface built for glances.
     private static let noticeSeconds: TimeInterval = 4
     private static let warningSeconds: TimeInterval = 8
+
+    /// Re-read a few times over the half-minute after power is connected or
+    /// pulled, then stop.
+    ///
+    /// Spread rather than evenly spaced because the two things being waited for
+    /// arrive at different times: the charging flag within a couple of seconds,
+    /// the estimate of time to full anywhere up to half a minute later. Six
+    /// extra reads on an event that happens a handful of times a day costs
+    /// nothing measurable, and it is the difference between a panel that is
+    /// right when you look at it and one that is right a minute after you
+    /// stopped.
+    private static let settleDelays: [TimeInterval] = [1, 2, 4, 8, 15, 30]
+
+    private func scheduleSettle() {
+        cancelSettle()
+        for delay in Self.settleDelays {
+            let work = DispatchWorkItem { [weak self] in
+                MainActor.assumeIsolated { self?.sample() }
+            }
+            settleWork.append(work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        }
+    }
+
+    private func cancelSettle() {
+        settleWork.forEach { $0.cancel() }
+        settleWork.removeAll()
+    }
 
     private func announce(_ newEvent: BatteryEvent) {
         event = newEvent
@@ -322,6 +356,17 @@ public final class BatteryMonitor: ObservableObject {
                 let isOnPower = newState != .discharging
                 if isOnPower != wasOnPower {
                     announce(isOnPower ? .pluggedIn(newPercentage) : .unplugged(newPercentage))
+                    // Watch closely for a few seconds afterwards.
+                    //
+                    // IOKit announces the cable, then goes quiet. The facts
+                    // that matter settle AFTER that: `IsCharging` flips a second
+                    // or two later once the adapter is negotiated, and the time
+                    // to full is not estimated for a minute or more. With only
+                    // the sixty-second backstop behind it, the panel sat there
+                    // reading "held for battery health" while the menu bar said
+                    // charging — right at the moment the user is looking at it,
+                    // because plugging in is exactly when people glance.
+                    scheduleSettle()
                 } else if previous == .charging, newState == .charged || newState == .onHold {
                     // Still on power, but done filling.
                     announce(.fullyCharged(newPercentage))
