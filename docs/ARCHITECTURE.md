@@ -78,7 +78,9 @@ closure that opens the settings window.
 `NotchIslandView` draws three separate layers, stacked, each with its own shape:
 
 - **Collapsed** — a black shape matching the physical notch exactly, so at rest
-  the app is invisible.
+  the app is invisible. On a display with no notch there is nothing to hide
+  behind, so `NotchGeometry` hangs the island *below* the menu bar as a small
+  pill instead of painting black over it.
 - **Live** — a slim strip that appears *beside* the notch, at menu-bar height,
   whenever any feature signals `LivePresence`: artwork and title to one side,
   a countdown to the other. No hover needed.
@@ -87,8 +89,14 @@ closure that opens the settings window.
   its corner. Because it opens *below* the menu bar, it can never overlap app
   menus or status items.
 
+Window frames and hover zones both hang from `NotchGeometry.islandTop` rather
+than the screen's top edge, which is what lets the notchless case work without
+a second layout path. A user's `IslandAdjustment` — remembered per display — is
+applied to the measured geometry before anything else reads it, so a hand
+correction needs no special case either.
+
 `NotchWindowController` owns the overlay window and keeps it sized tight to
-whichever state is showing, always centered on the notch. It detects hover with
+whichever state is showing, always centered on the island. It detects hover with
 observe-only mouse-position monitors against tight, hysteretic zones (a small
 notch-sized zone to open; a keep-open area that must fully contain every zone
 that can trigger opening, or the panel flickers at the edges). The window is

@@ -432,6 +432,78 @@ MainActor.assumeIsolated {
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
 
+    // On a notched display the island hangs from the screen's top edge and
+    // wears the notch exactly. On one without, it must NOT: painting black over
+    // the menu bar reads as a fault, so it hangs below it instead.
+    let notched = NotchGeometry(
+        screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+        notchRect: CGRect(x: 656, y: 950, width: 200, height: 32),
+        hasNotch: true
+    )
+    check("a notched display hangs from the screen edge", notched.islandTop == 982)
+
+    let notchless = NotchGeometry(
+        screenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+        notchRect: CGRect(x: 894, y: 1030, width: 132, height: 26),
+        hasNotch: false,
+        islandTop: 1056
+    )
+    check("a notchless display hangs below the menu bar", notchless.islandTop < 1080)
+    check("the notchless island clears the menu bar", notchless.notchRect.maxY <= notchless.islandTop)
+
+    // Hand corrections: applied on top of the measurement, clamped so a
+    // hand-edited file cannot push the island somewhere unreachable.
+    var nudge = IslandAdjustment()
+    check("no correction means automatic", nudge.isAutomatic)
+    check("automatic changes nothing", nudge.applied(to: notched).notchRect == notched.notchRect)
+
+    nudge.horizontal = 40
+    check("a sideways nudge moves it", nudge.applied(to: notched).notchRect.midX == notched.notchRect.midX + 40)
+    check("a sideways nudge does not resize it", nudge.applied(to: notched).notchRect.width == 200)
+
+    nudge = IslandAdjustment()
+    nudge.vertical = 30
+    let lowered = nudge.applied(to: notched)
+    check("a downward nudge lowers the island", lowered.islandTop == notched.islandTop - 30)
+    check("a downward nudge lowers its rect too", lowered.notchRect.maxY == notched.notchRect.maxY - 30)
+
+    nudge = IslandAdjustment()
+    nudge.width = 60
+    let widened = nudge.applied(to: notched)
+    check("widening grows the island", widened.notchRect.width == 260)
+    check("widening keeps it centred", widened.notchRect.midX == notched.notchRect.midX)
+
+    var extreme = IslandAdjustment()
+    extreme.horizontal = 9_999
+    extreme.vertical = -9_999
+    extreme.width = 9_999
+    extreme.height = 9_999
+    let safe = extreme.clamped
+    check("a wild sideways value is clamped", safe.horizontal == IslandAdjustment.horizontalRange.upperBound)
+    check("a wild upward value is clamped", safe.vertical == IslandAdjustment.verticalRange.lowerBound)
+    check("a wild width is clamped", safe.width == IslandAdjustment.widthRange.upperBound)
+    check("a wild height is clamped", safe.height == IslandAdjustment.heightRange.upperBound)
+    check("clamping happens before it is applied", extreme.applied(to: notched).notchRect.width <= 200 + IslandAdjustment.widthRange.upperBound)
+
+    // Corrections are per display, so one screen's fix never follows onto
+    // another, and resetting removes the entry rather than storing zeroes.
+    let posSuite = "hashdisland.checks.position.\(UUID().uuidString)"
+    let posDefaults = UserDefaults(suiteName: posSuite)!
+    let positioned = SettingsStore(defaults: posDefaults)
+    var laptop = IslandAdjustment()
+    laptop.horizontal = 12
+    positioned.setAdjustment(laptop, for: "display-1")
+    check("a correction is kept for its display", positioned.adjustment(for: "display-1").horizontal == 12)
+    check("another display is untouched", positioned.adjustment(for: "display-2").isAutomatic)
+    positioned.setAdjustment(IslandAdjustment(), for: "display-1")
+    check("resetting clears the entry", positioned.adjustments["display-1"] == nil)
+
+    positioned.setAdjustment(laptop, for: "display-1")
+    positioned.flush()
+    let reloadedPositions = SettingsStore(defaults: posDefaults)
+    check("corrections survive a restart", reloadedPositions.adjustment(for: "display-1").horizontal == 12)
+    UserDefaults.standard.removePersistentDomain(forName: posSuite)
+
     // Reordering: dragging one indicator onto another moves it there, and a
     // drag that makes no sense leaves the order alone rather than corrupting it.
     let order = ["media", "tokens", "network", "battery"]

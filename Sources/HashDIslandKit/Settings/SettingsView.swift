@@ -30,7 +30,7 @@ public struct SettingsView: View {
     @State private var dragging: String?
 
     enum Section: String, CaseIterable, Identifiable {
-        case general, indicators, appearance, alerts, privacy
+        case general, indicators, appearance, alerts, position, privacy
         var id: String { rawValue }
 
         var title: String {
@@ -39,6 +39,7 @@ public struct SettingsView: View {
             case .indicators: return "Indicators"
             case .appearance: return "Appearance"
             case .alerts: return "Alerts"
+            case .position: return "Position"
             case .privacy: return "Privacy"
             }
         }
@@ -49,6 +50,7 @@ public struct SettingsView: View {
             case .indicators: return "square.stack.3d.up.fill"
             case .appearance: return "paintbrush.fill"
             case .alerts: return "bell.fill"
+            case .position: return "arrow.up.and.down.and.arrow.left.and.right"
             case .privacy: return "lock.shield.fill"
             }
         }
@@ -127,6 +129,7 @@ public struct SettingsView: View {
         case .indicators: indicators
         case .appearance: appearance
         case .alerts: alerts
+        case .position: position
         case .privacy: privacy
         }
     }
@@ -348,6 +351,98 @@ public struct SettingsView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    private var position: some View {
+        let screen = NotchGeometry.preferredScreen()
+        let key = screen.map { NotchGeometry.displayKey(for: $0) } ?? "display-unknown"
+        let measured = screen.map { NotchGeometry.current(for: $0) }
+        let current = settings.adjustment(for: key)
+
+        return VStack(alignment: .leading, spacing: 18) {
+            PageHeader(
+                "Position",
+                detail: measured?.hasNotch == true
+                    ? "Your display has a notch, and the island is measured to match it exactly. Nudge it here if anything looks off."
+                    : "This display has no notch, so the island sits just below the menu bar instead of covering it. Nudge it here to taste."
+            )
+
+            SettingCard {
+                SettingRow(
+                    "Fit",
+                    detail: current.isAutomatic
+                        ? "Automatic — measured from this display."
+                        : "Adjusted by hand for this display."
+                ) {
+                    Button("Reset to automatic") {
+                        settings.setAdjustment(IslandAdjustment(), for: key)
+                    }
+                    .disabled(current.isAutomatic)
+                }
+            }
+
+            SettingCard {
+                adjustmentSlider(
+                    "Move sideways",
+                    value: adjustmentBinding(key, \.horizontal),
+                    range: IslandAdjustment.horizontalRange,
+                    detail: "Left and right, in points."
+                )
+                SettingDivider()
+                adjustmentSlider(
+                    "Move down",
+                    value: adjustmentBinding(key, \.vertical),
+                    range: IslandAdjustment.verticalRange,
+                    detail: "Away from the top edge of the screen."
+                )
+                SettingDivider()
+                adjustmentSlider(
+                    "Width",
+                    value: adjustmentBinding(key, \.width),
+                    range: IslandAdjustment.widthRange,
+                    detail: "Added to the island's resting width. It grows evenly from its centre."
+                )
+                SettingDivider()
+                adjustmentSlider(
+                    "Height",
+                    value: adjustmentBinding(key, \.height),
+                    range: IslandAdjustment.heightRange,
+                    detail: "Added to the island's resting height."
+                )
+            }
+
+            Text("Adjustments are remembered per display, so a correction for your laptop never follows you onto an external monitor.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func adjustmentSlider(
+        _ title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        detail: String
+    ) -> some View {
+        SettingRow(title, detail: "\(detail) Currently \(Int(value.wrappedValue)) pt.") {
+            Slider(value: value, in: range, step: 1).frame(width: 220)
+        }
+    }
+
+    private func adjustmentBinding(
+        _ key: String,
+        _ path: WritableKeyPath<IslandAdjustment, Double>
+    ) -> Binding<Double> {
+        Binding(
+            get: { settings.adjustment(for: key)[keyPath: path] },
+            set: { newValue in
+                var adjustment = settings.adjustment(for: key)
+                adjustment[keyPath: path] = newValue
+                settings.setAdjustment(adjustment, for: key)
+            }
+        )
     }
 
     private var privacy: some View {

@@ -88,6 +88,8 @@ private struct SettingsDocument: Codable {
     var batterySaver: Bool?
     var appearance: AppearanceSettings?
     var alerts: AlertSettings?
+    /// Hand-made position corrections, keyed by display.
+    var adjustments: [String: IslandAdjustment]?
 }
 
 /// The single source of truth for user customization, backed by `UserDefaults`.
@@ -104,6 +106,21 @@ public final class SettingsStore: ObservableObject {
     @Published public var batterySaver: Bool = false
     @Published public var appearance = AppearanceSettings()
     @Published public var alerts = AlertSettings()
+    /// Position corrections per display. A display with no entry is automatic.
+    @Published public var adjustments: [String: IslandAdjustment] = [:]
+
+    /// The correction for one display, or an untouched one.
+    public func adjustment(for displayKey: String) -> IslandAdjustment {
+        adjustments[displayKey] ?? IslandAdjustment()
+    }
+
+    public func setAdjustment(_ adjustment: IslandAdjustment, for displayKey: String) {
+        if adjustment.isAutomatic {
+            adjustments.removeValue(forKey: displayKey)
+        } else {
+            adjustments[displayKey] = adjustment.clamped
+        }
+    }
 
     /// Multiplies every sampling interval. Kept here rather than in each
     /// monitor so "sample less often" means one number in one place.
@@ -144,6 +161,7 @@ public final class SettingsStore: ObservableObject {
             self.batterySaver = document.batterySaver ?? false
             self.appearance = document.appearance ?? AppearanceSettings()
             self.alerts = document.alerts ?? AlertSettings()
+            self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
             self.isFirstRun = false
         } else {
             self.features = [:]
@@ -256,7 +274,8 @@ public final class SettingsStore: ObservableObject {
             launchAtLogin: launchAtLogin,
             batterySaver: batterySaver,
             appearance: appearance,
-            alerts: alerts
+            alerts: alerts,
+            adjustments: adjustments
         )
         if let data = try? JSONEncoder().encode(document) {
             defaults.set(data, forKey: storageKey)

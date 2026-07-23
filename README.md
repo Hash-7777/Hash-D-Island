@@ -43,7 +43,14 @@ accounts, no cloud, no data collection.
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Apple Silicon Mac (M-series) with a notch display
+- Apple Silicon Mac (M-series)
+
+A notch is where this belongs, and on a notched Mac the island is measured to
+match it exactly. On a display without one — an external monitor, an iMac, an
+older Air — it does **not** paint a fake notch over your menu bar: it hangs
+just below the menu bar instead, as a small pill of its own, and everything
+works the same. Either way you can nudge it by hand in **Settings → Position**,
+and each display remembers its own adjustment.
 
 ## Download & install
 
@@ -171,6 +178,7 @@ There you can:
   motion is,
 - choose how long a finished alert stays before it leaves,
 - turn on **Battery saver** to check everything half as often,
+- nudge the island's position and size for each display,
 - turn on **Open at Login** so it comes back every time you start your Mac, and
 - **quit Hash D Island**.
 

@@ -29,6 +29,9 @@ public final class NotchWindowController {
     private let expandedHoverRect: CGRect
     private let screenFrame: CGRect
     private let notchRect: CGRect
+    /// The y coordinate the island hangs from — the screen's top edge on a
+    /// notched display, the bottom of the menu bar otherwise.
+    private let islandTop: CGFloat
     private var hoverMonitor: Any?
     private var localHoverMonitor: Any?
     private var scrollMonitor: Any?
@@ -57,16 +60,36 @@ public final class NotchWindowController {
         let screen = NotchGeometry.preferredScreen()
         let screenFrame = screen?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
         self.screenFrame = screenFrame
-        let geometry = screen.map { NotchGeometry.current(for: $0) }
+        let measured = screen.map { NotchGeometry.current(for: $0) }
             ?? NotchGeometry(
                 screenFrame: screenFrame,
-                notchRect: CGRect(x: screenFrame.midX - 100, y: screenFrame.maxY - 32, width: 200, height: 32),
+                notchRect: CGRect(
+                    x: screenFrame.midX - NotchGeometry.notchlessWidth / 2,
+                    y: screenFrame.maxY - NotchGeometry.notchlessHeight,
+                    width: NotchGeometry.notchlessWidth,
+                    height: NotchGeometry.notchlessHeight
+                ),
                 hasNotch: false
             )
+        // Whatever was measured, the user's own correction for this display has
+        // the last word.
+        let adjustment = screen.map { context.settings.adjustment(for: NotchGeometry.displayKey(for: $0)) }
+            ?? IslandAdjustment()
+        let geometry = adjustment.applied(to: measured)
+
         self.state = NotchState(geometry: geometry)
         self.notchRect = geometry.notchRect
+        self.islandTop = geometry.islandTop
 
-        let initial = Self.frame(for: geometry.notchRect, state: state, expanded: false, live: false, islandHeight: nil, in: screenFrame)
+        let initial = Self.frame(
+            for: geometry.notchRect,
+            state: state,
+            expanded: false,
+            live: false,
+            islandHeight: nil,
+            topEdge: geometry.islandTop,
+            in: screenFrame
+        )
         self.window = NotchWindow(contentRect: initial)
 
         // Hover zones in screen coordinates (bottom-left origin). Opening uses a
@@ -74,7 +97,9 @@ public final class NotchWindowController {
         // away; the live and expanded zones cover their visible content so the
         // panel stays open while the cursor is over it.
         let notch = geometry.notchRect
-        let top = screenFrame.maxY
+        // Hover zones hang from the island's own top edge, which is the screen
+        // edge only when there is a notch to sit in.
+        let top = geometry.islandTop
         // Collapsed: the notch itself plus a hair of slop, reaching a little
         // below its lower edge so it is easy to catch.
         self.collapsedHoverRect = CGRect(
@@ -176,6 +201,7 @@ public final class NotchWindowController {
             expanded: state.isExpanded,
             live: context.presence.hasLive,
             islandHeight: lastIslandSize?.height,
+            topEdge: islandTop,
             in: screenFrame
         )
     }
@@ -189,6 +215,7 @@ public final class NotchWindowController {
         expanded: Bool,
         live: Bool,
         islandHeight: CGFloat?,
+        topEdge: CGFloat,
         in screenFrame: CGRect
     ) -> NSRect {
         let contentWidth: CGFloat
@@ -213,9 +240,12 @@ public final class NotchWindowController {
         }
         let width = contentWidth + shadow.0 * 2
         let height = contentHeight + shadow.1
+        // Centred on the island's own notch rather than the screen, so a
+        // sideways correction actually moves it, and hung from the island's top
+        // edge rather than the screen's.
         return NSRect(
-            x: (screenFrame.midX - width / 2).rounded(),
-            y: screenFrame.maxY - height,
+            x: (notchRect.midX - width / 2).rounded(),
+            y: topEdge - height,
             width: width,
             height: height
         )
