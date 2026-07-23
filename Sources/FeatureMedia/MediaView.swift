@@ -51,7 +51,10 @@ struct MediaTitleView: View {
     var body: some View {
         if let media = monitor.nowPlaying {
             HStack(spacing: 7) {
-                MarqueeText(media.title)
+                // The title scrolls only while playing, for the same reason the
+                // bars only dance then: a paused track sits at the notch for as
+                // long as you leave it, and neither should be animating there.
+                MarqueeText(media.title, scrolls: media.isPlaying)
                     .foregroundStyle(theme.textColor)
                 // Bars dance only while playing; they rest as dots when paused.
                 AudioBarsView(isActive: media.isPlaying, tint: theme.accent)
@@ -75,6 +78,11 @@ struct MediaDetailView: View {
                 HStack(spacing: 12) {
                     artwork(media)
                     VStack(alignment: .leading, spacing: 3) {
+                        // Unlike the strip, this title keeps scrolling while
+                        // paused. The panel only exists while you are hovering
+                        // it, so the animation is bounded by your attention —
+                        // and being able to read the whole of a long title is
+                        // worth more here than the second or two of motion.
                         MarqueeText(media.title)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(theme.textColor)

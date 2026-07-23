@@ -14,8 +14,17 @@ private struct MarqueeTextWidthKey: PreferenceKey {
 /// Sizing works like `Text`: the view hugs short content and respects whatever
 /// width cap the caller applies (`.frame(maxWidth:)`). Font and color are
 /// inherited from the environment, so style it exactly like a `Text`.
+///
+/// Set `scrolls` to false to hold it still. A marquee is a 30-frames-a-second
+/// animation that never ends on its own, so anything drawing one for something
+/// that has stopped — a paused track keeping its place at the notch — should
+/// say so, or the app pays for that animation for as long as the notch holds
+/// the title. Held still, it returns to the start of the text rather than
+/// freezing wherever the scroll happened to be.
 public struct MarqueeText: View {
     private let text: String
+    /// Whether the text is allowed to scroll. False holds it at the start.
+    private let scrolls: Bool
     /// Scroll speed in points per second.
     private let speed: Double
     /// Gap between the end of the text and its looping copy.
@@ -29,8 +38,15 @@ public struct MarqueeText: View {
     /// and visibly jump left the moment measurement landed.
     @State private var appeared = Date()
 
-    public init(_ text: String, speed: Double = 30, gap: CGFloat = 36, dwell: Double = 1.4) {
+    public init(
+        _ text: String,
+        scrolls: Bool = true,
+        speed: Double = 30,
+        gap: CGFloat = 36,
+        dwell: Double = 1.4
+    ) {
         self.text = text
+        self.scrolls = scrolls
         self.speed = speed
         self.gap = gap
         self.dwell = dwell
@@ -53,6 +69,13 @@ public struct MarqueeText: View {
                 )
             )
             .onPreferenceChange(MarqueeTextWidthKey.self) { textWidth = $0 }
+            // Resuming restarts the loop rather than rejoining it. The clock
+            // runs on regardless of whether the text is scrolling, so without
+            // this a title held still and then released would jump straight to
+            // wherever the cycle had got to in the meantime.
+            .onChange(of: scrolls) { _, isScrolling in
+                if isScrolling { appeared = Date() }
+            }
             .id(text) // new title → fresh measurement and loop
     }
 
@@ -61,17 +84,23 @@ public struct MarqueeText: View {
         GeometryReader { geo in
             let available = geo.size.width
             if textWidth > available + 1 {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                // `paused` stops the timeline entirely — no ticks, no layout,
+                // no commit — rather than merely holding the offset still while
+                // the clock keeps waking the view 30 times a second.
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !scrolls)) { context in
                     let span = textWidth + gap
                     let cycle = dwell + Double(span) / speed
-                    let t = max(0, context.date.timeIntervalSince(appeared))
-                        .truncatingRemainder(dividingBy: cycle)
+                    let t = scrolls
+                        ? max(0, context.date.timeIntervalSince(appeared))
+                            .truncatingRemainder(dividingBy: cycle)
+                        : 0
                     let distance = CGFloat(max(0, t - dwell) * speed)
                     HStack(spacing: gap) {
                         label.fixedSize()
                         label.fixedSize()
                     }
                     .offset(x: -min(distance, span))
+                    .animation(.easeOut(duration: 0.3), value: scrolls)
                 }
                 .frame(width: available, height: geo.size.height, alignment: .leading)
                 .clipped()
