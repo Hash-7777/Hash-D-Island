@@ -18,10 +18,11 @@ public final class ActivitiesMonitor: ObservableObject {
     private var clock: PollingSampler?
     private weak var presence: LivePresence?
 
-    /// When each self-dismissing notice was first seen. A notice says how long
-    /// it wants to be shown for, not when it should go: the writer has no idea
-    /// when the app will next look at the file.
-    private var firstSeen: [String: Date] = [:]
+    /// When each self-dismissing notice was first seen, alongside the notice
+    /// itself so a NEW one under a reused id is recognised as new. A notice says
+    /// how long it wants to be shown for, not when it should go: the writer has
+    /// no idea when the app will next look at the file.
+    private var firstSeen: [String: (activity: LiveActivity, at: Date)] = [:]
     private var dismissalWork: DispatchWorkItem?
 
     public init() {}
@@ -82,20 +83,55 @@ public final class ActivitiesMonitor: ObservableObject {
         apply(ActivitiesReader.read())
     }
 
+    /// Whether this notice is one whose few seconds have not started counting.
+    ///
+    /// True for a notice never seen before, and for one whose content differs
+    /// from the last post under the same id — which is what a genuinely new
+    /// alert looks like, since every post carries its own `endsAt`. False for a
+    /// re-read of the same notice, so its clock keeps running from when it
+    /// actually arrived rather than restarting on every glance at the file.
+    ///
+    /// Pure and package-visible: this is the decision that silently swallowed
+    /// every repeat alert, so it is pinned by the checks rather than left to be
+    /// re-derived by eye.
+    package nonisolated static func startsFresh(
+        _ activity: LiveActivity,
+        previously: LiveActivity?
+    ) -> Bool {
+        guard activity.dismissAfter != nil else { return false }
+        guard let previously else { return true }
+        return previously != activity
+    }
+
     private func apply(_ fresh: [LiveActivity]) {
         let moment = Date()
 
         // Remember when each notice arrived, and forget the ones that have gone.
+        //
+        // Keyed on the activity's CONTENT, not just its id. Posters reuse an id
+        // deliberately — that is how the feed merges — so "same id" says nothing
+        // about whether this is the same notice. Recording the arrival time
+        // against the id alone meant the second alert from any poster was judged
+        // against the first one's clock: already past its three seconds, so it
+        // was discarded before it drew. Every "Claude finished" after the very
+        // first one was swallowed in silence, which is the worst possible way
+        // for an alert to fail.
+        //
+        // Nothing sweeps the record clean either, which is why it survived: once
+        // a notice is dismissed there is no countdown running, no dismissal due,
+        // and no file change until the next post, so `apply` is not called again
+        // and a stale entry simply waits there for its next victim.
         let ids = Set(fresh.map(\.id))
         firstSeen = firstSeen.filter { ids.contains($0.key) }
-        for activity in fresh where activity.dismissAfter != nil && firstSeen[activity.id] == nil {
-            firstSeen[activity.id] = moment
+        for activity in fresh
+        where Self.startsFresh(activity, previously: firstSeen[activity.id]?.activity) {
+            firstSeen[activity.id] = (activity, moment)
         }
 
         let preferred = settings?.alerts.noticeSeconds
         let showing = fresh.filter { activity in
             guard !activity.isExpired else { return false }
-            guard let seen = firstSeen[activity.id],
+            guard let seen = firstSeen[activity.id]?.at,
                   let dismissal = activity.dismissalDate(firstSeen: seen, preferring: preferred)
             else { return true }
             return dismissal > moment
@@ -136,7 +172,7 @@ public final class ActivitiesMonitor: ObservableObject {
 
         let preferred = settings?.alerts.noticeSeconds
         let due = activities.compactMap { activity -> Date? in
-            guard let seen = firstSeen[activity.id] else { return nil }
+            guard let seen = firstSeen[activity.id]?.at else { return nil }
             return activity.dismissalDate(firstSeen: seen, preferring: preferred)
         }
         guard let soonest = due.min() else { return }

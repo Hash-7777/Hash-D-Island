@@ -418,6 +418,44 @@ MainActor.assumeIsolated {
         ActivitiesReader.read(from: tempFile("[{\"id\":\"N\",\"title\":\"None\"}]"))
             .first?.appPath == nil
     )
+
+    // A notice's few seconds must start when THAT notice arrives. Posters reuse
+    // an id on purpose — it is how the feed merges — so judging a new alert by
+    // the id alone measured it against the PREVIOUS one's clock, found it long
+    // past, and dropped it before it ever drew. Every repeat alert vanished in
+    // silence, which is the worst way for an alert to fail.
+    func notice(_ id: String, endsAt: String) -> LiveActivity {
+        LiveActivity(
+            id: id, icon: "checkmark", title: "Claude finished", subtitle: nil,
+            progress: nil, endsAt: ISO8601DateFormatter().date(from: endsAt),
+            dismissAfter: 3
+        )
+    }
+    let firstAlert = notice("claude-code", endsAt: "2099-01-01T12:00:03Z")
+    let secondAlert = notice("claude-code", endsAt: "2099-01-01T12:05:41Z")
+
+    check(
+        "a notice never seen before starts its clock",
+        ActivitiesMonitor.startsFresh(firstAlert, previously: nil)
+    )
+    check(
+        "re-reading the same notice does not restart its clock",
+        ActivitiesMonitor.startsFresh(firstAlert, previously: firstAlert) == false
+    )
+    check(
+        "a later alert reusing the same id starts its own clock",
+        ActivitiesMonitor.startsFresh(secondAlert, previously: firstAlert)
+    )
+    check(
+        "a countdown keeps no notice clock at all",
+        ActivitiesMonitor.startsFresh(
+            LiveActivity(
+                id: "c", icon: "bicycle", title: "Delivery", subtitle: nil, progress: nil,
+                endsAt: Date().addingTimeInterval(600), dismissAfter: nil
+            ),
+            previously: nil
+        ) == false
+    )
     check(
         "an activity with no image still has its symbol",
         ActivitiesReader.read(from: tempFile("[{\"id\":\"S\",\"title\":\"Sym\",\"icon\":\"bolt.fill\"}]"))

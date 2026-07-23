@@ -12,8 +12,20 @@ public final class LivePresence: ObservableObject {
 
     public var hasLive: Bool { !activeIDs.isEmpty }
 
+    /// Development aid, off unless `HASHDISLAND_DEBUG` asks for it. Which
+    /// features hold the strip is otherwise unobservable from outside the app —
+    /// every live state gives the overlay window the same height, so no amount
+    /// of measuring its frame can tell a song from an alert.
+    private static let logsChanges =
+        (ProcessInfo.processInfo.environment["HASHDISLAND_DEBUG"] ?? "").contains("live")
+
     public func setActive(_ id: String, _ active: Bool) {
         guard active != activeIDs.contains(id) else { return }
+        if Self.logsChanges {
+            FileHandle.standardError.write(Data(
+                "[live] \(active ? "+" : "-")\(id) → \(activeIDs.union(active ? [id] : []).subtracting(active ? [] : [id]).sorted())\n".utf8
+            ))
+        }
         // Inside an animation transaction so the strip's content transition
         // (emerging from the notch) actually animates — a bare set would grow
         // the pill but pop the content in.
