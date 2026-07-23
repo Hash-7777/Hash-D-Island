@@ -72,6 +72,18 @@ public final class NotchState: ObservableObject {
         (liveTrailingWidth - liveLeadingWidth) / 2
     }
 
+    /// Where the notch sits inside the live strip, as a fraction of its width.
+    ///
+    /// The strip is deliberately lopsided — a small artwork tile to the left of
+    /// the notch, a much wider title to its right — so its centre is not the
+    /// notch. Anything that should converge on the hardware (a transition
+    /// anchor, for one) needs this rather than 0.5, or it collapses toward a
+    /// point beside the notch instead of into it.
+    public var notchAnchorInLiveStrip: CGFloat {
+        guard liveWidth > 0 else { return 0.5 }
+        return (liveLeadingWidth + notchWidth / 2) / liveWidth
+    }
+
     public func setExpanded(_ expanded: Bool) {
         guard expanded != isExpanded else { return }
         // The change MUST run inside an animation transaction — the island's

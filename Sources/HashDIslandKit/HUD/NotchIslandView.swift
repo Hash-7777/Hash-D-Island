@@ -130,29 +130,32 @@ struct NotchIslandView: View {
                     // (the sides are unequal, so a centered strip would sit
                     // 64pt off).
                     .offset(x: state.liveCenterOffset)
-                    // Emerges from the notch and returns into it: narrow and
-                    // short at the start, so it looks like the notch stretching
-                    // sideways rather than a bar fading in over the wallpaper.
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.55, anchor: .top)
-                            .combined(with: .opacity),
-                        removal: .scale(scale: 0.62, anchor: .top)
-                            .combined(with: .opacity)
+                    // Grows sideways OUT of the notch: it starts exactly as wide
+                    // as the notch, at full height, and stretches outward. The
+                    // anchor is the notch's place inside the strip, not the
+                    // strip's own centre — the sides are unequal, so anchoring
+                    // to the centre would have it converge to a point that is
+                    // not the notch.
+                    .transition(.drop(
+                        widthRatio: state.notchWidth / max(state.liveWidth, 1),
+                        heightRatio: 1,
+                        anchor: UnitPoint(x: state.notchAnchorInLiveStrip, y: 0)
                     ))
             }
 
             if showExpanded {
                 expandedIsland
-                    // Water drop: forms at the notch's lower lip, stretches
-                    // downward, and settles with a soft wobble (the opening
-                    // spring undershoots its damping for exactly that). On the
-                    // way out it collapses back INTO the notch — anchored top,
-                    // scaled to near nothing — rather than dissolving in place.
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.24, anchor: .top)
-                            .combined(with: .opacity),
-                        removal: .scale(scale: 0.18, anchor: .top)
-                            .combined(with: .opacity)
+                    // The water drop. It forms at exactly the notch's width and
+                    // almost no height — so it reads as the notch itself
+                    // swelling — then stretches DOWN and OUT, and settles with a
+                    // soft wobble (the opening spring undershoots its damping
+                    // for precisely that). Uniform scaling was the old mistake:
+                    // it made the panel balloon from a point in the middle of
+                    // nowhere, which at speed is indistinguishable from a pop.
+                    .transition(.drop(
+                        widthRatio: state.notchWidth / max(state.expandedWidth, 1),
+                        heightRatio: 0.04,
+                        anchor: .top
                     ))
             }
         }

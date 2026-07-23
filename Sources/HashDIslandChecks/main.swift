@@ -432,6 +432,29 @@ MainActor.assumeIsolated {
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
 
+    // A shape that grows out of the notch has to converge ON the notch. The
+    // live strip is lopsided on purpose, so its own centre is the wrong point:
+    // anchoring there would collapse it beside the hardware rather than into it.
+    let stripState = NotchState(geometry: NotchGeometry(
+        screenFrame: CGRect(x: 0, y: 0, width: 1280, height: 832),
+        notchRect: CGRect(x: 562, y: 804, width: 156, height: 28),
+        hasNotch: true
+    ))
+    let anchor = stripState.notchAnchorInLiveStrip
+    // The notch's centre sits at leading + half the notch, within the whole
+    // strip — here 56 + 78 of 382.
+    let expectedAnchor = (56.0 + 78.0) / 382.0
+    check("the strip anchors on the notch", abs(anchor - expectedAnchor) < 0.001)
+    check("which is left of the strip's own centre", anchor < 0.5)
+    check(
+        "the anchor lands inside the notch",
+        anchor * stripState.liveWidth > 56 && anchor * stripState.liveWidth < 56 + 156
+    )
+    check(
+        "a drop starts exactly as wide as the notch",
+        abs(stripState.notchWidth / stripState.expandedWidth - 156.0 / 300.0) < 0.001
+    )
+
     // On a notched display the island hangs from the screen's top edge and
     // wears the notch exactly. On one without, it must NOT: painting black over
     // the menu bar reads as a fault, so it hangs below it instead.
