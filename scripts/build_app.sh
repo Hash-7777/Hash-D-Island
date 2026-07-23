@@ -54,7 +54,17 @@ else
   echo "Signing with: $IDENTITY (hardened runtime)…"
   codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
 fi
-codesign --verify "$APP" && echo "Signature verified."
+
+# Checked with `if`, not `codesign --verify … && echo`. `set -e` deliberately
+# does NOT stop on a command that is the left side of an &&, so the && form let
+# a bundle whose signature does not verify print no complaint at all, fall
+# through to "Built:", and exit 0 — the one failure that must never be reported
+# as success, because macOS then refuses to launch the result.
+if ! codesign --verify --strict "$APP"; then
+  echo "Signature verification FAILED — this bundle must not be shipped." >&2
+  exit 1
+fi
+echo "Signature verified."
 
 echo "Built: $APP"
 echo "Run it with: open \"$APP\""
