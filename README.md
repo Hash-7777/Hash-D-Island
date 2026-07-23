@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/hero.svg" alt="Hash D Island — your notch, finally alive. A living, glanceable area around the MacBook notch, showing now playing, internet speed, battery, temperatures and AI token usage." width="100%">
+<img src="docs/media/banner.png" alt="Hash D Island running on a MacBook: a black island beside the notch showing album art and a track title, and a panel dropped below it with Now Playing controls, internet speed, battery, CPU temperature and today's AI token usage." width="100%">
 
 # Hash D Island
 
