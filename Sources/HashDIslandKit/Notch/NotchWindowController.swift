@@ -267,9 +267,31 @@ public final class NotchWindowController {
         )
     }
 
-    /// The window is sized TIGHT to the island for the current state and stays
-    /// centered on the notch (so it never nudges the island sideways). Tight
-    /// means a window screenshot captures the island, not a big empty box.
+    /// The widest the window ever needs to be, whatever state the island is in.
+    ///
+    /// This is deliberately NOT sized to the current state. A window whose width
+    /// changes has to move its left edge to stay centred on the notch, and that
+    /// move is instant while SwiftUI animates the content re-centring inside it
+    /// — the two do not cancel, and the island visibly sweeps sideways. Measured
+    /// on a real close: the panel sat at 262 in a 524-wide window, then at 176
+    /// in a 352-wide one. Both are the same point on screen; getting between
+    /// them is what you see.
+    ///
+    /// One constant width costs nothing. The window is transparent and
+    /// click-through, so the extra space is invisible.
+    package static func constantWidth(for notchRect: CGRect, state: NotchState) -> CGFloat {
+        let collapsed = state.collapsedWidth + collapsedShadow.0 * 2
+        // Symmetric about the notch, so the wider of the two reaches sets it.
+        let leftReach = state.liveLeadingWidth + notchRect.width / 2
+        let rightReach = notchRect.width / 2 + state.liveTrailingWidth
+        let live = 2 * max(leftReach, rightReach) + liveShadow.0 * 2
+        let expanded = state.expandedWidth + expandedShadow.0 * 2
+        return max(collapsed, max(live, expanded)).rounded()
+    }
+
+    /// The window keeps one width and one x for the whole of its life, centred
+    /// on the notch. Only its HEIGHT follows the state, because growing
+    /// downwards moves nothing that is anchored to the top.
     private static func frame(
         for notchRect: CGRect,
         state: NotchState,
@@ -279,28 +301,21 @@ public final class NotchWindowController {
         topEdge: CGFloat,
         in screenFrame: CGRect
     ) -> NSRect {
-        let contentWidth: CGFloat
         let contentHeight: CGFloat
-        let shadow: (CGFloat, CGFloat)
+        let shadowBottom: CGFloat
         if expanded {
-            contentWidth = state.expandedWidth
             contentHeight = min(islandHeight ?? provisionalExpandedHeight, screenFrame.height * 0.8)
-            shadow = expandedShadow
+            shadowBottom = expandedShadow.1
         } else if live {
-            // Symmetric about the notch so the window stays notch-centered; the
-            // wider of the two reaches sets the half-width.
-            let leftReach = state.liveLeadingWidth + notchRect.width / 2
-            let rightReach = notchRect.width / 2 + state.liveTrailingWidth
-            contentWidth = 2 * max(leftReach, rightReach)
             contentHeight = state.liveHeight
-            shadow = liveShadow
+            shadowBottom = liveShadow.1
         } else {
-            contentWidth = state.collapsedWidth
             contentHeight = state.collapsedHeight
-            shadow = collapsedShadow
+            shadowBottom = collapsedShadow.1
         }
-        let width = contentWidth + shadow.0 * 2
-        let height = contentHeight + shadow.1
+
+        let width = constantWidth(for: notchRect, state: state)
+        let height = contentHeight + shadowBottom
         // Centred on the island's own notch rather than the screen, so a
         // sideways correction actually moves it, and hung from the island's top
         // edge rather than the screen's.
@@ -320,6 +335,7 @@ public final class NotchWindowController {
         let union = window.frame.union(target)
         if union != window.frame {
             window.setFrame(union, display: true)
+            debugLog("grow")
         }
         settleWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -328,6 +344,7 @@ public final class NotchWindowController {
                 let settled = self.targetWindowFrame()
                 if self.window.frame != settled {
                     self.window.setFrame(settled, display: true)
+                    self.debugLog("settle")
                 }
             }
         }
@@ -344,10 +361,46 @@ public final class NotchWindowController {
         }
     }
 
+    /// Development aid, off unless `HASHDISLAND_DEBUG` is set.
+    ///
+    /// `frames` reports every window frame the controller sets, with the island
+    /// size that prompted it, which is the only way to tell a drifting window
+    /// apart from drifting content inside a still one. `cycle` opens and closes
+    /// the panel on a timer so that motion can be measured without a hand on
+    /// the trackpad.
+    private static var debugOptions: Set<String> {
+        Set((ProcessInfo.processInfo.environment["HASHDISLAND_DEBUG"] ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
+    private func debugLog(_ label: String) {
+        guard Self.debugOptions.contains("frames") else { return }
+        let f = window.frame
+        FileHandle.standardError.write(Data("""
+        [island] \(label) window x=\(Int(f.minX)) w=\(Int(f.width)) h=\(Int(f.height)) \
+        midX=\(Int(f.midX)) top=\(Int(f.maxY)) | island=\(Int(lastIslandSize?.width ?? -1))x\(Int(lastIslandSize?.height ?? -1)) \
+        | expanded=\(state.isExpanded) live=\(context.presence.hasLive)
+
+        """.utf8))
+    }
+
+    private func startDebugCycleIfRequested() {
+        guard Self.debugOptions.contains("cycle") else { return }
+        var open = false
+        Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                open.toggle()
+                self?.state.setExpanded(open)
+            }
+        }
+    }
+
     public func show() {
         refitWindow()
         window.orderFrontRegardless()
         startHoverTracking()
+        startDebugCycleIfRequested()
     }
 
     public func hide() {

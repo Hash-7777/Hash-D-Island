@@ -20,6 +20,14 @@ public struct LiveActivity: Identifiable, Equatable {
     /// watch something that was already over.
     public let dismissAfter: TimeInterval?
 
+    /// An image file to show instead of the SF Symbol — a tool's own logo.
+    ///
+    /// A symbol cannot be somebody's brand, so a poster that has a mark of its
+    /// own points at it here and the notch shows that instead. `icon` stays
+    /// required and is used whenever the file is missing or unreadable, so an
+    /// activity always has something to draw.
+    public let imagePath: String?
+
     public init(
         id: String,
         icon: String,
@@ -27,7 +35,8 @@ public struct LiveActivity: Identifiable, Equatable {
         subtitle: String?,
         progress: Double?,
         endsAt: Date?,
-        dismissAfter: TimeInterval?
+        dismissAfter: TimeInterval?,
+        imagePath: String? = nil
     ) {
         self.id = id
         self.icon = icon
@@ -36,6 +45,7 @@ public struct LiveActivity: Identifiable, Equatable {
         self.progress = progress
         self.endsAt = endsAt
         self.dismissAfter = dismissAfter
+        self.imagePath = imagePath
     }
 
     /// True when this counts down to something, rather than announcing
@@ -70,7 +80,7 @@ public struct LiveActivity: Identifiable, Equatable {
 ///
 /// Feed: `~/.hashdisland/activities.json`, an array of objects:
 ///   {"id","icon","title","subtitle"?,"progress"?,"endsAt"? (ISO8601),
-///    "dismissAfter"? (seconds)}
+///    "dismissAfter"? (seconds), "image"? (path to a logo)}
 ///
 /// The feed is written by other processes, so everything is bounded before it
 /// reaches the UI: the file itself, the number of activities, text lengths,
@@ -105,6 +115,7 @@ package enum ActivitiesReader {
         let progress: Double?
         let endsAt: String?
         let dismissAfter: Double?
+        let image: String?
     }
 
     static func read() -> [LiveActivity] {
@@ -139,7 +150,8 @@ package enum ActivitiesReader {
                 endsAt: dto.endsAt.flatMap(parseDate),
                 dismissAfter: dto.dismissAfter.map {
                     min(max($0, minDismissAfter), maxDismissAfter)
-                }
+                },
+                imagePath: dto.image.flatMap(safeImagePath)
             )
             if !activity.isExpired { result.append(activity) }
         }
@@ -152,6 +164,30 @@ package enum ActivitiesReader {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    /// An image path the app is willing to load.
+    ///
+    /// The feed is written by other processes, so this is treated like every
+    /// other field in it. Only a readable regular file with a known image
+    /// extension is accepted, and the path is resolved before it is judged, so
+    /// a trail of `..` cannot be used to point the notch at something that only
+    /// looks like an image.
+    private static let allowedImageTypes: Set<String> = ["png", "jpg", "jpeg", "tiff", "pdf", "heic"]
+
+    private static func safeImagePath(_ raw: String) -> String? {
+        let trimmed = String(raw.prefix(1024))
+        guard !trimmed.isEmpty else { return nil }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        let resolved = URL(fileURLWithPath: expanded).standardizedFileURL
+        guard allowedImageTypes.contains(resolved.pathExtension.lowercased()) else { return nil }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: resolved.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue,
+              FileManager.default.isReadableFile(atPath: resolved.path)
+        else { return nil }
+        return resolved.path
+    }
 
     private static func parseDate(_ string: String) -> Date? {
         isoFormatter.date(from: string) ?? isoFormatterFractional.date(from: string)

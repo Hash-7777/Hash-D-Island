@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import HashDIslandKit
 
 /// Leading compact-live: the top activity's icon, to the left of the notch.
@@ -12,17 +13,42 @@ struct ActivitiesIconView: View {
 
     var body: some View {
         if let activity = monitor.activities.first {
+            ActivityMark(activity: activity, theme: theme, size: 21)
+                .id(activity.id)
+                .transition(.scale(scale: 0.4).combined(with: .opacity))
+        }
+    }
+}
+
+/// The badge an activity shows: its own logo when it has one, otherwise a
+/// symbol in a tinted disc.
+///
+/// A logo is drawn plain and round, without the tint behind it — a brand mark
+/// sitting on a coloured disc that is not its own reads as a mistake. A symbol
+/// keeps the disc, which is what stops it looking like a stray glyph on black.
+struct ActivityMark: View {
+    let activity: LiveActivity
+    let theme: Theme
+    let size: CGFloat
+
+    var body: some View {
+        if let path = activity.imagePath, let image = NSImage(contentsOfFile: path) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
+        } else {
             Image(systemName: activity.icon)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: size * 0.52, weight: .bold))
                 .foregroundStyle(theme.accent)
-                .frame(width: 21, height: 21)
+                .frame(width: size, height: size)
                 .background(
                     Circle()
                         .fill(theme.accent.opacity(0.16))
                         .overlay(Circle().strokeBorder(theme.accent.opacity(0.22), lineWidth: 0.6))
                 )
-                .id(activity.id)
-                .transition(.scale(scale: 0.4).combined(with: .opacity))
         }
     }
 }
@@ -83,11 +109,7 @@ struct ActivitiesDetailView: View {
     private func row(_ activity: LiveActivity) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Image(systemName: activity.icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 20, height: 20)
-                    .background(Circle().fill(theme.accent.opacity(0.16)))
+                ActivityMark(activity: activity, theme: theme, size: 20)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(activity.title)
                         .foregroundStyle(theme.textColor)

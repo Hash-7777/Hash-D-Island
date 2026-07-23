@@ -12,17 +12,22 @@
 set -euo pipefail
 
 EVENT="${1:-stop}"
+# A logo to show instead of the symbol, if one has been placed here. Claude's
+# own mark is not shipped with this app — drop a PNG at this path and the notch
+# uses it; without it the checkmark symbol is shown exactly as before.
+LOGO="$HOME/.hashdisland/logos/claude.png"
 PAYLOAD="$(cat 2>/dev/null || true)"
 FEED="$HOME/.hashdisland/activities.json"
 mkdir -p "$(dirname "$FEED")"
 
 # All JSON handling in JavaScript-for-Automation (always present on macOS —
 # no jq or python needed). Arguments pass as argv, so payload quoting is safe.
-osascript -l JavaScript - "$FEED" "$EVENT" "$PAYLOAD" >/dev/null <<'JXA'
+osascript -l JavaScript - "$FEED" "$EVENT" "$PAYLOAD" "$LOGO" >/dev/null <<'JXA'
 function run(argv) {
   ObjC.import('Foundation');
   const feedPath = argv[0];
   const event = argv[1];
+  const logoPath = argv[3] || '';
   let payload = {};
   try { payload = JSON.parse(argv[2] || '{}'); } catch (e) {}
 
@@ -60,6 +65,9 @@ function run(argv) {
   });
 
   const activity = { id: 'claude-code', icon: icon, title: title };
+  // The app ignores an image it cannot read, so pointing at a missing file is
+  // harmless — it simply falls back to the symbol.
+  if (logoPath) activity.image = logoPath;
   if (dismissAfter !== null) {
     // dismissAfter says "no timer, and leave after this long". endsAt is
     // written alongside it purely so the entry expires from the file on its

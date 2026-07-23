@@ -15,6 +15,9 @@
 #   ./scripts/post-activity.sh --notice 3 "Build finished" "release" hammer
 #      seconds to show ---------------^
 #
+# Show a logo instead of the symbol (any readable image):
+#   ./scripts/post-activity.sh --image ~/logo.png --notice 3 "Build finished"
+#
 # Clear all activities:
 #   ./scripts/post-activity.sh --clear
 #
@@ -32,6 +35,14 @@ fi
 ID="cli-1"
 if [ "${1:-}" = "--id" ]; then
   ID="${2:?--id needs a value}"
+  shift 2
+fi
+
+# An optional logo. The app ignores anything that is not a readable image, so a
+# wrong path costs nothing — it simply falls back to the symbol.
+IMAGE=""
+if [ "${1:-}" = "--image" ]; then
+  IMAGE="${2:?--image needs a path}"
   shift 2
 fi
 
@@ -59,7 +70,7 @@ fi
 
 # All JSON handling in JavaScript-for-Automation (always present on macOS).
 # Values pass as argv, so quotes/backslashes/newlines in titles are safe.
-osascript -l JavaScript - "$FEED" "$ID" "$ICON" "$TITLE" "$SUBTITLE" "$MINUTES" "$NOTICE_SECONDS" >/dev/null <<'JXA'
+osascript -l JavaScript - "$FEED" "$ID" "$ICON" "$TITLE" "$SUBTITLE" "$MINUTES" "$NOTICE_SECONDS" "$IMAGE" >/dev/null <<'JXA'
 function run(argv) {
   ObjC.import('Foundation');
   const feedPath = argv[0];
@@ -79,6 +90,9 @@ function run(argv) {
   });
 
   const activity = { id: argv[1], icon: argv[2], title: argv[3] };
+  // Ignored by the app unless it names a readable image, so a wrong path just
+  // falls back to the symbol.
+  if (argv[7]) activity.image = argv[7];
   if (noticeSeconds !== null) {
     // dismissAfter means "no timer, and leave after this long". endsAt goes in
     // alongside it so the entry expires from the file on its own, rather than

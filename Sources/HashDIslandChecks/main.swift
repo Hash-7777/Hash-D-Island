@@ -242,6 +242,40 @@ MainActor.assumeIsolated {
     check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
     try? FileManager.default.removeItem(at: fractional)
 
+    // A logo path comes from the same untrusted feed as everything else, so it
+    // is only honoured when it names a readable image that really exists.
+    let logoDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("hashdisland-logo-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: logoDir, withIntermediateDirectories: true)
+    let realLogo = logoDir.appendingPathComponent("brand.png")
+    // A one-pixel PNG is enough: the reader checks the file, not the pixels.
+    let onePixelPNG = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")!
+    try? onePixelPNG.write(to: realLogo)
+    let notAnImage = logoDir.appendingPathComponent("notes.txt")
+    try? "hello".write(to: notAnImage, atomically: true, encoding: .utf8)
+
+    func imagePath(forFeed value: String) -> String? {
+        let file = tempFile("[{\"id\":\"L\",\"title\":\"Logo\",\"image\":\"\(value)\"}]")
+        defer { try? FileManager.default.removeItem(at: file) }
+        return ActivitiesReader.read(from: file).first?.imagePath
+    }
+
+    check("a real image is accepted", imagePath(forFeed: realLogo.path) == realLogo.path)
+    check("a missing file is refused", imagePath(forFeed: logoDir.appendingPathComponent("gone.png").path) == nil)
+    check("a non-image file is refused", imagePath(forFeed: notAnImage.path) == nil)
+    check("a folder is refused", imagePath(forFeed: logoDir.path) == nil)
+    check("an empty path is refused", imagePath(forFeed: "") == nil)
+    check(
+        "a path that climbs out is resolved before it is judged",
+        imagePath(forFeed: logoDir.appendingPathComponent("../../etc/passwd").path) == nil
+    )
+    check(
+        "an activity with no image still has its symbol",
+        ActivitiesReader.read(from: tempFile("[{\"id\":\"S\",\"title\":\"Sym\",\"icon\":\"bolt.fill\"}]"))
+            .first.map { $0.imagePath == nil && $0.icon == "bolt.fill" } == true
+    )
+    try? FileManager.default.removeItem(at: logoDir)
+
     // A notice announces something that already happened, so it draws no
     // countdown and leaves on its own. A countdown still counts.
     let notices = tempFile("""
@@ -431,6 +465,46 @@ MainActor.assumeIsolated {
     check("settings persist enabled", reloaded.isEnabled("x") == false)
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
+
+    // The overlay window keeps ONE width for its whole life. A width that
+    // changes has to move the left edge to stay centred, and that move is
+    // instant while SwiftUI animates the content re-centring inside it — the two
+    // do not cancel, and the island sweeps sideways. Measured on a real close
+    // before this was fixed: the panel sat at 262 in a 524-wide window and 176
+    // in a 352-wide one.
+    let widthState = NotchState(geometry: NotchGeometry(
+        screenFrame: CGRect(x: 0, y: 0, width: 1280, height: 832),
+        notchRect: CGRect(x: 562, y: 804, width: 156, height: 28),
+        hasNotch: true
+    ))
+    let notch = CGRect(x: 562, y: 804, width: 156, height: 28)
+    let constant = NotchWindowController.constantWidth(for: notch, state: widthState)
+    check("the window is wide enough for the resting notch", constant >= widthState.collapsedWidth)
+    check("wide enough for the open panel", constant >= widthState.expandedWidth)
+    check(
+        "wide enough for the live strip's furthest reach",
+        constant >= 2 * max(
+            widthState.liveLeadingWidth + notch.width / 2,
+            notch.width / 2 + widthState.liveTrailingWidth
+        )
+    )
+    check("and it is a whole number of points", constant == constant.rounded())
+
+    // The same must hold on every shape of display, including a notchless one
+    // where the island is a small stand-in pill.
+    var coversEveryState = true
+    for width in [132.0, 156.0, 200.0, 240.0] {
+        let rect = CGRect(x: 640 - width / 2, y: 804, width: width, height: 28)
+        let s = NotchState(geometry: NotchGeometry(
+            screenFrame: CGRect(x: 0, y: 0, width: 1280, height: 832),
+            notchRect: rect,
+            hasNotch: true
+        ))
+        let w = NotchWindowController.constantWidth(for: rect, state: s)
+        let liveReach = 2 * max(s.liveLeadingWidth + width / 2, width / 2 + s.liveTrailingWidth)
+        if w < s.collapsedWidth || w < s.expandedWidth || w < liveReach { coversEveryState = false }
+    }
+    check("one width covers every state on any notch size", coversEveryState)
 
     // A shape that grows out of the notch has to converge ON the notch. The
     // live strip is lopsided on purpose, so its own centre is the wrong point:
