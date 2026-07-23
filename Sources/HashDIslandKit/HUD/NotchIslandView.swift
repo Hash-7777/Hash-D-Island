@@ -24,7 +24,10 @@ struct NotchIslandView: View {
     var onIslandSize: ((CGSize) -> Void)? = nil
 
     private var showExpanded: Bool { state.isExpanded }
-    private var showLive: Bool { !state.isExpanded && presence.hasLive }
+
+    /// Whether the strip *should* be on screen — which is not the same as
+    /// whether it is drawn yet. See `liveShown`.
+    private var wantsLive: Bool { !state.isExpanded && presence.hasLive }
 
     private var motionScale: Double { settings.appearance.motion.responseScale }
     private var panelRadius: CGFloat { CGFloat(settings.appearance.panelCornerRadius) }
@@ -34,24 +37,82 @@ struct NotchIslandView: View {
     /// the panel read as the physical notch stretching open before it reveals.
     @State private var panelRevealed = false
 
+    /// Whether the live strip is actually drawn.
+    ///
+    /// The panel and the strip are different shapes holding different layouts.
+    /// Letting both animate at once cross-fades two layouts through each other
+    /// — the same artwork and title visible twice, in two places, sliding past
+    /// the desktop — which is what made closing the panel look cheap. Only one
+    /// of them is ever on screen now: the panel retracts fully into the notch,
+    /// and only then does the strip emerge from it.
+    @State private var liveShown = false
+    @State private var liveHandoff: DispatchWorkItem?
+
+    /// How long the strip waits after the panel starts closing. Slightly longer
+    /// than the closing spring, so the hand-off happens on an empty notch.
+    private var handoffDelay: TimeInterval { 0.30 * motionScale }
+
     var body: some View {
         VStack(spacing: 0) {
             island
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { liveShown = wantsLive }
         .onChange(of: showExpanded) { _, expanded in
             if expanded {
+                panelClosedAt = nil
                 panelRevealed = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     guard state.isExpanded else { return }
                     withAnimation(.easeOut(duration: 0.28)) { panelRevealed = true }
                 }
             } else {
+                panelClosedAt = Date()
                 panelRevealed = false
             }
+            updateLive(animated: true)
         }
+        .onChange(of: wantsLive) { _, _ in updateLive(animated: true) }
     }
+
+    /// Bring the strip in or out, never at the same moment as the panel.
+    ///
+    /// Going away is immediate: the strip must be gone before the panel starts
+    /// opening. Coming back waits for the panel to finish retracting — but only
+    /// when a panel was actually open, so a track starting on an idle notch
+    /// still appears at once.
+    private func updateLive(animated: Bool) {
+        liveHandoff?.cancel()
+        liveHandoff = nil
+
+        guard wantsLive else {
+            if liveShown { withAnimation(.easeOut(duration: 0.16)) { liveShown = false } }
+            return
+        }
+        guard !liveShown else { return }
+
+        let panelStillClearing = panelClosedAt.map { Date().timeIntervalSince($0) < handoffDelay } ?? false
+        guard panelStillClearing else {
+            withAnimation(.spring(response: 0.45 * motionScale, dampingFraction: 0.82)) {
+                liveShown = true
+            }
+            return
+        }
+
+        let work = DispatchWorkItem {
+            guard wantsLive else { return }
+            withAnimation(.spring(response: 0.45 * motionScale, dampingFraction: 0.82)) {
+                liveShown = true
+            }
+        }
+        liveHandoff = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + handoffDelay, execute: work)
+    }
+
+    /// When the panel last began closing, so the strip knows whether the notch
+    /// is still busy. Nil while the panel is open or has long since gone.
+    @State private var panelClosedAt: Date?
 
     /// Layered pills instead of one morphing pill: the black notch shape is
     /// ALWAYS present as the base, the live strip and the glass panel each
@@ -63,26 +124,35 @@ struct NotchIslandView: View {
         ZStack(alignment: .top) {
             collapsedIsland
 
-            if showLive {
+            if liveShown {
                 liveIsland
                     // Aligns the strip's internal gap with the PHYSICAL notch
                     // (the sides are unequal, so a centered strip would sit
                     // 64pt off).
                     .offset(x: state.liveCenterOffset)
+                    // Emerges from the notch and returns into it: narrow and
+                    // short at the start, so it looks like the notch stretching
+                    // sideways rather than a bar fading in over the wallpaper.
                     .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.85, anchor: .top)),
-                        removal: .opacity.combined(with: .scale(scale: 0.93, anchor: .top))
+                        insertion: .scale(scale: 0.55, anchor: .top)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.62, anchor: .top)
+                            .combined(with: .opacity)
                     ))
             }
 
             if showExpanded {
                 expandedIsland
-                    // Water drop: forms small at the notch's lower lip,
-                    // stretches downward, and settles with a soft wobble
-                    // (the opening spring undershoots damping for that).
+                    // Water drop: forms at the notch's lower lip, stretches
+                    // downward, and settles with a soft wobble (the opening
+                    // spring undershoots its damping for exactly that). On the
+                    // way out it collapses back INTO the notch — anchored top,
+                    // scaled to near nothing — rather than dissolving in place.
                     .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.30, anchor: .top)),
-                        removal: .opacity.combined(with: .scale(scale: 0.45, anchor: .top))
+                        insertion: .scale(scale: 0.24, anchor: .top)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.18, anchor: .top)
+                            .combined(with: .opacity)
                     ))
             }
         }
@@ -104,10 +174,10 @@ struct NotchIslandView: View {
             value: showExpanded
         )
         .animation(
-            showLive
+            liveShown
                 ? .spring(response: 0.45 * motionScale, dampingFraction: 0.82)
-                : .spring(response: 0.38 * motionScale, dampingFraction: 0.98),
-            value: showLive
+                : .spring(response: 0.30 * motionScale, dampingFraction: 1.0),
+            value: liveShown
         )
     }
 
