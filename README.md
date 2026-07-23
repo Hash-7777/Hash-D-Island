@@ -210,6 +210,10 @@ from Spotify's own image server while Spotify is playing. Exactly what the app
 reads, why, and the one permission it may ask for are spelled out in
 [SECURITY.md](SECURITY.md).
 
+## What's new
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 [MIT](LICENSE) © 2026 Seif Hashish

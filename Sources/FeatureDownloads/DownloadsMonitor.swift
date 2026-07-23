@@ -25,7 +25,6 @@ public final class DownloadsMonitor: ObservableObject {
     private var known: Set<String> = []
     private var sawPartFile = false
     private var clearWork: DispatchWorkItem?
-    private var startedAt = Date()
 
     private static let partExtensions: Set<String> = ["crdownload", "download", "part", "tmp"]
 
@@ -38,10 +37,9 @@ public final class DownloadsMonitor: ObservableObject {
 
     public func start(presence: LivePresence) {
         self.presence = presence
-        startedAt = Date()
         // Seed the baseline so pre-existing files never announce on launch.
         known = currentNames()
-        sawPartFile = hasPartFile()
+        sawPartFile = known.contains(where: isPartName)
         sampler = PollingSampler(interval: 2.0) { [weak self] in self?.scan() }
         sampler?.start()
     }
@@ -56,22 +54,22 @@ public final class DownloadsMonitor: ObservableObject {
     }
 
     private func scan() {
+        // One directory listing per scan — the part-file check reads the very
+        // same names rather than listing the folder a second time.
         let names = currentNames()
-        let partPresent = hasPartFile()
-        defer { known = names; sawPartFile = partPresent || sawPartFile && partPresent }
+        let partPresent = names.contains(where: isPartName)
+        // Only treat this as a completed download if a part-file was in flight
+        // recently — otherwise a file merely copied in would masquerade as one.
+        // A part-file seen in this scan or the previous one counts.
+        let wasInFlight = sawPartFile || partPresent
 
         // New, non-part files that appeared since the last scan.
         let appeared = names.subtracting(known).filter { !isPartName($0) }
-        // Only treat as a completed download if a part-file was in flight
-        // recently — otherwise a file merely copied in wouldn't masquerade as
-        // one. (A part-file seen in this scan or the previous one counts.)
-        guard sawPartFile || partPresent, let name = appeared.sorted().last else {
-            sawPartFile = partPresent
-            return
-        }
-
-        announce(FinishedDownload(id: name, name: name, at: Date()))
+        known = names
         sawPartFile = partPresent
+
+        guard wasInFlight, let name = appeared.sorted().last else { return }
+        announce(FinishedDownload(id: name, name: name, at: Date()))
     }
 
     private func announce(_ download: FinishedDownload) {
@@ -96,10 +94,6 @@ public final class DownloadsMonitor: ObservableObject {
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         )) ?? []
         return Set(contents.map { $0.lastPathComponent })
-    }
-
-    private func hasPartFile() -> Bool {
-        currentNames().contains(where: isPartName)
     }
 
     /// A name is an in-progress download's temp file. Package-visible so the
