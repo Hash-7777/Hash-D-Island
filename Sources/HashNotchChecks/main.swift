@@ -147,6 +147,21 @@ MainActor.assumeIsolated {
     check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
     try? FileManager.default.removeItem(at: fractional)
 
+    // The icon is a string from the same untrusted feed, so it is bounded like
+    // every other field — and an absent or empty one still draws something.
+    let icons = tempFile("""
+    [
+      {"id": "i1", "title": "Long icon", "icon": "\(String(repeating: "x", count: 500))"},
+      {"id": "i2", "title": "Empty icon", "icon": ""},
+      {"id": "i3", "title": "No icon"}
+    ]
+    """)
+    let iconParsed = ActivitiesReader.read(from: icons)
+    check("feed caps icon length", (iconParsed.first { $0.id == "i1" }?.icon.count ?? 999) <= 64)
+    check("feed defaults empty icon", (iconParsed.first { $0.id == "i2" })?.icon == "app.badge")
+    check("feed defaults missing icon", (iconParsed.first { $0.id == "i3" })?.icon == "app.badge")
+    try? FileManager.default.removeItem(at: icons)
+
     // Token files: counts only today's assistant lines, each message id once,
     // ignores malformed ones, and keeps cache tokens out of the headline.
     let startOfToday = Calendar.current.startOfDay(for: Date())
@@ -199,6 +214,21 @@ MainActor.assumeIsolated {
     var bigSeen = Set<String>()
     check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday, seen: &bigSeen).io == 4000)
     try? FileManager.default.removeItem(at: bigFile)
+
+    // A line with no newline in sight is a corrupt file, not a usage record: it
+    // is dropped rather than buffered without limit, and the valid lines around
+    // it still count.
+    let monsterLine = "{\"pad\":\"\(String(repeating: "x", count: 9 << 20))\"}"
+    let monsterFile = tempFile("""
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"before","usage":{"input_tokens":7,"output_tokens":0}}}
+    \(monsterLine)
+    {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"after","usage":{"input_tokens":3,"output_tokens":0}}}
+    """)
+    var monsterSeen = Set<String>()
+    let monsterCounted = TokenUsageReader.tokens(inClaudeFile: monsterFile, since: startOfToday, seen: &monsterSeen)
+    check("streaming drops an unbounded line", monsterCounted.io == 10)
+    check("streaming resumes after a dropped line", monsterSeen == ["before", "after"])
+    try? FileManager.default.removeItem(at: monsterFile)
 
     // Low-battery announcements fire exactly when a threshold is crossed
     // downward, never on charge or within a band.

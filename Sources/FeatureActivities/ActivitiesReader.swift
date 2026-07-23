@@ -39,6 +39,10 @@ package enum ActivitiesReader {
     /// The notch is a glanceable surface, not a task manager.
     package static let maxActivities = 8
     private static let maxTextLength = 200
+    /// SF Symbol names are short; an unknown name simply draws nothing, but the
+    /// length is bounded like every other field so no string from the feed
+    /// reaches the UI unmeasured.
+    private static let maxIconLength = 64
 
     static var feedURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -73,9 +77,13 @@ package enum ActivitiesReader {
             let title = String(dto.title.prefix(maxTextLength))
             guard !id.isEmpty, !title.isEmpty, seen.insert(id).inserted else { continue }
 
+            // A missing OR empty icon falls back to the generic badge, so an
+            // activity always has something to draw.
+            let icon = dto.icon.map { String($0.prefix(maxIconLength)) } ?? ""
+
             let activity = LiveActivity(
                 id: id,
-                icon: dto.icon ?? "app.badge",
+                icon: icon.isEmpty ? "app.badge" : icon,
                 title: title,
                 subtitle: dto.subtitle.map { String($0.prefix(maxTextLength)) },
                 progress: dto.progress.map { min(max($0, 0), 1) },

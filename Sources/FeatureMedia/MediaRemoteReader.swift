@@ -157,11 +157,16 @@ final class MediaRemoteReader {
 
       // Web video (YouTube in a browser): find the playing tab's address and
       // derive the video thumbnail. Only runs when nothing else provided
-      // artwork, and only re-scans when the title changed (argv carries the
-      // previous title -> thumbnail pair as a cache).
+      // artwork, and only when this title has not been looked up already —
+      // argv carries the previous title and what the lookup produced for it,
+      // which is an EMPTY string when the scan found nothing. Remembering the
+      // miss matters as much as remembering the hit: without it, anything that
+      // is playing but is not a web video (a podcast app, a call, a page with
+      // no video id) re-asked every browser for its whole tab list on every
+      // single poll.
       if (source === 'other' && title && !artworkUrl && !artwork) {
-        if (argv.length >= 2 && argv[0] === title && argv[1]) {
-          artworkUrl = argv[1];
+        if (argv.length >= 2 && argv[0] === title) {
+          if (argv[1]) artworkUrl = argv[1];
         } else {
           try { artworkUrl = youtubeThumb(browserTabs(), title); } catch (e) {}
         }
@@ -248,10 +253,19 @@ final class MediaRemoteReader {
         let duration: Double?
     }
 
-    /// Title → thumbnail cache so the browser is only asked again when the
-    /// video actually changes (passed into the script as arguments).
+    /// Title → thumbnail cache so the browsers are only asked again when the
+    /// video actually changes (passed into the script as arguments). A lookup
+    /// that found nothing is remembered too, as an empty URL, so a track that
+    /// simply has no web thumbnail does not re-scan every tab on every poll.
     private var cachedThumbTitle = ""
     private var cachedThumbURL = ""
+    private var lastThumbLookup = Date.distantPast
+
+    /// How long a fruitless lookup is trusted before the browsers may be asked
+    /// once more. Covers the narrow race where a video's tab title has not
+    /// caught up with the track title yet, without ever returning to a scan
+    /// per poll.
+    private static let thumbRetryInterval: TimeInterval = 60
 
     /// Sends a playback command. Spotify and Music get their exact scripting
     /// verb; everything else (browser video, any app) goes through the
@@ -311,9 +325,19 @@ final class MediaRemoteReader {
     }
 
     private func run() -> NowPlaying? {
+        // Withhold the remembered title when a fruitless lookup is due another
+        // try, which is the one way the script is allowed to ask the browsers
+        // about a title it has already seen.
+        let retryDue = cachedThumbURL.isEmpty
+            && Date().timeIntervalSince(lastThumbLookup) > Self.thumbRetryInterval
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: Self.osascript)
-        process.arguments = ["-l", "JavaScript", "-e", Self.script, cachedThumbTitle, cachedThumbURL]
+        process.arguments = [
+            "-l", "JavaScript", "-e", Self.script,
+            retryDue ? "" : cachedThumbTitle,
+            cachedThumbURL,
+        ]
         process.qualityOfService = .utility
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -339,9 +363,12 @@ final class MediaRemoteReader {
         }
 
         let source = payload.source.flatMap(MediaSource.init(rawValue:)) ?? .other
-        if source == .other, let thumb = payload.artworkUrl, !thumb.isEmpty {
+        // Record the lookup for this title whenever one actually ran — hit or
+        // miss — so the browsers are asked once per video, not once per poll.
+        if source == .other, title != cachedThumbTitle || retryDue {
             cachedThumbTitle = title
-            cachedThumbURL = thumb
+            cachedThumbURL = payload.artworkUrl ?? ""
+            lastThumbLookup = Date()
         }
 
         let artwork = resolveArtwork(url: payload.artworkUrl, base64: payload.artwork)
@@ -380,35 +407,52 @@ final class MediaRemoteReader {
         guard let url = URL(string: urlString) else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 4
-        // An ephemeral session with a redirect guard: nothing is written to the
-        // URL cache or disk, and a CDN that 302s to a host outside the allowlist
-        // is refused mid-flight — so "only these hosts, ever" holds even across
-        // redirects, not just for the first URL.
-        let session = URLSession(
-            configuration: .ephemeral,
-            delegate: ArtworkRedirectGuard(),
-            delegateQueue: nil
-        )
+        // An ephemeral session driven by ArtworkFetch: nothing is written to the
+        // URL cache or disk, a CDN that 302s to a host outside the allowlist is
+        // refused mid-flight — so "only these hosts, ever" holds even across
+        // redirects, not just for the first URL — and the response is cut off
+        // the moment it exceeds the size cap rather than after it has already
+        // been held in memory whole.
+        let fetch = ArtworkFetch()
+        let session = URLSession(configuration: .ephemeral, delegate: fetch, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
-        var result: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        session.dataTask(with: request) { data, _, _ in
-            if let data, data.count <= ArtworkPolicy.maxArtworkBytes {
-                result = data
-            }
-            semaphore.signal()
-        }.resume()
-        _ = semaphore.wait(timeout: .now() + 5)
-        return result
+        let task = session.dataTask(with: request)
+        task.resume()
+        return fetch.wait(upTo: 5, task: task)
     }
 }
 
-/// Follows an artwork redirect only while it stays on the trusted-host
-/// allowlist; a redirect that would leave it is cancelled. This keeps the
-/// artwork fetch bound to the same `ArtworkPolicy` the initial URL passed,
-/// closing the one path by which the app's single network access could reach an
-/// arbitrary host.
-private final class ArtworkRedirectGuard: NSObject, URLSessionTaskDelegate {
+/// Drives one artwork download under `ArtworkPolicy`.
+///
+/// Three jobs, all of them limits rather than features:
+///  - a redirect is followed only while it stays on the trusted-host allowlist,
+///    so the app's single network access can never be bounced to an arbitrary
+///    host;
+///  - a response that declares, or grows past, the size cap is cancelled
+///    mid-flight instead of being buffered whole and judged afterwards;
+///  - the finished bytes are handed back under a lock, so a fetch that outruns
+///    the caller's timeout can never be writing the buffer while the caller
+///    reads it.
+private final class ArtworkFetch: NSObject, URLSessionDataDelegate {
+    private let lock = NSLock()
+    private var buffer = Data()
+    private var overflowed = false
+    private var failed = false
+    private let done = DispatchSemaphore(value: 0)
+
+    /// Blocks until the download finishes or `seconds` elapse, then returns the
+    /// bytes (nil on failure, overflow, or timeout). Cancels a task that is
+    /// still running so a stalled fetch does not linger.
+    func wait(upTo seconds: TimeInterval, task: URLSessionTask) -> Data? {
+        guard done.wait(timeout: .now() + seconds) == .success else {
+            task.cancel()
+            return nil
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        return (failed || overflowed) ? nil : buffer
+    }
+
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
@@ -421,5 +465,43 @@ private final class ArtworkRedirectGuard: NSObject, URLSessionTaskDelegate {
         } else {
             completionHandler(nil)
         }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        // A declared length over the cap is refused before a single byte of the
+        // body is read.
+        if response.expectedContentLength > Int64(ArtworkPolicy.maxArtworkBytes) {
+            lock.lock(); overflowed = true; lock.unlock()
+            completionHandler(.cancel)
+            return
+        }
+        completionHandler(.allow)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        lock.lock()
+        // Chunked responses declare no length, so the running total is what
+        // actually enforces the cap.
+        if buffer.count + data.count > ArtworkPolicy.maxArtworkBytes {
+            overflowed = true
+            buffer = Data()
+            lock.unlock()
+            dataTask.cancel()
+            return
+        }
+        buffer.append(data)
+        lock.unlock()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        lock.lock()
+        if error != nil { failed = true }
+        lock.unlock()
+        done.signal()
     }
 }

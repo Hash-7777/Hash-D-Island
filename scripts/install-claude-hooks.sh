@@ -52,7 +52,10 @@ function run(argv) {
   const pairs = [['Stop', 'stop'], ['Notification', 'notification']];
   for (let i = 0; i < pairs.length; i++) {
     const name = pairs[i][0];
-    const command = hook + ' ' + pairs[i][1];
+    // The hook path is quoted: it contains the user's home directory, and a
+    // home folder with a space in it would otherwise be split into two words
+    // by the shell that runs this command.
+    const command = '"' + hook + '" ' + pairs[i][1];
     settings.hooks[name] = settings.hooks[name] || [];
     if (JSON.stringify(settings.hooks[name]).indexOf(hook) === -1) {
       settings.hooks[name].push({ hooks: [{ type: 'command', command: command }] });

@@ -130,6 +130,12 @@ package enum TokenUsageReader {
 
     // MARK: Line streaming
 
+    /// A single usage record is a few kilobytes at most. Carrying more than
+    /// this across chunk boundaries would mean the file has no newline where one
+    /// is expected — a corrupt or wildly out-of-contract file — so the oversized
+    /// line is dropped rather than grown in memory without limit.
+    private static let maxLineBytes = 8 << 20
+
     /// Calls `body` with each newline-terminated line of the file as raw bytes,
     /// reading in 1 MB chunks so even a huge transcript never sits in memory
     /// whole. A partial line at a chunk boundary is carried into the next read.
@@ -138,6 +144,9 @@ package enum TokenUsageReader {
         defer { try? handle.close() }
 
         var carry = Data()
+        // Set while a line has outgrown the cap, so the rest of that line is
+        // discarded up to its newline instead of being buffered.
+        var skippingLine = false
         while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty {
             var data: Data
             if carry.isEmpty {
@@ -150,16 +159,22 @@ package enum TokenUsageReader {
 
             var start = data.startIndex
             while let newline = data[start...].firstIndex(of: 0x0A) {
-                if newline > start {
+                if skippingLine {
+                    skippingLine = false
+                } else if newline > start {
                     body(data.subdata(in: start..<newline))
                 }
                 start = data.index(after: newline)
             }
             if start < data.endIndex {
-                carry = Data(data[start...])
+                if data.distance(from: start, to: data.endIndex) > maxLineBytes {
+                    skippingLine = true
+                } else {
+                    carry = Data(data[start...])
+                }
             }
         }
-        if !carry.isEmpty {
+        if !carry.isEmpty, !skippingLine {
             body(carry)
         }
     }
