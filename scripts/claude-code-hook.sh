@@ -26,18 +26,22 @@ function run(argv) {
   let payload = {};
   try { payload = JSON.parse(argv[2] || '{}'); } catch (e) {}
 
-  let icon, title, subtitle, seconds;
+  // "Finished" has already happened, so it is a notice: it shows for a moment
+  // and leaves, with no timer counting down beside it. "Needs you" is a
+  // standing request — it waits, because dismissing it after a few seconds
+  // would hide the very thing it is asking you to deal with.
+  let icon, title, subtitle, dismissAfter = null, waitSeconds = null;
   if (event === 'notification') {
     icon = 'hand.raised.fill';
     title = 'Claude needs you';
     subtitle = String(payload.message || '').slice(0, 120) || null;
-    seconds = 180;
+    waitSeconds = 180;
   } else {
     icon = 'checkmark.circle.fill';
     title = 'Claude finished';
     const cwd = String(payload.cwd || '');
     subtitle = cwd ? cwd.split('/').filter(Boolean).pop() : null;
-    seconds = 45;
+    dismissAfter = 3;
   }
 
   // Merge by id: keep other posters' activities, drop our previous one and
@@ -55,14 +59,23 @@ function run(argv) {
       && (!a.endsAt || Date.parse(a.endsAt) > now - 2000);
   });
 
-  const activity = {
-    id: 'claude-code',
-    icon: icon,
-    title: title,
-    endsAt: new Date(now + seconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z'),
-  };
+  const activity = { id: 'claude-code', icon: icon, title: title };
+  if (dismissAfter !== null) {
+    // dismissAfter says "no timer, and leave after this long". endsAt is
+    // written alongside it purely so the entry expires from the file on its
+    // own — without it a finished notice would linger in the feed and pop up
+    // again the next time the app started.
+    activity.dismissAfter = dismissAfter;
+    activity.endsAt = stamp(now + dismissAfter * 1000);
+  } else {
+    activity.endsAt = stamp(now + waitSeconds * 1000);
+  }
   if (subtitle) activity.subtitle = subtitle;
   items.push(activity);
+
+  function stamp(ms) {
+    return new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
+  }
 
   $.NSString.alloc.initWithUTF8String(JSON.stringify(items, null, 2))
     .writeToFileAtomicallyEncodingError(feedPath, true, $.NSUTF8StringEncoding, null);

@@ -11,10 +11,22 @@ public struct LiveActivity: Identifiable, Equatable {
     public let subtitle: String?
     public let progress: Double?   // 0...1, optional bar
     public let endsAt: Date?       // optional countdown target
+    /// How long to show this for, counted from the moment it first appears.
+    ///
+    /// Set this instead of `endsAt` for something that has already happened —
+    /// a job that finished, a file that arrived. Those are announcements, not
+    /// countdowns: no timer is drawn, and the notice leaves on its own. A
+    /// number counting down next to "finished" only ever asked the reader to
+    /// watch something that was already over.
+    public let dismissAfter: TimeInterval?
 
-    /// Seconds remaining until `endsAt`, if set.
+    /// True when this counts down to something, rather than announcing
+    /// something that already happened. Only a countdown draws a timer.
+    public var showsCountdown: Bool { endsAt != nil && dismissAfter == nil }
+
+    /// Seconds remaining until `endsAt`, if this is a countdown.
     public func secondsLeft(now: Date) -> Int? {
-        guard let endsAt else { return nil }
+        guard showsCountdown, let endsAt else { return nil }
         return max(0, Int(endsAt.timeIntervalSince(now)))
     }
 
@@ -22,12 +34,20 @@ public struct LiveActivity: Identifiable, Equatable {
         guard let endsAt else { return false }
         return endsAt.timeIntervalSinceNow < -2
     }
+
+    /// When a self-dismissing notice should disappear, given the moment it was
+    /// first seen. Nil for everything else.
+    public func dismissalDate(firstSeen: Date) -> Date? {
+        guard let dismissAfter else { return nil }
+        return firstSeen.addingTimeInterval(dismissAfter)
+    }
 }
 
 /// Reads the activity feed file. Missing/empty/invalid file → no activities.
 ///
 /// Feed: `~/.hashdisland/activities.json`, an array of objects:
-///   {"id","icon","title","subtitle"?,"progress"?,"endsAt"? (ISO8601)}
+///   {"id","icon","title","subtitle"?,"progress"?,"endsAt"? (ISO8601),
+///    "dismissAfter"? (seconds)}
 ///
 /// The feed is written by other processes, so everything is bounded before it
 /// reaches the UI: the file itself, the number of activities, text lengths,
@@ -49,6 +69,11 @@ package enum ActivitiesReader {
             .appendingPathComponent(".hashdisland/activities.json")
     }
 
+    /// A notice is glanceable, so its lifetime is clamped rather than trusted:
+    /// long enough to read, never long enough to sit on the notch.
+    private static let minDismissAfter: TimeInterval = 1
+    private static let maxDismissAfter: TimeInterval = 30
+
     private struct ActivityDTO: Decodable {
         let id: String
         let icon: String?
@@ -56,6 +81,7 @@ package enum ActivitiesReader {
         let subtitle: String?
         let progress: Double?
         let endsAt: String?
+        let dismissAfter: Double?
     }
 
     static func read() -> [LiveActivity] {
@@ -87,7 +113,10 @@ package enum ActivitiesReader {
                 title: title,
                 subtitle: dto.subtitle.map { String($0.prefix(maxTextLength)) },
                 progress: dto.progress.map { min(max($0, 0), 1) },
-                endsAt: dto.endsAt.flatMap(parseDate)
+                endsAt: dto.endsAt.flatMap(parseDate),
+                dismissAfter: dto.dismissAfter.map {
+                    min(max($0, minDismissAfter), maxDismissAfter)
+                }
             )
             if !activity.isExpired { result.append(activity) }
         }

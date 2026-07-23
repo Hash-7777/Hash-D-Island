@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 #
-# Post a live activity to HashDIsland. Any app, script, or Apple Shortcut can do
-# the same by writing ~/.hashdisland/activities.json (an array of activities).
-# Activities MERGE by id — posting replaces your previous activity with the
-# same id and leaves other posters' activities alone.
+# Post a live activity to Hash D Island. Any app, script, or Apple Shortcut can
+# do the same by writing ~/.hashdisland/activities.json (an array of
+# activities). Activities MERGE by id — posting replaces your previous activity
+# with the same id and leaves other posters' activities alone.
 #
-# Usage:
+# Two kinds. A COUNTDOWN is something still happening, and shows its time left:
 #   ./scripts/post-activity.sh "Food delivery" "Rider on the way" bicycle 12
 #      title ------------------^  subtitle -----^          icon ---^  ^-- minutes left
 #   ./scripts/post-activity.sh --id build "Building app" "release" hammer 10
+#
+# A NOTICE is something that already happened. It draws no timer and leaves on
+# its own after a few seconds:
+#   ./scripts/post-activity.sh --notice 3 "Build finished" "release" hammer
+#      seconds to show ---------------^
 #
 # Clear all activities:
 #   ./scripts/post-activity.sh --clear
@@ -30,6 +35,18 @@ if [ "${1:-}" = "--id" ]; then
   shift 2
 fi
 
+# A notice is measured in seconds and shows no timer; a countdown is measured in
+# minutes and does. NOTICE_SECONDS is empty for a countdown.
+NOTICE_SECONDS=""
+if [ "${1:-}" = "--notice" ]; then
+  NOTICE_SECONDS="${2:?--notice needs a number of seconds}"
+  shift 2
+  if ! [[ "$NOTICE_SECONDS" =~ ^[0-9]+$ ]]; then
+    echo "notice seconds must be a whole number (got: $NOTICE_SECONDS)" >&2
+    exit 1
+  fi
+fi
+
 TITLE="${1:-Activity}"
 SUBTITLE="${2:-}"
 ICON="${3:-app.badge}"
@@ -42,10 +59,11 @@ fi
 
 # All JSON handling in JavaScript-for-Automation (always present on macOS).
 # Values pass as argv, so quotes/backslashes/newlines in titles are safe.
-osascript -l JavaScript - "$FEED" "$ID" "$ICON" "$TITLE" "$SUBTITLE" "$MINUTES" >/dev/null <<'JXA'
+osascript -l JavaScript - "$FEED" "$ID" "$ICON" "$TITLE" "$SUBTITLE" "$MINUTES" "$NOTICE_SECONDS" >/dev/null <<'JXA'
 function run(argv) {
   ObjC.import('Foundation');
   const feedPath = argv[0];
+  const noticeSeconds = argv[6] ? parseInt(argv[6], 10) : null;
 
   let items = [];
   const existing = $.NSString.stringWithContentsOfFileEncodingError(
@@ -60,18 +78,30 @@ function run(argv) {
       && (!a.endsAt || Date.parse(a.endsAt) > now - 2000);
   });
 
-  const activity = {
-    id: argv[1],
-    icon: argv[2],
-    title: argv[3],
-    endsAt: new Date(now + parseInt(argv[5], 10) * 60000).toISOString().replace(/\.\d+Z$/, 'Z'),
-  };
+  const activity = { id: argv[1], icon: argv[2], title: argv[3] };
+  if (noticeSeconds !== null) {
+    // dismissAfter means "no timer, and leave after this long". endsAt goes in
+    // alongside it so the entry expires from the file on its own, rather than
+    // lingering and reappearing the next time the app starts.
+    activity.dismissAfter = noticeSeconds;
+    activity.endsAt = stamp(now + noticeSeconds * 1000);
+  } else {
+    activity.endsAt = stamp(now + parseInt(argv[5], 10) * 60000);
+  }
   if (argv[4]) activity.subtitle = argv[4];
   items.push(activity);
 
   $.NSString.alloc.initWithUTF8String(JSON.stringify(items, null, 2))
     .writeToFileAtomicallyEncodingError(feedPath, true, $.NSUTF8StringEncoding, null);
+
+  function stamp(ms) {
+    return new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
+  }
 }
 JXA
 
-echo "Posted activity '$ID' to $FEED (ends in $MINUTES min)"
+if [ -n "$NOTICE_SECONDS" ]; then
+  echo "Posted notice '$ID' to $FEED (shows for ${NOTICE_SECONDS}s, no timer)"
+else
+  echo "Posted activity '$ID' to $FEED (ends in $MINUTES min)"
+fi

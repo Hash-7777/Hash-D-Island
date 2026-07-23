@@ -185,6 +185,34 @@ MainActor.assumeIsolated {
     check("feed parses fractional endsAt", ActivitiesReader.read(from: fractional).first?.endsAt != nil)
     try? FileManager.default.removeItem(at: fractional)
 
+    // A notice announces something that already happened, so it draws no
+    // countdown and leaves on its own. A countdown still counts.
+    let notices = tempFile("""
+    [
+      {"id": "n1", "title": "Claude finished", "dismissAfter": 3, "endsAt": "\(future)"},
+      {"id": "n2", "title": "Food delivery", "endsAt": "\(future)"},
+      {"id": "n3", "title": "Clamped low", "dismissAfter": 0.1, "endsAt": "\(future)"},
+      {"id": "n4", "title": "Clamped high", "dismissAfter": 9000, "endsAt": "\(future)"}
+    ]
+    """)
+    let noticed = ActivitiesReader.read(from: notices)
+    func activity(_ id: String) -> LiveActivity? { noticed.first { $0.id == id } }
+    check("a notice draws no countdown", activity("n1")?.showsCountdown == false)
+    check("a notice reports no time left", activity("n1")?.secondsLeft(now: Date()) == nil)
+    check("a countdown still counts down", activity("n2")?.showsCountdown == true)
+    check("a countdown still reports time left", (activity("n2")?.secondsLeft(now: Date()) ?? 0) > 0)
+    check("a too-short notice is clamped up", activity("n3")?.dismissAfter == 1)
+    check("a too-long notice is clamped down", activity("n4")?.dismissAfter == 30)
+
+    // The dismissal moment is measured from when the notice first appeared.
+    let seen = Date()
+    check(
+        "a notice leaves after its own delay",
+        activity("n1")?.dismissalDate(firstSeen: seen) == seen.addingTimeInterval(3)
+    )
+    check("a countdown never self-dismisses", activity("n2")?.dismissalDate(firstSeen: seen) == nil)
+    try? FileManager.default.removeItem(at: notices)
+
     // The icon is a string from the same untrusted feed, so it is bounded like
     // every other field — and an absent or empty one still draws something.
     let icons = tempFile("""

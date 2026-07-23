@@ -93,11 +93,17 @@ script, or Apple Shortcut can write:
 ```
 
 `icon` is any SF Symbol name; `endsAt` (ISO 8601) drives a live countdown;
-activities merge by `id` and expired ones disappear on their own. Post one
-quickly:
+activities merge by `id` and expired ones disappear on their own.
+
+There are two kinds. A **countdown** is something still happening, and shows
+its time left. A **notice** is something that already happened — set
+`dismissAfter` (seconds) instead, and it draws no timer and leaves on its own.
+A number ticking down next to the word "finished" only ever asked you to watch
+something that was already over.
 
 ```sh
 ./scripts/post-activity.sh "Food delivery" "Rider on the way" bicycle 12
+./scripts/post-activity.sh --notice 3 "Build finished" "release" hammer
 ./scripts/post-activity.sh --clear
 ```
 
@@ -123,11 +129,13 @@ Work in another window and let the notch tell you the moment an AI tool is done
   ./scripts/install-claude-hooks.sh
   ```
 
-  From then on the island lights up the moment Claude **finishes a reply**
-  (checkmark + project name) or is **waiting for your permission** (raised hand
-  + the reason). It uses Claude Code's own hook system; the hook is a small
-  script that writes only the local activities feed, and the installer backs up
-  your Claude settings before touching them.
+  From then on the island lights up the moment Claude **finishes a reply** — a
+  checkmark and the project name, for about three seconds, then gone — or is
+  **waiting for your permission**, which stays put until you deal with it. It
+  uses Claude Code's own hook system; the hook is a small script that writes
+  only the local activities feed, and the installer backs up your Claude
+  settings before touching them (and replaces its own older entry if you run it
+  again).
 
 - **HashCortX** and **HashCerebrum** — built in, nothing to install. HashCortX
   flashes "HashCortX finished" when a run completes; HashCerebrum lights up when
