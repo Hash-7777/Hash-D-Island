@@ -18,12 +18,6 @@
   <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
 </p>
 
-<img src="docs/media/hero.png" width="149"
-     alt="The Hash D Island panel dropped below the notch — Now Playing, today's AI tokens, internet speed, temperatures, and a timer">
-&nbsp;&nbsp;&nbsp;
-<img src="docs/media/live.png" width="164"
-     alt="The live strip beside the notch — album art, the track title, and audio bars that dance while it plays">
-
 </div>
 
 ---

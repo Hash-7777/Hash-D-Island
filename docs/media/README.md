@@ -1,40 +1,38 @@
 # Media for the README
 
-Screenshots the README's **See it in action** section renders.
-
 | File | What it shows |
 | --- | --- |
-| `hero.png` | The panel open below the notch — Now Playing, AI tokens, internet, temperatures, timer. |
-| `live.png` | The live strip beside the notch — album art, title, audio bars. |
+| `banner.png` | The banner the README opens on — the island beside the notch and the panel dropped below it, on a Mac. 1774 × 887, which is 2x for a Retina display. |
 
-## Capture them at 2x, or they will look soft
+The banner is a rendered illustration, not a screen capture, so it stays sharp
+at any width and does not need recapturing when the UI moves. Keep it at 2x: the
+README renders it at `width="100%"`, and GitHub serves it at up to twice the
+column width on a Retina screen.
 
-A Mac captures a Retina screen at **two image pixels per screen point**, so a
-300-point panel should arrive as a **600-pixel-wide** PNG. Displaying that at
-300 gives one image pixel per screen pixel, which is what makes it crisp.
+## If you add screenshots back
 
-The original shots were about 300 pixels wide — a 1x capture — and the README
-asked for them at 300 and 360 wide. Stretching a 1x image on a Retina screen is
-exactly what makes a screenshot look pixelated, and no amount of resizing after
-the fact recovers detail that was never captured.
-
-**To recapture:**
+Real captures are worth having, and the one thing that ruins them is scale. A
+Mac captures a Retina screen at **two image pixels per screen point**, so a
+300-point panel should arrive as a **600-pixel-wide** PNG and be displayed at
+300. A 1x capture shown at its own width is stretched on every Retina screen,
+and no amount of resizing afterwards recovers detail that was never captured.
 
 1. Get the island into the state you want — hover it for the panel, or start
    some music for the strip.
 2. Press **⇧⌘4**, then **Space**, then click the island's window. macOS captures
-   just that window, with its shadow, at full Retina resolution.
-   (Or press **⇧⌘4** and drag a tight box around it.)
-3. Save the result over `hero.png` or `live.png` here.
+   just that window, with its shadow, at full resolution. (Or **⇧⌘4** and drag a
+   tight box around it.)
+3. Save it here, and reference it from the README with an explicit pixel
+   `width=`.
 4. Run `./scripts/fit-media.sh`.
 
 That last step reads each image's real pixel width and sets the README to
-display it at exactly half — so a proper 2x capture shows at full size and stays
-sharp, and nothing is ever stretched again. The script warns you if an image
-still looks like a 1x capture.
+display it at exactly half, so a proper 2x capture shows at full size and
+nothing is ever stretched. It skips images the README references by percentage
+rather than by pixels, which is why it leaves the banner alone.
 
 ## Optional: a motion clip
 
 A short clip of the notch opening makes the README come alive. Record with
 **⇧⌘5**, convert the `.mov` to an optimised `.gif`, save it here as `demo.gif`,
-and add one more `<img src="docs/media/demo.gif" …>` beneath the shots.
+and add an `<img src="docs/media/demo.gif" …>` below the banner.
