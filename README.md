@@ -66,7 +66,7 @@ Anything your own scripts, Shortcuts, or AI tools post — including a built-in 
 
 ## ◦ How it works
 
-The notch stays a clean black shape at the top of your screen. **Hover it** — or swipe down on it with two fingers — and it drops into a rounded panel showing everything above. When something is live, a slim strip appears *beside* the notch without you hovering at all.
+The notch stays a clean black shape at the top of your screen. **Hover it** — or swipe down on it with two fingers — and it drops into a rounded panel showing everything above. When something is live, a slim strip appears *beside* the notch without you hovering at all. Only the notch itself opens the panel, so the strip never gets in the way of the menu-bar icons beside it.
 
 The strip shows **one thing at a time**, and the most urgent thing wins. A track will still be playing in ten seconds; a finished job, a battery warning, or something waiting on an answer matters for a few seconds and then never again. Those take the strip and hand it straight back.
 

@@ -991,6 +991,37 @@ MainActor.assumeIsolated {
         let after = liveController.currentWindowFrame
         check("a correction moves the island immediately", after.midX == before.midX + 50)
 
+        // Only the notch opens the panel. The live strip reaches far past it —
+        // its trailing side alone is 170 points — and the menu bar's own status
+        // items sit in exactly that space, so treating the strip as a trigger
+        // meant reaching for the camera or Wi-Fi icon opened the panel over the
+        // thing being reached for.
+        let zone = liveController.openZone
+        let notch = liveController.currentNotchRect
+        check(
+            "the opening zone is the notch, not the strip",
+            zone.width <= notch.width + 16
+        )
+        check(
+            "a status item to the right of the strip cannot open the panel",
+            zone.contains(CGPoint(x: notch.midX + 170, y: notch.midY)) == false
+        )
+        check(
+            "nor one to the left of it",
+            zone.contains(CGPoint(x: notch.midX - 170, y: notch.midY)) == false
+        )
+        check(
+            "the notch itself still opens it",
+            zone.contains(CGPoint(x: notch.midX, y: notch.maxY - 2))
+        )
+        // The invariant that stops it flapping: anything that can open the
+        // panel must also be able to keep it open.
+        check(
+            "whatever opens it can keep it open",
+            liveController.keepOpenZone.contains(zone.origin)
+                && liveController.keepOpenZone.union(zone) == liveController.keepOpenZone
+        )
+
         slide.horizontal = 80
         liveSettings.setAdjustment(slide, for: key)
         check(

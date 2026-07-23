@@ -27,7 +27,6 @@ public final class NotchWindowController {
     // All four vary with the measured geometry, which a size or position
     // slider changes live.
     private var collapsedHoverRect: CGRect = .zero
-    private var liveHoverRect: CGRect = .zero
     private var expandedHoverRect: CGRect = .zero
     private var screenFrame: CGRect
     private var notchRect: CGRect
@@ -184,6 +183,14 @@ public final class NotchWindowController {
     /// correction actually moves the window.
     package var currentWindowFrame: NSRect { window.frame }
 
+    /// The only region that opens the panel, and the region that keeps it open.
+    /// Package-visible so the checks can prove the first never grows to cover
+    /// the menu bar's own status items, and that it stays inside the second.
+    package var openZone: CGRect { collapsedHoverRect }
+    /// The measured notch this overlay is built around.
+    package var currentNotchRect: CGRect { notchRect }
+    package var keepOpenZone: CGRect { expandedHoverRect.union(collapsedHoverRect) }
+
     /// Re-measure the current screen, apply the user's correction for it, and
     /// reshape everything in place.
     ///
@@ -216,33 +223,34 @@ public final class NotchWindowController {
         updateHover()
     }
 
-    /// Hover zones in screen coordinates (bottom-left origin). Opening uses a
-    /// TIGHT zone hugging the real notch so the panel never opens from far
-    /// away; the live and expanded zones cover their visible content so the
-    /// panel stays open while the cursor is over it. All of them hang from the
-    /// island's own top edge, which is the screen's edge only when there is a
-    /// notch to sit in.
+    /// Hover zones in screen coordinates (bottom-left origin).
+    ///
+    /// Two of them, and the relationship between them is the whole rule:
+    /// **the notch opens the panel, and the panel keeps itself open.** The
+    /// keep-open area must fully contain the opening one, or a point inside one
+    /// and outside the other flaps open and closed on every mouse move.
+    ///
+    /// Both hang from the island's own top edge, which is the screen's edge
+    /// only when there is a notch to sit in.
     private func updateHoverRects() {
         let notch = notchRect
         let top = islandTop
 
-        // Collapsed: the notch itself plus a hair of slop, reaching a little
-        // below its lower edge so it is easy to catch.
+        // The ONLY zone that opens the panel: the notch itself, plus a hair of
+        // slop reaching a little below its lower edge so it is easy to catch.
+        //
+        // Never the live strip. The strip is wide — its trailing side alone
+        // reaches 170 points past the notch's centre — and the menu bar's own
+        // status items sit in exactly that space. Treating the strip as a
+        // trigger meant reaching for the camera icon, or the Wi-Fi menu, opened
+        // the panel over the very thing being reached for. The strip is
+        // something to read, not something to press; opening is the notch's
+        // job, whether or not anything is live.
         collapsedHoverRect = CGRect(
             x: notch.minX - 6,
             y: top - (state.collapsedHeight + 6),
             width: notch.width + 12,
             height: state.collapsedHeight + 6
-        )
-        // Live: the strip's actual extent (leading reach left of the notch,
-        // trailing reach right of it), plus a little slop.
-        let leftReach = state.liveLeadingWidth + notch.width / 2
-        let rightReach = notch.width / 2 + state.liveTrailingWidth
-        liveHoverRect = CGRect(
-            x: notch.midX - leftReach - 8,
-            y: top - (state.liveHeight + 6),
-            width: leftReach + rightReach + 16,
-            height: state.liveHeight + 6
         )
         // Expanded: the whole dropped panel.
         expandedHoverRect = CGRect(
@@ -444,13 +452,11 @@ public final class NotchWindowController {
         let fingersDown = event.isDirectionInvertedFromDevice ? delta > 0 : delta < 0
 
         if !state.isExpanded, fingersDown {
-            let zone = context.presence.hasLive ? liveHoverRect : collapsedHoverRect
-            guard zone.contains(location) else { return }
+            guard collapsedHoverRect.contains(location) else { return }
             lastSwipe = Date()
             state.setExpanded(true)
         } else if state.isExpanded, !fingersDown {
             guard expandedHoverRect.contains(location)
-                || liveHoverRect.contains(location)
                 || collapsedHoverRect.contains(location) else { return }
             lastSwipe = Date()
             state.setExpanded(false)
@@ -478,10 +484,7 @@ public final class NotchWindowController {
         let inside: Bool
         if state.isExpanded {
             inside = expandedHoverRect.contains(location)
-                || liveHoverRect.contains(location)
                 || collapsedHoverRect.contains(location)
-        } else if context.presence.hasLive {
-            inside = liveHoverRect.contains(location)
         } else {
             inside = collapsedHoverRect.contains(location)
         }
