@@ -95,25 +95,43 @@ a second layout path. A user's `IslandAdjustment` — remembered per display —
 applied to the measured geometry before anything else reads it, so a hand
 correction needs no special case either.
 
-`NotchWindowController` owns the overlay window and keeps it sized tight to
-whichever state is showing, always centered on the island. It detects hover with
-observe-only mouse-position monitors against tight, hysteretic zones (a small
-notch-sized zone to open; a keep-open area that must fully contain every zone
-that can trigger opening, or the panel flickers at the edges). The window is
-click-through in every state except while the panel is open.
+`NotchWindowController` owns the overlay window. The window keeps **one** width
+for its whole life — the widest any state needs — and only its height follows
+the state. A window sized tight to the current state has to move its left edge
+to stay centred on the notch, and that move is instant while SwiftUI animates
+the content re-centring inside it; the two do not cancel and the island visibly
+sweeps sideways. Growing downward moves nothing that is anchored to the top,
+and the unused width is invisible because the window is transparent. Hover is
+detected with observe-only mouse-position monitors against tight, hysteretic
+zones (a small notch-sized zone to open; a keep-open area that must fully
+contain every zone that can trigger opening, or the panel flickers at the
+edges). The window is click-through in every state except while the panel is
+open.
 
 Low-power behavior also lives in the core: `PollingSampler` uses tolerant,
 coalesced timers; monitors publish only when a displayed value actually changes;
-and `PowerCoordinator` stops all sampling while the screen is asleep.
+`VisibleSampler` keeps panel-only readouts idle until the panel is open; and
+`PowerCoordinator` stops all sampling while the screen is asleep.
 
 ## Customization (settings)
 
 User choices live in `SettingsStore` (in `HashDIslandKit`), persisted to
 `UserDefaults`. It is the single source of truth for:
 
-- which features are enabled,
-- each feature's chosen display style, and
+- which features are enabled and in what order,
+- each feature's chosen display style,
+- appearance (accent, panel fill, corner rounding, motion) and alert length,
+- battery saver, which scales every sampling interval,
+- the per-display `IslandAdjustment`, and
 - open-at-login.
+
+"Enabled" governs whether a feature **runs**, not merely whether it is drawn.
+`FeatureRegistry.syncRunning(context:)` reconciles the running set with the
+store — starting an enabled feature that is stopped, stopping a disabled one
+that is running, and leaving anything already correct untouched — and the app
+calls it whenever the feature settings change, on wake, and at launch. A
+feature that is off opens no files and spawns no subprocess, which is what
+makes the switch a privacy control rather than a display one.
 
 Features declare their display choices via `displayOptions` and read the
 selected one with `context.settings.style(for: id)` inside `makeView`. The
