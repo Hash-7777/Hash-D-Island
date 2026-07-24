@@ -390,7 +390,7 @@ public struct SettingsView: View {
                     detail: "\(Int(settings.appearance.panelCornerRadius)) pt at the bottom corners.",
                     stacked: true
                 ) {
-                    Slider(value: $settings.appearance.panelCornerRadius, in: 8...36, step: 1)
+                    Slider(value: whole($settings.appearance.panelCornerRadius), in: 8...36)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -429,7 +429,7 @@ public struct SettingsView: View {
                     detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it leaves on its own. No timer is ever drawn beside it.",
                     stacked: true
                 ) {
-                    Slider(value: $settings.alerts.noticeSeconds, in: 1...10, step: 1)
+                    Slider(value: whole($settings.alerts.noticeSeconds), in: 1...10)
                         .frame(maxWidth: .infinity)
                 }
 
@@ -523,6 +523,20 @@ public struct SettingsView: View {
         }
     }
 
+    /// Keeps a slider's value whole without asking it for a `step`.
+    ///
+    /// macOS draws one tick mark under a stepped slider for every step in its
+    /// range. Over the sideways range that is 481 of them, which renders as a
+    /// solid bar beneath the track and reads as a rendering fault rather than a
+    /// scale — the shorter ranges gave it away by showing the individual dashes.
+    /// Rounding here keeps the numbers whole and leaves the track clean.
+    private func whole(_ binding: Binding<Double>) -> Binding<Double> {
+        Binding(
+            get: { binding.wrappedValue.rounded() },
+            set: { binding.wrappedValue = $0.rounded() }
+        )
+    }
+
     private func adjustmentSlider(
         _ title: String,
         value: Binding<Double>,
@@ -530,7 +544,7 @@ public struct SettingsView: View {
         detail: String
     ) -> some View {
         SettingRow(title, detail: "\(detail) Currently \(Int(value.wrappedValue)) pt.") {
-            Slider(value: value, in: range, step: 1).frame(maxWidth: .infinity)
+            Slider(value: whole(value), in: range).frame(maxWidth: .infinity)
         }
     }
 

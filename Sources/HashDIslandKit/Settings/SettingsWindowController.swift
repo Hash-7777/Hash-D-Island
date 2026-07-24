@@ -23,6 +23,7 @@ public final class SettingsWindowController {
     private let descriptors: [FeatureDescriptor]
     private var window: SettingsPanelWindow?
     private var escapeMonitor: Any?
+    private var outsideClickMonitor: Any?
 
     /// Told whenever the panel appears or disappears, so whatever it is
     /// attached to can stay open for as long as it is showing. Without this the
@@ -73,6 +74,7 @@ public final class SettingsWindowController {
         NSApp.activate(ignoringOtherApps: true)
         onVisibilityChange(true)
         beginWatchingForEscape()
+        beginWatchingForOutsideClick()
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.28
@@ -88,6 +90,7 @@ public final class SettingsWindowController {
     public func hide() {
         guard let window, window.isVisible else { return }
         stopWatchingForEscape()
+        stopWatchingForOutsideClick()
 
         var away = window.frame
         away.origin.x -= Self.slideFrom
@@ -158,5 +161,31 @@ public final class SettingsWindowController {
     private func stopWatchingForEscape() {
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
         escapeMonitor = nil
+    }
+
+    /// A click anywhere else on screen puts it away, the way every popover on
+    /// this system behaves.
+    ///
+    /// A GLOBAL monitor is exactly the right instrument, and for a reason worth
+    /// writing down: global monitors never see this app's own events. So a
+    /// click on the settings, or on the island's panel, simply does not arrive
+    /// here — anything that does is by definition somewhere else, and there is
+    /// no rectangle arithmetic to get wrong. It observes only; the click still
+    /// reaches whatever it was aimed at.
+    ///
+    /// Closing also unpins the island, so the panel collapses behind it on the
+    /// next mouse move, which is what makes one click outside dismiss the pair.
+    private func beginWatchingForOutsideClick() {
+        guard outsideClickMonitor == nil else { return }
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hide() }
+        }
+    }
+
+    private func stopWatchingForOutsideClick() {
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        outsideClickMonitor = nil
     }
 }
