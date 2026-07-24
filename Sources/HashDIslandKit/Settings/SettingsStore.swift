@@ -101,7 +101,21 @@ private struct SettingsDocument: Codable {
 /// place — features stay stateless about configuration.
 @MainActor
 public final class SettingsStore: ObservableObject {
-    @Published public var features: [String: FeatureConfig]
+    @Published public var features: [String: FeatureConfig] {
+        didSet { featuresGeneration &+= 1 }
+    }
+
+    /// Bumped whenever the stored feature configuration changes.
+    ///
+    /// Exists so anything derived from `features` — the island's draw order,
+    /// above all — can tell in a single integer comparison whether its cached
+    /// answer is still good. The island's body is evaluated on every published
+    /// change from every monitor, which during an opening animation is dozens of
+    /// times a second; re-deriving an order that can only change when a setting
+    /// changes was pure waste, and comparing the whole dictionary to find that
+    /// out would have been its own cost.
+    public private(set) var featuresGeneration: Int = 0
+
     @Published public var launchAtLogin: Bool
     /// Halves how often everything samples. Features re-read this when they
     /// restart, which the app does as soon as it changes.

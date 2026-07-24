@@ -337,12 +337,12 @@ struct NotchIslandView: View {
         return best?.feature
     }
 
+    /// The enabled features in draw order. Derived once per settings change by
+    /// the registry rather than re-sorted here on every body evaluation — this
+    /// is read twice per body (once to pick the strip's owner, once to build the
+    /// panel) and the body runs at animation frequency.
     private var enabledFeatures: [NotchFeature] {
-        registry.features.enumerated()
-            .map { (feature: $0.element, config: settings.config(for: $0.element, index: $0.offset)) }
-            .filter { $0.config.enabled }
-            .sorted { $0.config.order < $1.config.order }
-            .map { $0.feature }
+        registry.orderedEnabled(using: settings)
     }
 }
 

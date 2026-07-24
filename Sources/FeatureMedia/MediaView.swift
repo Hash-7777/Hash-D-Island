@@ -136,31 +136,51 @@ struct MediaDetailView: View {
         }
     }
 
+    /// The progress bar, ticking once a second only while the track is moving.
+    ///
+    /// A paused track's position does not change, so a clock driving it redraws
+    /// the bar and both labels every second to arrive at the same frame — inside
+    /// a panel that is already animating. `TimelineView(.periodic:)` has no
+    /// `paused` parameter the way `.animation` does, so the schedule itself is
+    /// switched rather than the value: playing gets the clock, paused gets one
+    /// static frame at the position it stopped on.
+    @ViewBuilder
     private func progressBar(_ progress: MediaProgress) -> some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let current = progress.current(now: context.date)
-            let fraction = progress.duration > 0 ? current / progress.duration : 0
-            VStack(spacing: 4) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.16))
-                        Capsule()
-                            .fill(theme.textColor)
-                            .frame(width: max(3, geo.size.width * CGFloat(fraction)))
-                    }
-                }
-                .frame(height: 3)
-                HStack {
-                    Text(timeText(current))
-                    Spacer()
-                    Text("-" + timeText(max(0, progress.duration - current)))
-                }
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(theme.subtitleColor)
+        if progress.isPlaying {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                progressBody(progress, now: context.date)
             }
+            .frame(height: 18)
+        } else {
+            // `current(now:)` ignores the clock while paused, so any date gives
+            // the stopped position; its own is the honest one to pass.
+            progressBody(progress, now: progress.at)
+                .frame(height: 18)
         }
-        .frame(height: 18)
+    }
+
+    private func progressBody(_ progress: MediaProgress, now: Date) -> some View {
+        let current = progress.current(now: now)
+        let fraction = progress.duration > 0 ? current / progress.duration : 0
+        return VStack(spacing: 4) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.16))
+                    Capsule()
+                        .fill(theme.textColor)
+                        .frame(width: max(3, geo.size.width * CGFloat(fraction)))
+                }
+            }
+            .frame(height: 3)
+            HStack {
+                Text(timeText(current))
+                Spacer()
+                Text("-" + timeText(max(0, progress.duration - current)))
+            }
+            .font(.system(size: 9, weight: .medium, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(theme.subtitleColor)
+        }
     }
 
     private func timeText(_ seconds: Double) -> String {

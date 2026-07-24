@@ -129,6 +129,69 @@ MainActor.assumeIsolated {
 
     runRegistry.stopAll()
     check("stopping everything clears what is running", runRegistry.runningIDs.isEmpty)
+
+    // The draw order is cached against a generation counter, because the island
+    // asks for it while it is drawing. A cache that answered with a stale list
+    // would be worse than the sort it replaced: a feature switched off would
+    // keep drawing, and a reorder would not land until something else happened
+    // to change. So the thing actually pinned here is that it INVALIDATES.
+    let orderSuite = "hashdisland.checks.order.\(UUID().uuidString)"
+    let orderDefaults = UserDefaults(suiteName: orderSuite)!
+    let orderSettings = SettingsStore(defaults: orderDefaults)
+    let orderRegistry = FeatureRegistry()
+    orderRegistry.register([
+        StubFeature(id: "first", placement: .expanded),
+        StubFeature(id: "second", placement: .expanded),
+        StubFeature(id: "third", placement: .expanded),
+    ])
+    orderSettings.seed(features: orderRegistry.features)
+
+    check(
+        "the draw order starts as the registration order",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id) == ["first", "second", "third"]
+    )
+    check(
+        "asking twice gives the same answer",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id)
+            == orderRegistry.orderedEnabled(using: orderSettings).map(\.id)
+    )
+
+    orderSettings.setOrder(["third", "first", "second"])
+    check(
+        "reordering reaches the draw order rather than a stale cache",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id) == ["third", "first", "second"]
+    )
+
+    orderSettings.update("first") { $0.enabled = false }
+    check(
+        "a feature switched off leaves the draw order",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id) == ["third", "second"]
+    )
+
+    orderSettings.update("first") { $0.enabled = true }
+    check(
+        "switching it back on returns it to its place",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id) == ["third", "first", "second"]
+    )
+
+    // Two features can only share an order if a saved document predates seed(),
+    // and Array.sorted is not stable — so without an explicit tiebreak the pair
+    // could swap places between one redraw and the next.
+    orderSettings.update("first") { $0.order = 0 }
+    orderSettings.update("second") { $0.order = 0 }
+    orderSettings.update("third") { $0.order = 0 }
+    check(
+        "features sharing an order fall back to a fixed sequence, never to chance",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id) == ["first", "second", "third"]
+    )
+
+    // Registering after the cache is warm must not hand back the old list.
+    orderRegistry.register(StubFeature(id: "late", placement: .expanded))
+    orderSettings.seed(features: orderRegistry.features)
+    check(
+        "a feature registered later still reaches the draw order",
+        orderRegistry.orderedEnabled(using: orderSettings).map(\.id).contains("late")
+    )
     UserDefaults.standard.removePersistentDomain(forName: runSuite)
 
     // Only one feature may own the live strip. Two of them at once is what put
