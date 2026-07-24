@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/banner.png" alt="Hash D Island running on a MacBook: a black island beside the notch showing album art and a track title, and a panel dropped below it with Now Playing controls, internet speed, battery, CPU temperature and today's AI token usage." width="100%">
+<img src="docs/media/banner.png" alt="Hash D Island running on a MacBook: a live strip beside the notch showing what is playing, and the panel dropped below it with Now Playing artwork, progress and controls, a volume slider, today's AI token usage, internet speed, a battery held at 80% for its health, AirPods charge, on-die temperatures, a timer, processor load and how full the disk is." width="100%">
 
 # Hash D Island
 

@@ -2,12 +2,15 @@
 
 | File | What it shows |
 | --- | --- |
-| `banner.png` | The banner the README opens on — the island beside the notch and the panel dropped below it, on a Mac. 1774 × 887, which is 2x for a Retina display. |
+| `banner.png` | The banner the README opens on — the live strip beside the notch and the whole panel dropped below it, on a Mac. 2484 × 1460, which is 2x for a Retina display. |
 
-The banner is a rendered illustration, not a screen capture, so it stays sharp
-at any width and does not need recapturing when the UI moves. Keep it at 2x: the
-README renders it at `width="100%"`, and GitHub serves it at up to twice the
-column width on a Retina screen.
+Keep the banner at 2x: the README renders it at `width="100%"`, and GitHub serves
+it at up to twice the column width on a Retina screen. A 1x banner is visibly
+soft on every Mac the app runs on.
+
+When the panel gains or loses a row, the banner is showing the old app — recapture
+it rather than leaving it, because it is the first and often the only thing anyone
+looks at.
 
 ## If you add screenshots back
 
