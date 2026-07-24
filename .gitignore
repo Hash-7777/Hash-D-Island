@@ -28,3 +28,6 @@ xcuserdata/
 *.swp
 * 2.*
 *.icloud
+
+# Disk images are build output
+*.dmg

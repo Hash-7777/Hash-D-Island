@@ -347,7 +347,16 @@ struct NotchIslandView: View {
                 tint: Color(red: 1.0, green: 0.35, blue: 0.35),
                 help: "Quit Hash D Island"
             ) {
-                QuitConfirmation.ask()
+                // Put the panel away before asking. The question is about the
+                // whole app, not about the panel, and leaving it hanging over
+                // the screen behind an alert makes the two look related. The
+                // ask waits for the closing spring because a modal blocks the
+                // run loop — start it any sooner and the panel freezes half
+                // shut for as long as the alert is up.
+                state.setExpanded(false)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.30 * motionScale) {
+                    QuitConfirmation.ask()
+                }
             }
             .frame(width: state.shoulderWidth)
 

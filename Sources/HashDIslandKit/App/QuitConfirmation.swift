@@ -39,6 +39,15 @@ public enum QuitConfirmation {
         // accident — and appearing by accident is the case this exists for.
         cancel.keyEquivalent = "\u{1b}"
 
+        // Above the island, or it is not a dialog — it is a hidden one.
+        //
+        // The overlay floats at `.statusBar` so it can draw over the menu bar,
+        // and an alert opens far below that. Activating the app brings it
+        // forward among other apps but changes nothing about levels WITHIN this
+        // one, so the question appeared underneath the very panel whose button
+        // asked it, with the app waiting on an answer nobody could see.
+        alert.window.level = .popUpMenu
+
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         NSApp.terminate(nil)
     }
