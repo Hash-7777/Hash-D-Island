@@ -79,8 +79,8 @@ public struct SettingsView: View {
                 header
                 ScrollView {
                     page
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                        .padding(.horizontal, 22)
+                        .padding(.bottom, 24)
                         // Belt and braces after the picker fix: the page takes
                         // the width it is given rather than asking for more,
                         // so one over-eager control can never push the rest of
@@ -209,7 +209,7 @@ public struct SettingsView: View {
     }
 
     private var general: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             PageHeader("General", detail: "How the app starts, and how hard it works.")
 
             SettingCard {
@@ -234,7 +234,7 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Battery saver",
-                    detail: "Check everything half as often. Readouts update more slowly; nothing disappears."
+                    detail: "Check everything half as often. Nothing disappears."
                 ) {
                     Toggle("", isOn: $settings.batterySaver).labelsHidden()
                 }
@@ -243,7 +243,7 @@ public struct SettingsView: View {
             SettingCard {
                 SettingRow(
                     "Quit Hash D Island",
-                    detail: "The island closes and the app stops watching anything."
+                    detail: "Closes the island and stops everything."
                 ) {
                     Button("Quit") { NSApp.terminate(nil) }
                         .buttonStyle(.borderedProminent)
@@ -256,10 +256,10 @@ public struct SettingsView: View {
     }
 
     private var indicators: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             PageHeader(
                 "Indicators",
-                detail: "What the island shows, how each one looks, and the order they appear in. Drag a row by its handle to reorder."
+                detail: "What shows, how it looks, and in what order. Drag a row to move it."
             )
 
             SettingCard {
@@ -285,7 +285,7 @@ public struct SettingsView: View {
 
     private func indicatorRow(_ feature: FeatureDescriptor) -> some View {
         let enabled = settings.isEnabled(feature.id)
-        return VStack(alignment: .leading, spacing: 9) {
+        return VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 10) {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 10, weight: .semibold))
@@ -321,7 +321,7 @@ public struct SettingsView: View {
                 .padding(.leading, 24)
             }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 8)
         .opacity(dragging == feature.id ? 0.45 : 1)
         .contentShape(Rectangle())
         .onDrag {
@@ -340,10 +340,10 @@ public struct SettingsView: View {
     }
 
     private var appearance: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             PageHeader(
                 "Appearance",
-                detail: "The resting notch and the live strip stay solid black so they read as part of the hardware. These change the panel that drops down."
+                detail: "Only the panel that drops down. The notch and strip stay black."
             )
 
             SettingCard {
@@ -359,7 +359,7 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Panel fill",
-                    detail: "Frosted glass picks up what is behind it. Solid black matches the notch exactly.",
+                    detail: "Frosted picks up what is behind it. Solid matches the notch.",
                     stacked: true
                 ) {
                     Picker("", selection: $settings.appearance.panelFill) {
@@ -426,13 +426,13 @@ public struct SettingsView: View {
     }
 
     private var alerts: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             PageHeader("Alerts", detail: "What happens when something finishes, or wants your attention.")
 
             SettingCard {
                 SettingRow(
                     "Keep a finished alert for",
-                    detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it leaves on its own. No timer is ever drawn beside it.",
+                    detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it goes. No timer beside it.",
                     stacked: true
                 ) {
                     Slider(value: whole($settings.alerts.noticeSeconds), in: 1...10)
@@ -443,7 +443,7 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Requests wait for you",
-                    detail: "An alert that is asking for something — a permission prompt — stays until you deal with it, instead of leaving on its own."
+                    detail: "An alert asking for something waits, instead of leaving on its own."
                 ) {
                     Toggle("", isOn: $settings.alerts.requestsWaitForYou).labelsHidden()
                 }
@@ -452,7 +452,7 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Switch Low Power Mode from the panel",
-                    detail: "Off, the panel shows Low Power Mode and takes you to it in System Settings. On, it switches it for you — but macOS asks for your password every single time, because changing this setting needs an administrator and there is no way around that."
+                    detail: "Switch it here instead of in System Settings. macOS asks for your password each time."
                 ) {
                     Toggle("", isOn: $settings.canSwitchLowPowerMode).labelsHidden()
                 }
@@ -468,7 +468,7 @@ public struct SettingsView: View {
         let measured = screen.map { NotchGeometry.current(for: $0) }
         let current = settings.adjustment(for: key)
 
-        return VStack(alignment: .leading, spacing: 18) {
+        return VStack(alignment: .leading, spacing: 22) {
             PageHeader(
                 "Position",
                 detail: measured?.hasNotch == true
@@ -569,10 +569,10 @@ public struct SettingsView: View {
     }
 
     private var privacy: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             PageHeader(
                 "Privacy",
-                detail: "Everything stays on this Mac. Nothing is uploaded, and nothing is collected."
+                detail: "Everything stays on this Mac."
             )
 
             SettingCard {
@@ -633,7 +633,7 @@ public struct SettingsView: View {
         if LoginItem.needsApproval {
             return "macOS is waiting for you to allow this in System Settings."
         }
-        return "Bring the island back every time you start your Mac."
+        return "Comes back every time you start your Mac."
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
@@ -703,6 +703,7 @@ private struct PageHeader: View {
             Text(detail)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .lineSpacing(2.5)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -752,11 +753,15 @@ private struct SettingRow<Control: View>: View {
     }
 
     private var label: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 12, weight: .medium))
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.system(size: 12.5, weight: .medium))
             Text(detail)
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
+                // Explanations are sentences, and sentences need leading. Set
+                // solid they read as a wall and the eye skips them, which is
+                // the opposite of what an explanation is for.
+                .lineSpacing(2.5)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -764,7 +769,7 @@ private struct SettingRow<Control: View>: View {
     var body: some View {
         Group {
             if stacked {
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 11) {
                     label
                     control.frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -777,7 +782,7 @@ private struct SettingRow<Control: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 6)
+        .padding(.vertical, 9)
     }
 }
 
@@ -812,7 +817,10 @@ private struct PrivacyLine: View {
 private struct SettingDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.06))
+            .fill(Color.white.opacity(0.07))
             .frame(height: 1)
+            // A hairline with nothing either side of it does not separate
+            // anything; it just draws a line through a wall of text.
+            .padding(.vertical, 2)
     }
 }

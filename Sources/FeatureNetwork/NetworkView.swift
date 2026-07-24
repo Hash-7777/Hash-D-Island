@@ -109,6 +109,19 @@ struct NetworkDetailView: View {
     let style: NetworkStyle
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            row
+            if style == .graph {
+                ZStack {
+                    Sparkline(values: scaled(monitor.upHistory), tint: theme.upColor)
+                    Sparkline(values: scaled(monitor.downHistory), tint: theme.downColor)
+                }
+                .frame(width: Panel.rowWidth, height: 26)
+            }
+        }
+    }
+
+    private var row: some View {
         NotchRow("Internet", theme: theme) {
             switch style {
             case .stacked:
@@ -132,17 +145,13 @@ struct NetworkDetailView: View {
             case .uploadOnly:
                 speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
             case .graph:
-                HStack(spacing: 8) {
-                    ZStack {
-                        Sparkline(values: scaled(monitor.upHistory), tint: theme.upColor)
-                        Sparkline(values: scaled(monitor.downHistory), tint: theme.downColor)
-                    }
-                    .frame(width: 92, height: 22)
-                    Text(Formatters.megabytesPerSecond(
-                        max(monitor.uploadBytesPerSec, monitor.downloadBytesPerSec)
-                    ))
-                    .foregroundStyle(theme.textColor)
-                    .monospacedDigit()
+                // The numbers keep their row exactly as they are, and the graph
+                // goes underneath. Putting the graph where the figures were
+                // traded a reading you can act on for a shape you cannot — the
+                // shape is context for the numbers, not a replacement.
+                HStack(spacing: 12) {
+                    speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+                    speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
                 }
             case .both:
                 HStack(spacing: 12) {

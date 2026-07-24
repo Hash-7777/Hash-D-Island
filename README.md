@@ -34,49 +34,47 @@
 
 ## ◦ What it shows
 
-<table>
-<tr>
-<td width="50%" valign="top">
+```
+─────────────────────┐            ┌─────────────────────
+ ♪ Night Drive ▍▍▎   │            │  ⌥  ⏻  ◱  100%
+─────────────────────┴────────────┴─────────────────────
+           ╭────────────────────────────────╮
+           │ ▐▊  Night Drive                │
+           │     HASH   ▍▍▎▏                │
+           │ ━━━━━━━━━━━━━━━━━━━━━━         │
+           │ 0:29                     -8:12 │
+           │       ◀◀    ▮▮    ▶▶           │
+           ├────────────────────────────────┤
+           │ Internet     ↑ 4.2  ↓ 0.4 MB/s │
+           │ ▁▂▅▇▅▃▂▁▂▄▆▇▅▃▂▁▂▃▅▇▅▂         │
+           │ Battery     86%  1h20m to full │
+           │ CPU   ▁▃▂▅▂▁▂▄▂            18% │
+           │ Tokens today             1.28M │
+           │ Macintosh HD          63% full │
+           ╰────────────────────────────────╯
+```
 
-**Now Playing**
-Artwork, a scrolling title, and full controls for whatever is playing — Spotify, Apple Music, or video in your browser. Live progress bar and a system volume slider.
+**Now Playing** — artwork, a scrolling title, and full controls for Spotify, Apple Music, or video in your browser. Live progress bar and a system volume slider.
 
-**Live internet usage**
-Upload and download speed, from the kernel's own byte counters — shown with arrows, stacked, compact, as a graph, or one direction only.
+**Internet** — upload and download, with a graph of the last half-minute underneath. Or stacked, compact, or one direction only.
 
-**Battery**
-Level, time remaining, and time to charge — with the adapter's wattage and whether that counts as a slow or fast charge. If your Mac is limited to 80%, it counts down to *that*, not to a full battery it will never reach. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
+**Battery** — level, time remaining, and time to charge, with the adapter's wattage and whether that is a slow or fast charge. If your Mac is capped at 80%, it counts down to *that*. Low Power Mode shows in yellow, the way iPhone does it.
 
-**AirPods**
-Charge left in each earbud and the case.
+**Processor** — how busy the CPU is, as a number, a graph, or both.
 
-</td>
-<td width="50%" valign="top">
+**Temperatures** — the real Apple Silicon on-die sensors, as degrees, a word, or a symbol.
 
-**Processor load**
-How busy the CPU is, as a number, a graph of the last half-minute, or both.
+**AirPods** — charge left in each earbud and the case.
 
-**Temperatures**
-Real Apple Silicon on-die sensors — processor, graphics, storage, battery.
+**AI tokens** — how much you have used today, per tool, counted from the files your tools already write.
 
-**AI token usage**
-How much you have used today, per tool, counted from the files your tools already write.
+**Storage** — how full the startup disk is, and how much room is left.
 
-**A timer**
-Start it from the panel, watch it count down at the notch.
+**Timer** — any length, counting down at the notch, with a chime at zero.
 
-**Storage**
-How full the startup disk is, and how much room is left.
+**Downloads** — a quiet notice the moment one lands.
 
-**Finished downloads**
-A quiet notice the moment one lands.
-
-**Live activities**
-Anything your own scripts, Shortcuts, or AI tools post — including a built-in Claude Code integration.
-
-</td>
-</tr>
-</table>
+**Live activities** — anything your scripts, Shortcuts or AI tools post.
 
 ---
 
@@ -92,28 +90,38 @@ Everything opens *below* the menu bar, so it never covers your menus or status i
 
 ## ◦ How it is built
 
-<table>
-<tr>
-<td width="33%" valign="top">
+Every capability is a self-contained module. The core knows how to draw an island and how to talk to a feature through one protocol — it never knows what any feature *does*. Adding one touches a single line:
 
-**Off means off**
-Switching an indicator off stops it *reading*, not just showing. A feature that is off is never started, so it opens no files and asks for no permissions.
+```swift
+// Sources/HashDIsland/FeatureManifest.swift — the only place features meet
+static func enabledFeatures() -> [NotchFeature] {
+    [
+        MediaFeature(), ActivitiesFeature(), DownloadsFeature(),
+        TimerFeature(), TokensFeature(), NetworkFeature(),
+        BatteryFeature(), AirPodsFeature(), ThermalFeature(),
+        CPUFeature(), StorageFeature(),
+    ]
+}
+```
 
-</td>
-<td width="33%" valign="top">
+Three rules the code actually keeps:
 
-**One glance, then gone**
-Something that just happened outranks something merely still true. Alerts take the strip for a few seconds and hand it straight back to the music.
+**Off means off.** Switching an indicator off stops it *reading*, not just showing. A feature that is off is never started, so it opens no files, spawns no subprocess, and can trigger none of the permission prompts.
 
-</td>
-<td width="33%" valign="top">
+**One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted**
-311 automated checks run before every push, covering the parsers, the geometry and the privacy rules. Every commit is signed.
+**Verified, not asserted.** 311 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
-</td>
-</tr>
-</table>
+```
+$ swift run HashDIslandChecks
+  ok   a feature that is off is never started
+  ok   a finished job takes the strip from the music
+  ok   the keep-open zone reaches the bottom at every height
+  ok   free space is never reported as more than the disk holds
+  ok   a paused track in silence is left alone
+  ...
+All checks passed.
+```
 
 ---
 
