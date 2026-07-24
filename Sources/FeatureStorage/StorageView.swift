@@ -1,13 +1,10 @@
 import SwiftUI
-import AppKit
 import HashDIslandKit
 
-/// Expanded detail: how full the disk is, what is taking the room, and the
-/// figure people actually check — how much is left.
+/// Expanded detail: how full the disk is, and what the room is going on.
 struct StorageDetailView: View {
     @ObservedObject var monitor: StorageMonitor
     let theme: Theme
-    let style: StorageStyle
 
     var body: some View {
         if let usage = monitor.usage {
@@ -35,19 +32,22 @@ struct StorageDetailView: View {
                 }
 
                 bar(usage)
-
-                if style == .breakdown {
-                    legend(usage)
-                }
             }
             .frame(width: Panel.rowWidth, alignment: .leading)
             .animation(.snappy, value: usage.percentUsed)
         }
     }
 
-    /// One bar in four parts rather than a single fill, so the question the
-    /// readout is actually asked — where has it all gone — is answered in the
-    /// same glance as how full it is.
+    /// One bar in three parts rather than a single fill: what is genuinely
+    /// taken, what macOS would hand back if something needed the room, and what
+    /// is free right now.
+    ///
+    /// The parts are not labelled underneath. This is a glanceable panel with
+    /// eleven other indicators in it, and three more lines of legend cost more
+    /// height than the words were worth — the percentage above already says how
+    /// full, and the figure beside it already says how much is left. The middle
+    /// band is the only thing the bar adds that no number here states, so it is
+    /// named in the tooltip rather than given a row of its own.
     private func bar(_ usage: DiskUsage) -> some View {
         GeometryReader { geo in
             HStack(spacing: 0) {
@@ -60,50 +60,16 @@ struct StorageDetailView: View {
             .clipShape(Capsule())
         }
         .frame(height: 5)
+        .help(tooltip(usage))
     }
 
-    private func legend(_ usage: DiskUsage) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            ForEach(usage.segments, id: \.kind) { segment in
-                if segment.fraction > 0.001 {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(color(for: segment.kind))
-                            .frame(width: 5, height: 5)
-                        Text(segment.kind.label)
-                            .font(.system(size: 9))
-                            .foregroundStyle(theme.subtitleColor)
-                        Spacer(minLength: 8)
-                        Text(Formatters.bytes(Int64(Double(usage.totalBytes) * segment.fraction)))
-                            .font(.system(size: 9))
-                            .foregroundStyle(
-                                segment.kind == .taken ? theme.textColor : theme.subtitleColor
-                            )
-                            .monospacedDigit()
-                    }
-                    .help(segment.kind.detail)
-                }
-            }
-
-            // Anything finer than this needs either a full walk of the disk or a
-            // permission prompt for folders the app has no other reason to open.
-            // macOS already has a screen that does it properly, and — the part
-            // that matters — one you can act on. Sending people there beats
-            // guessing at it here.
-            Button("Manage in System Settings") {
-                guard let url = URL(string: "x-apple.systempreferences:com.apple.settings.Storage")
-                else { return }
-                NSWorkspace.shared.open(url)
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(theme.accent)
-            .padding(.top, 1)
-        }
+    private func tooltip(_ usage: DiskUsage) -> String {
+        usage.segments
+            .filter { $0.fraction > 0.001 }
+            .map { "\($0.kind.label): \(Formatters.bytes(Int64(Double(usage.totalBytes) * $0.fraction)))" }
+            .joined(separator: " · ")
     }
 
-    /// Quiet until it matters. A disk at 70% is simply a disk; one with almost
-    /// nothing left is the reason you opened the panel.
     private func color(for kind: DiskUsage.Segment) -> Color {
         switch kind {
         case .taken: return fill
@@ -115,6 +81,8 @@ struct StorageDetailView: View {
         }
     }
 
+    /// Quiet until it matters. A disk at 70% is simply a disk; one with almost
+    /// nothing left is the reason you opened the panel.
     private var fill: Color {
         switch monitor.usage?.percentUsed ?? 0 {
         case 90...: return theme.upColor

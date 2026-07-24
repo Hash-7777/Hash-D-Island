@@ -55,7 +55,6 @@
            │ Total AI tokens          1.28M │
            │ Storage               63% full │
            │ ███████████████▓▓▓░░░░░░░░░░░░ │
-           │ In use 154 GB · Free 91 GB     │
            ╰────────────────────────────────╯
 ```
 
@@ -75,7 +74,7 @@
 
 **AI tokens** — how much you have used today, per tool, counted from the files your tools already write. Only what they have written since the last count is read, so it stays cheap however often you ask.
 
-**Storage** — how full the startup disk is, split into what is really in use, what macOS would hand back if you needed the room, and what is free.
+**Storage** — how full the startup disk is, as a bar split into what is really in use, what macOS would hand back if you needed the room, and what is free.
 
 **Timer** — any length, counting down at the notch, with a chime at zero.
 
