@@ -1249,6 +1249,59 @@ MainActor.assumeIsolated {
     )
     check("the real startup disk reads back", StorageReader.read(volume: StorageReader.volumeURL) != nil)
 
+    // The bar is drawn in parts, so the parts must come to exactly the disk. The
+    // two volumes and the two free figures are sampled a moment apart and from
+    // different APIs, so anything derived by adding them up can drift; "other"
+    // is therefore whatever the measurable figures do NOT account for, which
+    // makes the sum exact by construction rather than by luck.
+    let split = DiskUsage(
+        name: "x",
+        totalBytes: 1_000,
+        availableBytes: 400,
+        plainAvailableBytes: 300
+    )
+    check("the segments come to exactly the whole disk", {
+        let sum = split.segments.reduce(0.0) { $0 + $1.fraction }
+        return abs(sum - 1.0) < 0.000001
+    }())
+    check("reclaimable space is the gap between the two free figures", split.purgeableBytes == 100)
+    check("what is in use excludes what macOS would hand back", split.usedBytes == 600)
+    check(
+        "a volume with nothing to purge reports no reclaimable space",
+        DiskUsage(
+            name: "x", totalBytes: 1_000, availableBytes: 300, plainAvailableBytes: 300
+        ).purgeableBytes == 0
+    )
+    // The two free figures come from different keys and can disagree the wrong
+    // way round on a volume with nothing to purge. A negative reclaimable
+    // figure would invert the bar rather than merely read oddly.
+    check(
+        "a plain figure larger than the purgeable one cannot go negative",
+        DiskUsage(
+            name: "x", totalBytes: 1_000, availableBytes: 200, plainAvailableBytes: 900
+        ).purgeableBytes == 0
+    )
+    check(
+        "a disk reporting no size has no segments to draw",
+        DiskUsage(name: "x", totalBytes: 0, availableBytes: 0).segments.isEmpty
+    )
+    // And the real disk's parts have to add up too.
+    if let real = StorageReader.read(volume: StorageReader.volumeURL) {
+        check("the real disk's segments come to the whole disk", {
+            let sum = real.segments.reduce(0.0) { $0 + $1.fraction }
+            return abs(sum - 1.0) < 0.000001
+        }())
+        check(
+            "reclaimable space is never more than the disk reports free",
+            real.purgeableBytes <= real.availableBytes
+        )
+        check("no segment of the real disk is negative", real.segments.allSatisfy { $0.fraction >= 0 })
+    } else {
+        check("the real disk's segments come to the whole disk", false)
+        check("reclaimable space is never more than the disk reports free", false)
+        check("no segment of the real disk is negative", false)
+    }
+
     // Sizes are shown in the units macOS uses — powers of a thousand, so the
     // number matches the one Finder is showing on the same disk.
     check("bytes stay bytes", Formatters.bytes(512) == "512 B")
