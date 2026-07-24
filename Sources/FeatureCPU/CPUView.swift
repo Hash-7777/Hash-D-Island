@@ -7,19 +7,27 @@ struct CPUDetailView: View {
     let theme: Theme
     let style: CPUStyle
 
+    /// The number keeps its row and the graph goes underneath, at the full width
+    /// of the panel — the same arrangement the internet readout uses.
+    ///
+    /// It used to be a 92-point sparkline squeezed into the row beside the
+    /// number, which is too narrow to read a shape in and had nothing to measure
+    /// its height against: an idle processor and a busy one drew much the same
+    /// squiggle. Full width gives the half-minute room to show, and the floor
+    /// and ceiling rules give the height a meaning.
     var body: some View {
-        NotchRow("CPU", theme: theme) {
-            HStack(spacing: 8) {
-                if style != .number {
-                    Sparkline(values: monitor.history, tint: tint)
-                        .frame(width: 92, height: 22)
-                }
+        VStack(alignment: .leading, spacing: 5) {
+            NotchRow("CPU", theme: theme) {
                 if style != .graph {
                     Text(text)
                         .foregroundStyle(tint)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 }
+            }
+            if style != .number {
+                Sparkline(values: monitor.history, tint: tint, showsScale: true)
+                    .frame(width: Panel.rowWidth, height: 26)
             }
         }
         .animation(.snappy, value: monitor.load)

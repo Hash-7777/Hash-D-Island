@@ -1073,6 +1073,14 @@ MainActor.assumeIsolated {
         "no sensors at all reads as empty rather than as zero",
         ThermalMonitor.grouped([]).isEmpty
     )
+    // The disk's temperature is called Drive, because the panel has a Storage
+    // section of its own for how full it is and two unrelated numbers under one
+    // word is a readout that has to be worked out rather than glanced at.
+    check(
+        "the disk sensor is not called Storage, which the panel already uses",
+        groupedSensors.contains { $0.name == "Drive" }
+            && !groupedSensors.contains { $0.name == "Storage" }
+    )
 
     // Reaching a browser needs Accessibility, and the app must not pretend to
     // have it. These checks run from a bare executable, which does not.

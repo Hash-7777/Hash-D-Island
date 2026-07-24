@@ -12,40 +12,78 @@ import SwiftUI
 public struct Sparkline: View {
     private let values: [Double]
     private let tint: Color
+    /// Whether to draw the floor and ceiling the values are measured against.
+    private let showsScale: Bool
 
-    public init(values: [Double], tint: Color) {
+    public init(values: [Double], tint: Color, showsScale: Bool = false) {
         self.values = values
         self.tint = tint
+        self.showsScale = showsScale
     }
 
     public var body: some View {
         GeometryReader { geo in
-            if values.count >= 2 {
-                let path = shape(in: geo.size)
-                ZStack {
-                    // The fill under the line does the work at this size; the
-                    // line alone is too thin to read at a glance.
-                    path.filled(in: geo.size)
-                        .fill(
-                            LinearGradient(
-                                colors: [tint.opacity(0.38), tint.opacity(0.04)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+            ZStack {
+                if showsScale { scale(in: geo.size) }
+                line(in: geo.size)
+            }
+        }
+    }
+
+    /// A solid rule at nothing and a dashed one at full.
+    ///
+    /// Without them a line is only readable against itself: a processor idling
+    /// and a processor at half draw the same shape, because the eye has nothing
+    /// to measure the height against. The floor is solid because it is a real
+    /// value — zero — and the ceiling dashed because it is a limit rather than a
+    /// reading. Both sit well under the line's own weight so the data still
+    /// leads.
+    private func scale(in size: CGSize) -> some View {
+        ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height - 1))
+                path.addLine(to: CGPoint(x: size.width, y: size.height - 1))
+            }
+            .stroke(Color.white.opacity(0.16), lineWidth: 0.5)
+
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 1))
+                path.addLine(to: CGPoint(x: size.width, y: 1))
+            }
+            .stroke(
+                Color.white.opacity(0.10),
+                style: StrokeStyle(lineWidth: 0.5, dash: [3, 4])
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func line(in size: CGSize) -> some View {
+        if values.count >= 2 {
+            let path = shape(in: size)
+            ZStack {
+                // The fill under the line does the work at this size; the
+                // line alone is too thin to read at a glance.
+                path.filled(in: size)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.38), tint.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
-                    path.stroked
-                        .stroke(
-                            tint,
-                            style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round)
-                        )
-                    // A dot on the newest sample, so the eye knows which end is
-                    // now. Without it a graph reads equally well backwards.
-                    if let last = path.points.last {
-                        Circle()
-                            .fill(tint)
-                            .frame(width: 3, height: 3)
-                            .position(last)
-                    }
+                    )
+                path.stroked
+                    .stroke(
+                        tint,
+                        style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round)
+                    )
+                // A dot on the newest sample, so the eye knows which end is
+                // now. Without it a graph reads equally well backwards.
+                if let last = path.points.last {
+                    Circle()
+                        .fill(tint)
+                        .frame(width: 3, height: 3)
+                        .position(last)
                 }
             }
         }

@@ -10,7 +10,11 @@ struct StorageDetailView: View {
     var body: some View {
         if let usage = monitor.usage {
             VStack(alignment: .leading, spacing: 7) {
-                NotchSectionHeader(usage.name.uppercased(), theme: theme)
+                // "STORAGE", not the volume's name. Almost every Mac's startup
+                // disk is still called Macintosh HD, which names the hardware
+                // rather than the thing being reported, and reads as a label
+                // someone forgot to change.
+                NotchSectionHeader("STORAGE", theme: theme)
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("\(usage.percentUsed)%")

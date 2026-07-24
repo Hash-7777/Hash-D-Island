@@ -106,7 +106,10 @@ public final class ThermalMonitor: ObservableObject {
         if name.contains("gas gauge") || name.contains("batt") { return "Battery" }
         if name.contains("gpu") { return "Graphics" }
         if name.contains("cpu") || name.contains("acc") { return "Processor" }
-        if name.contains("ssd") || name.contains("nand") || name.contains("flash") { return "Storage" }
+        // "Drive", not "Storage": the panel has a Storage section of its own for
+        // how full the disk is, and two unrelated numbers under one word is a
+        // readout that has to be worked out rather than glanced at.
+        if name.contains("ssd") || name.contains("nand") || name.contains("flash") { return "Drive" }
         // PMU / SOC / die / calibration sensors are the main chip — call it the processor.
         if name.contains("soc") || name.contains("pmu") || name.contains("tdie")
             || name.contains("tcal") || name.contains("tdev") || name.contains("die") {
