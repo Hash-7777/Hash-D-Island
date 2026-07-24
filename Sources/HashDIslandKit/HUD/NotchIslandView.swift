@@ -232,7 +232,19 @@ struct NotchIslandView: View {
                     if settings.appearance.panelFill == .glass {
                         ZStack {
                             VisualEffectView(material: .hudWindow)
-                            Color.black.opacity(0.15)
+                            // A heavy scrim, not a hint of one.
+                            //
+                            // Frosted glass takes its brightness from whatever
+                            // is behind the window, and every label in this
+                            // panel is white. Over a dark desktop 0.15 was
+                            // plenty; over a white document the glass came up
+                            // pale and the text sat on it almost invisibly. The
+                            // panel has to be readable over ANY background, and
+                            // the only thing that guarantees that is darkening
+                            // it enough that what shows through is texture
+                            // rather than brightness. It still reads as glass —
+                            // shapes and motion behind it are still there.
+                            Color.black.opacity(0.45)
                         }
                         .opacity(panelRevealed ? 1 : 0)
                     }
@@ -242,7 +254,10 @@ struct NotchIslandView: View {
                     pillShape(radius: panelRadius)
                         .strokeBorder(Color.white.opacity(panelRevealed ? 0.12 : 0), lineWidth: 0.7)
                 )
-                .shadow(color: .black.opacity(0.55), radius: 22, y: 14)
+                // Softer and closer in than it was. The old shadow was strong
+                // enough to read as a shape of its own against a light
+                // background rather than as depth under the panel.
+                .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
             )
     }
 

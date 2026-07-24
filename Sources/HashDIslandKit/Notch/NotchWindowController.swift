@@ -50,7 +50,13 @@ public final class NotchWindowController {
     /// big empty box. (side, bottom).
     private static let collapsedShadow: (CGFloat, CGFloat) = (10, 12)
     private static let liveShadow: (CGFloat, CGFloat) = (14, 16)
-    private static let expandedShadow: (CGFloat, CGFloat) = (26, 40)
+    /// The open panel needs more room below it than its shadow's offset, or the
+    /// blur is cut off square by the window's edge and the soft glow reads as a
+    /// hard-edged grey box sitting under the panel — obvious against a light
+    /// background, which is exactly where a shadow is most visible. A Gaussian
+    /// blur of radius r keeps fading for roughly 1.5r past its offset, so this
+    /// leaves comfortably more than the shadow can reach.
+    private static let expandedShadow: (CGFloat, CGFloat) = (26, 56)
     /// Room reserved while the panel is opening, before its first measurement.
     private static let provisionalExpandedHeight: CGFloat = 480
 
