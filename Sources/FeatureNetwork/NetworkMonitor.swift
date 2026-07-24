@@ -8,6 +8,20 @@ import HashDIslandKit
 public final class NetworkMonitor: ObservableObject {
     @Published public private(set) var uploadBytesPerSec: Double = 0
     @Published public private(set) var downloadBytesPerSec: Double = 0
+    /// Recent rates, oldest first, for the graph styles.
+    @Published public private(set) var upHistory: [Double] = []
+    @Published public private(set) var downHistory: [Double] = []
+
+    /// Half a minute of samples. Held here rather than in the view so the shape
+    /// survives a redraw.
+    private static let historyLength = 30
+
+    /// What the graphs are drawn against: the busiest moment still in view, or
+    /// a floor of 1 MB/s — otherwise an idle link has its own noise magnified
+    /// to fill the frame and looks like a storm.
+    public var graphCeiling: Double {
+        max(1_000_000, (upHistory + downHistory).max() ?? 0)
+    }
 
     private static let interval: TimeInterval = 1.0
     /// The interval actually in use, which battery saver stretches. The
@@ -84,6 +98,16 @@ public final class NetworkMonitor: ObservableObject {
         }
         if Formatters.megabytesPerSecond(newUpload) != Formatters.megabytesPerSecond(uploadBytesPerSec) {
             uploadBytesPerSec = newUpload
+        }
+
+        // The history takes every sample, including the ones too small to
+        // change the printed number — a graph of only the changes would be a
+        // graph with the quiet parts cut out.
+        upHistory.append(newUpload)
+        downHistory.append(newDownload)
+        if upHistory.count > Self.historyLength {
+            upHistory.removeFirst(upHistory.count - Self.historyLength)
+            downHistory.removeFirst(downHistory.count - Self.historyLength)
         }
 
         lastRx = counters.rx

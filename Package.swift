@@ -32,6 +32,7 @@ let package = Package(
         .target(name: "FeatureDownloads", dependencies: ["HashDIslandKit"]),
         .target(name: "FeatureAirPods", dependencies: ["HashDIslandKit"]),
         .target(name: "FeatureStorage", dependencies: ["HashDIslandKit"]),
+        .target(name: "FeatureCPU", dependencies: ["HashDIslandKit"]),
 
         .executableTarget(
             name: "HashDIsland",
@@ -47,6 +48,7 @@ let package = Package(
                 "FeatureDownloads",
                 "FeatureAirPods",
                 "FeatureStorage",
+                "FeatureCPU",
             ]
         ),
 
@@ -56,7 +58,7 @@ let package = Package(
         // .testTarget once full Xcode is available.
         .executableTarget(
             name: "HashDIslandChecks",
-            dependencies: ["HashDIslandKit", "FeatureMedia", "FeatureActivities", "FeatureTokens", "FeatureBattery", "FeatureDownloads", "FeatureAirPods", "FeatureNetwork", "FeatureStorage", "FeatureThermal"]
+            dependencies: ["HashDIslandKit", "FeatureMedia", "FeatureActivities", "FeatureTokens", "FeatureBattery", "FeatureDownloads", "FeatureAirPods", "FeatureNetwork", "FeatureStorage", "FeatureThermal", "FeatureCPU"]
         ),
     ],
     swiftLanguageModes: [.v5]

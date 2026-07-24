@@ -8,6 +8,8 @@ enum NetworkStyle: String {
     case stacked
     /// Both on one line, separated by a dot, with no arrows.
     case compact
+    /// The shape of the last half-minute, up and down overlaid.
+    case graph
     case both
     case downloadOnly
     case uploadOnly
@@ -28,6 +30,7 @@ public final class NetworkFeature: NotchFeature {
         FeatureOption(id: NetworkStyle.uploadOnly.rawValue, title: "Upload only"),
         FeatureOption(id: NetworkStyle.stacked.rawValue, title: "Stacked"),
         FeatureOption(id: NetworkStyle.compact.rawValue, title: "Compact"),
+        FeatureOption(id: NetworkStyle.graph.rawValue, title: "Graph"),
     ]
 
     private let monitor = NetworkMonitor()

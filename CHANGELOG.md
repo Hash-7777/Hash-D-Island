@@ -37,8 +37,10 @@ moment something is.
   processor, graphics, storage, battery, and system.
 - **AI token usage** — today's totals per tool, counted exactly the way
   HashMeterAi counts them.
-- **Timer** — quick 5/15/25 minute starts or any length you choose, counting
+- **Timer** — any length you choose, counting
   down at the notch, with a chime and a notification at zero.
+- **Processor load** — how busy the CPU is, as a number, a graph of the last
+  half-minute, or both.
 - **Storage** — how full the startup disk is, with the space left, counted the
   way Finder counts it.
 - **Downloads** — a short notice when one finishes.

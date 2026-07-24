@@ -37,7 +37,7 @@ struct NetworkView: View {
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(theme.subtitleColor)
                 }
-            case .both, .downloadOnly, .uploadOnly:
+            case .graph, .both, .downloadOnly, .uploadOnly:
                 arrowed
             }
         }
@@ -131,6 +131,19 @@ struct NetworkDetailView: View {
                 speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
             case .uploadOnly:
                 speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+            case .graph:
+                HStack(spacing: 8) {
+                    ZStack {
+                        Sparkline(values: scaled(monitor.upHistory), tint: theme.upColor)
+                        Sparkline(values: scaled(monitor.downHistory), tint: theme.downColor)
+                    }
+                    .frame(width: 62, height: 16)
+                    Text(Formatters.megabytesPerSecond(
+                        max(monitor.uploadBytesPerSec, monitor.downloadBytesPerSec)
+                    ))
+                    .foregroundStyle(theme.textColor)
+                    .monospacedDigit()
+                }
             case .both:
                 HStack(spacing: 12) {
                     speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
@@ -138,6 +151,13 @@ struct NetworkDetailView: View {
                 }
             }
         }
+    }
+
+    /// Both lines share one scale, so their heights can be compared. Scaling
+    /// each to its own peak would draw a trickle and a torrent identically.
+    private func scaled(_ values: [Double]) -> [Double] {
+        let ceiling = monitor.graphCeiling
+        return values.map { ceiling > 0 ? $0 / ceiling : 0 }
     }
 
     private func speed(_ symbol: String, _ rate: Double, _ color: Color) -> some View {

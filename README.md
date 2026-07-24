@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-294%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="294 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-304%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="304 automated checks passing">
   <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
 </p>
 
@@ -42,7 +42,7 @@
 Artwork, a scrolling title, and full controls for whatever is playing — Spotify, Apple Music, or video in your browser. Live progress bar and a system volume slider.
 
 **Live internet usage**
-Upload and download speed, from the kernel's own byte counters — shown with arrows, stacked, compact, or one direction only.
+Upload and download speed, from the kernel's own byte counters — shown with arrows, stacked, compact, as a graph, or one direction only.
 
 **Battery**
 Level, time remaining, and time to charge — with the adapter's wattage and whether that counts as a slow or fast charge. If your Mac is limited to 80%, it counts down to *that*, not to a full battery it will never reach. Heads-up when you plug in, unplug, reach full, or drop through 20% and 10%. Low Power Mode shows in yellow, the way iPhone does it.
@@ -52,6 +52,9 @@ Charge left in each earbud and the case.
 
 </td>
 <td width="50%" valign="top">
+
+**Processor load**
+How busy the CPU is, as a number, a graph of the last half-minute, or both.
 
 **Temperatures**
 Real Apple Silicon on-die sensors — processor, graphics, storage, battery.
@@ -106,7 +109,7 @@ Something that just happened outranks something merely still true. Alerts take t
 <td width="33%" valign="top">
 
 **Verified, not asserted**
-294 automated checks run before every push, covering the parsers, the geometry and the privacy rules. Every commit is signed.
+304 automated checks run before every push, covering the parsers, the geometry and the privacy rules. Every commit is signed.
 
 </td>
 </tr>

@@ -11,6 +11,7 @@ import FeatureAirPods
 import FeatureNetwork
 import FeatureThermal
 import FeatureStorage
+import FeatureCPU
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -786,15 +787,16 @@ MainActor.assumeIsolated {
     // expanded view, and none of those took a style — so a setting that changed
     // nothing sat in the Indicators list for every one of them.
     let styleFeatures: [(String, [String])] = [
-        ("network", ["both", "downloadOnly", "uploadOnly", "stacked", "compact"]),
+        ("network", ["both", "downloadOnly", "uploadOnly", "stacked", "compact", "graph"]),
         ("battery", ["iconAndPercent", "percent", "icon", "timeRemaining"]),
         ("thermal", ["symbolAndNumber", "number", "word", "symbol"]),
         ("tokens", ["number", "labeled"]),
+        ("cpu", ["numberAndGraph", "number", "graph"]),
     ]
     // Built here rather than read from the app's manifest, which lives in the
     // executable and is not importable.
     let manifest: [NotchFeature] = [
-        NetworkFeature(), BatteryFeature(), ThermalFeature(), TokensFeature(),
+        NetworkFeature(), BatteryFeature(), ThermalFeature(), TokensFeature(), CPUFeature(),
     ]
     var everyOptionIsKnown = true
     for (id, known) in styleFeatures {
@@ -830,6 +832,41 @@ MainActor.assumeIsolated {
     check(
         "the bundle is what decides, and this has none",
         Bundle.main.bundleIdentifier == nil || Bundle.main.bundleURL.pathExtension != "app"
+    )
+
+    // Processor load is a DIFFERENCE between two tick readings, never a single
+    // one. The counters run since boot, so one reading on its own describes the
+    // average since the machine started rather than what it is doing now.
+    let idleThenBusy = (CPUTicks(busy: 1_000, idle: 9_000), CPUTicks(busy: 1_500, idle: 9_500))
+    check(
+        "load is the busy share of what moved between two readings",
+        idleThenBusy.0.load(to: idleThenBusy.1) == 0.5
+    )
+    check(
+        "a machine doing nothing reads zero",
+        CPUTicks(busy: 100, idle: 100).load(to: CPUTicks(busy: 100, idle: 200)) == 0
+    )
+    check(
+        "a machine doing only work reads one",
+        CPUTicks(busy: 100, idle: 100).load(to: CPUTicks(busy: 200, idle: 100)) == 1
+    )
+    check(
+        "two identical readings say nothing rather than zero",
+        CPUTicks(busy: 100, idle: 100).load(to: CPUTicks(busy: 100, idle: 100)) == nil
+    )
+    check(
+        "counters that went backwards are refused, not wrapped into nonsense",
+        CPUTicks(busy: 500, idle: 500).load(to: CPUTicks(busy: 100, idle: 100)) == nil
+    )
+    check("the real processor reads back", CPUReader.ticks() != nil)
+    check(
+        "and its counters only ever climb",
+        {
+            guard let a = CPUReader.ticks() else { return false }
+            Thread.sleep(forTimeInterval: 0.05)
+            guard let b = CPUReader.ticks() else { return false }
+            return b.total >= a.total
+        }()
     )
 
     // Storage: the sums behind "62% full, 91.5 GB free".

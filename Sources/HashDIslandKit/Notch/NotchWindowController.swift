@@ -37,6 +37,8 @@ public final class NotchWindowController {
     private var localHoverMonitor: Any?
     private var scrollMonitor: Any?
     private var localScrollMonitor: Any?
+    private var clickMonitor: Any?
+    private var localClickMonitor: Any?
     private var lastSwipe = Date.distantPast
     private var cancellables = Set<AnyCancellable>()
     private var lastIslandSize: CGSize?
@@ -544,6 +546,30 @@ public final class NotchWindowController {
             MainActor.assumeIsolated { self?.handleScroll(event) }
             return event
         }
+
+        // A click away from the panel closes it.
+        //
+        // Hover alone was not enough. The overlay window is far wider than the
+        // panel drawn inside it, and while the panel is open that window takes
+        // clicks — so clicking the empty space beside the panel hit this app,
+        // reached nothing, and closed nothing. Meanwhile the collapse only ever
+        // happened on a mouse MOVE, so a click that did not move the pointer
+        // left the panel sitting there.
+        //
+        // Both monitors, because they see different things: the global one
+        // never sees this app's events, and the local one sees only this app's.
+        // Together they cover every click on the screen.
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.closeIfClickedAway(at: NSEvent.mouseLocation) }
+        }
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            MainActor.assumeIsolated { self?.closeIfClickedAway(at: NSEvent.mouseLocation) }
+            return event
+        }
         updateHover()
     }
 
@@ -569,14 +595,31 @@ public final class NotchWindowController {
         }
     }
 
+    /// Collapse when a click lands anywhere that is not the panel itself.
+    ///
+    /// The panel's own rectangle is the test, not the window's — the window is
+    /// deliberately much wider, and the space either side of the panel is
+    /// somewhere the user is clicking to get AWAY from it.
+    private func closeIfClickedAway(at location: CGPoint) {
+        guard state.isExpanded, !isPinnedOpen else { return }
+        guard !panelAnchor.insetBy(dx: -4, dy: -4).contains(location) else { return }
+        state.setExpanded(false)
+    }
+
     private func stopHoverTracking() {
-        for monitor in [hoverMonitor, localHoverMonitor, scrollMonitor, localScrollMonitor] {
+        for monitor in [
+            hoverMonitor, localHoverMonitor,
+            scrollMonitor, localScrollMonitor,
+            clickMonitor, localClickMonitor,
+        ] {
             if let monitor { NSEvent.removeMonitor(monitor) }
         }
         hoverMonitor = nil
         localHoverMonitor = nil
         scrollMonitor = nil
         localScrollMonitor = nil
+        clickMonitor = nil
+        localClickMonitor = nil
     }
 
     private func updateHover() {
