@@ -77,7 +77,17 @@ public struct SettingsView: View {
             Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1)
             VStack(spacing: 0) {
                 header
-                ScrollView { page.padding(.horizontal, 20).padding(.bottom, 20) }
+                ScrollView {
+                    page
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                        // Belt and braces after the picker fix: the page takes
+                        // the width it is given rather than asking for more,
+                        // so one over-eager control can never push the rest of
+                        // the column off the edge again.
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollIndicators(.never)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -114,9 +124,8 @@ public struct SettingsView: View {
     /// The page's own title, and the way out.
     private var header: some View {
         HStack(spacing: 8) {
-            Text(section.title)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+            // No title here. Every page already opens with its own heading and
+            // a line explaining it, and the two stacked read as a stutter.
             Spacer(minLength: 8)
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -129,9 +138,9 @@ public struct SettingsView: View {
             .buttonStyle(.plain)
             .help("Close")
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 0)
     }
 
     // MARK: Sidebar
@@ -283,13 +292,26 @@ public struct SettingsView: View {
             }
 
             if enabled, !feature.options.isEmpty {
-                Picker("", selection: styleBinding(feature.id)) {
-                    ForEach(feature.options) { option in
-                        Text(option.title).tag(option.id)
+                // A menu, not a segmented control.
+                //
+                // Segmented lays every choice out side by side at whatever
+                // width the longest label wants, and refuses to shrink — so
+                // "Symbol and number / Number only / Word" simply ran off the
+                // page and took the column's whole layout with it, clipping the
+                // description above as well. A menu is the same choice in the
+                // width of one label, and it does not care how many options a
+                // feature grows later.
+                HStack {
+                    Picker("", selection: styleBinding(feature.id)) {
+                        ForEach(feature.options) { option in
+                            Text(option.title).tag(option.id)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    Spacer(minLength: 0)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
                 .padding(.leading, 24)
             }
         }
@@ -331,7 +353,8 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Panel fill",
-                    detail: "Frosted glass picks up what is behind it. Solid black matches the notch exactly."
+                    detail: "Frosted glass picks up what is behind it. Solid black matches the notch exactly.",
+                    stacked: true
                 ) {
                     Picker("", selection: $settings.appearance.panelFill) {
                         ForEach(AppearanceSettings.PanelFill.allCases, id: \.self) { fill in
@@ -340,12 +363,16 @@ public struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 220)
+                    .frame(maxWidth: .infinity)
                 }
 
                 SettingDivider()
 
-                SettingRow("Motion", detail: "How eagerly the island opens and closes.") {
+                SettingRow(
+                    "Motion",
+                    detail: "How eagerly the island opens and closes.",
+                    stacked: true
+                ) {
                     Picker("", selection: $settings.appearance.motion) {
                         ForEach(AppearanceSettings.Motion.allCases, id: \.self) { motion in
                             Text(motion.label).tag(motion)
@@ -353,17 +380,18 @@ public struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 220)
+                    .frame(maxWidth: .infinity)
                 }
 
                 SettingDivider()
 
                 SettingRow(
                     "Panel roundness",
-                    detail: "\(Int(settings.appearance.panelCornerRadius)) pt at the bottom corners."
+                    detail: "\(Int(settings.appearance.panelCornerRadius)) pt at the bottom corners.",
+                    stacked: true
                 ) {
                     Slider(value: $settings.appearance.panelCornerRadius, in: 8...36, step: 1)
-                        .frame(width: 220)
+                        .frame(maxWidth: .infinity)
                 }
             }
 
@@ -398,10 +426,11 @@ public struct SettingsView: View {
             SettingCard {
                 SettingRow(
                     "Keep a finished alert for",
-                    detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it leaves on its own. No timer is ever drawn beside it."
+                    detail: "\(Int(settings.alerts.noticeSeconds)) seconds, then it leaves on its own. No timer is ever drawn beside it.",
+                    stacked: true
                 ) {
                     Slider(value: $settings.alerts.noticeSeconds, in: 1...10, step: 1)
-                        .frame(width: 220)
+                        .frame(maxWidth: .infinity)
                 }
 
                 SettingDivider()
@@ -501,7 +530,7 @@ public struct SettingsView: View {
         detail: String
     ) -> some View {
         SettingRow(title, detail: "\(detail) Currently \(Int(value.wrappedValue)) pt.") {
-            Slider(value: value, in: range, step: 1).frame(width: 220)
+            Slider(value: value, in: range, step: 1).frame(maxWidth: .infinity)
         }
     }
 
@@ -671,24 +700,53 @@ private struct SettingRow<Control: View>: View {
     let detail: String
     @ViewBuilder var control: Control
 
-    init(_ title: String, detail: String, @ViewBuilder control: () -> Control) {
+    /// Whether the control sits below the label rather than beside it.
+    ///
+    /// Beside is right for a switch, which is small and reads as part of the
+    /// same line. It is wrong for a slider or a row of choices: the column here
+    /// is about 270 points wide, and a 220-point control beside a label leaves
+    /// the label 40 points to live in. Those go underneath, full width, where
+    /// they have room and line up with each other down the page.
+    let stacked: Bool
+
+    init(
+        _ title: String,
+        detail: String,
+        stacked: Bool = false,
+        @ViewBuilder control: () -> Control
+    ) {
         self.title = title
         self.detail = detail
+        self.stacked = stacked
         self.control = control()
     }
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 12, weight: .medium))
-                Text(detail)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 8)
-            control
+    private var label: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.system(size: 12, weight: .medium))
+            Text(detail)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    var body: some View {
+        Group {
+            if stacked {
+                VStack(alignment: .leading, spacing: 9) {
+                    label
+                    control.frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    label
+                    Spacer(minLength: 8)
+                    control
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
     }
 }
