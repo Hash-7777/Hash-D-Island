@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-311%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="311 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-312%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="312 automated checks passing">
   <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
 </p>
 
@@ -110,7 +110,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 311 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 312 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
