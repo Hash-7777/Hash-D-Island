@@ -8,6 +8,7 @@ import FeatureActivities
 import FeatureTimer
 import FeatureDownloads
 import FeatureAirPods
+import FeatureStorage
 
 /// The one and only place features are turned on or off.
 ///
@@ -34,6 +35,7 @@ enum FeatureManifest {
             BatteryFeature(),
             AirPodsFeature(),
             ThermalFeature(),
+            StorageFeature(),
         ]
     }
 }

@@ -39,6 +39,8 @@ moment something is.
   HashMeterAi counts them.
 - **Timer** — quick 5/15/25 minute starts or any length you choose, counting
   down at the notch, with a chime and a notification at zero.
+- **Storage** — how full the startup disk is, with the space left, counted the
+  way Finder counts it.
 - **Downloads** — a short notice when one finishes.
 - **Live activities** — a local feed any app, script, or Shortcut can post to,
   with a built-in integration for Claude Code, HashCortX, and HashCerebrum.

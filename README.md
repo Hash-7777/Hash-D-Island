@@ -62,6 +62,9 @@ How much you have used today, per tool, counted from the files your tools alread
 **A timer**
 Start it from the panel, watch it count down at the notch.
 
+**Storage**
+How full the startup disk is, and how much room is left.
+
 **Finished downloads**
 A quiet notice the moment one lands.
 

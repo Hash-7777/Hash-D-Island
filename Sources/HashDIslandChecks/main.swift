@@ -9,6 +9,7 @@ import FeatureBattery
 import FeatureDownloads
 import FeatureAirPods
 import FeatureNetwork
+import FeatureStorage
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -765,6 +766,37 @@ MainActor.assumeIsolated {
         // rather than as no time at all.
         BatteryMonitor.minutesToCeiling(minutesToFull: 10, percentage: 79, ceiling: 80) == 1
     )
+
+    // Storage: the sums behind "62% full, 91.5 GB free".
+    let disk = DiskUsage(name: "Macintosh HD", totalBytes: 245_107_195_904, availableBytes: 91_530_000_000)
+    check("used is what is not available", disk.usedBytes == 245_107_195_904 - 91_530_000_000)
+    check("percent full is rounded to a whole number", disk.percentUsed == 63)
+    check(
+        "an empty disk is not full",
+        DiskUsage(name: "x", totalBytes: 1_000, availableBytes: 1_000).percentUsed == 0
+    )
+    check(
+        "a full disk reads 100",
+        DiskUsage(name: "x", totalBytes: 1_000, availableBytes: 0).percentUsed == 100
+    )
+    check(
+        "a volume reporting no size divides by nothing rather than crashing",
+        DiskUsage(name: "x", totalBytes: 0, availableBytes: 0).percentUsed == 0
+    )
+    check(
+        "free space is never reported as more than the disk holds",
+        StorageReader.read(volume: StorageReader.volumeURL).map { $0.availableBytes <= $0.totalBytes } ?? true
+    )
+    check("the real startup disk reads back", StorageReader.read(volume: StorageReader.volumeURL) != nil)
+
+    // Sizes are shown in the units macOS uses — powers of a thousand, so the
+    // number matches the one Finder is showing on the same disk.
+    check("bytes stay bytes", Formatters.bytes(512) == "512 B")
+    check("thousands are kilobytes", Formatters.bytes(49_000) == "49 KB")
+    check("millions are megabytes", Formatters.bytes(5_500_000) == "5.5 MB")
+    check("billions are gigabytes", Formatters.bytes(91_530_000_000) == "91.53 GB")
+    check("trillions are terabytes", Formatters.bytes(2_000_000_000_000) == "2 TB")
+    check("a negative size is not shown as negative", Formatters.bytes(-5) == "0 B")
 
     // Downloads: browser part-files are recognized, finished files are not.
     check("part crdownload", DownloadsMonitor.isPartFileName("movie.mp4.crdownload"))

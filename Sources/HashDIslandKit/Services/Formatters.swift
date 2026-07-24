@@ -58,6 +58,23 @@ public enum Formatters {
         }
     }
 
+    /// A size on disk, in the units macOS itself uses.
+    ///
+    /// Powers of a thousand, not 1024. Apple switched to decimal units years
+    /// ago, and a readout that disagrees with Finder about how much room is
+    /// left is worse than no readout — the whole point of it is recognising the
+    /// number you already know.
+    public static func bytes(_ count: Int64) -> String {
+        let value = Double(max(0, count))
+        switch count {
+        case ..<1_000: return "\(max(0, count)) B"
+        case ..<1_000_000: return trimmed(value / 1_000) + " KB"
+        case ..<1_000_000_000: return trimmed(value / 1_000_000) + " MB"
+        case ..<1_000_000_000_000: return trimmed(value / 1_000_000_000, decimals: 2) + " GB"
+        default: return trimmed(value / 1_000_000_000_000, decimals: 2) + " TB"
+        }
+    }
+
     private static func trimmed(_ value: Double, decimals: Int = 1) -> String {
         let rounded = (value * pow(10, Double(decimals))).rounded() / pow(10, Double(decimals))
         return rounded == rounded.rounded()
