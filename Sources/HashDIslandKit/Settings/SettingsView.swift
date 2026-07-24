@@ -238,6 +238,21 @@ public struct SettingsView: View {
                 ) {
                     Toggle("", isOn: $settings.batterySaver).labelsHidden()
                 }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Count AI tokens",
+                    detail: "Only what your tools have written since the last count is read, so this is cheap at any setting. Pick how current you want the number."
+                ) {
+                    Picker("", selection: $settings.tokenScanInterval) {
+                        ForEach(TokenScanInterval.allCases, id: \.self) { interval in
+                            Text(interval.label).tag(interval)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 170)
+                }
             }
 
             SettingCard {

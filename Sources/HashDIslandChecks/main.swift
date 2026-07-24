@@ -605,13 +605,13 @@ MainActor.assumeIsolated {
     {"type":"user","timestamp":"\(todayStamp)","message":{"id":"m9","usage":{"input_tokens":500,"output_tokens":500}}}
     {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"m3","usage":{"input_tokens":10,"output_tokens":20}}}
     """)
-    var seenIDs = Set<String>()
+    var seenIDs = SeenMessages()
     let claudeCounted = TokenUsageReader.tokens(inClaudeFile: claudeFile, since: startOfToday, seen: &seenIDs)
     // Processed tokens (input + cache-write + output), each message once:
     // m1 = 100+200+50, the no-id line = 1+2, m3 = 10+20.
     check("claude counts processed tokens once per message", claudeCounted.io == 383)
     check("claude separates cache reads", claudeCounted.cache == 1000)
-    check("claude ignores non-assistant lines", seenIDs == ["m1", "m3"])
+    check("claude ignores non-assistant lines", seenIDs.count == 2 && seenIDs.contains("m1") && seenIDs.contains("m3") && !seenIDs.contains("m9"))
 
     // The same message id appearing in ANOTHER file (continued session) must
     // also be skipped — the seen-set spans the whole scan.
@@ -639,7 +639,7 @@ MainActor.assumeIsolated {
         "{\"type\":\"assistant\",\"timestamp\":\"\(todayStamp)\",\"pad\":\"\(padding)\",\"message\":{\"id\":\"big-\($0)\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}"
     }
     let bigFile = tempFile(bigLines.joined(separator: "\n"))
-    var bigSeen = Set<String>()
+    var bigSeen = SeenMessages()
     check("streaming counts across chunk boundaries", TokenUsageReader.tokens(inClaudeFile: bigFile, since: startOfToday, seen: &bigSeen).io == 4000)
     try? FileManager.default.removeItem(at: bigFile)
 
@@ -652,11 +652,164 @@ MainActor.assumeIsolated {
     \(monsterLine)
     {"type":"assistant","timestamp":"\(todayStamp)","message":{"id":"after","usage":{"input_tokens":3,"output_tokens":0}}}
     """)
-    var monsterSeen = Set<String>()
+    var monsterSeen = SeenMessages()
     let monsterCounted = TokenUsageReader.tokens(inClaudeFile: monsterFile, since: startOfToday, seen: &monsterSeen)
     check("streaming drops an unbounded line", monsterCounted.io == 10)
-    check("streaming resumes after a dropped line", monsterSeen == ["before", "after"])
+    check("streaming resumes after a dropped line", monsterSeen.contains("before") && monsterSeen.contains("after"))
     try? FileManager.default.removeItem(at: monsterFile)
+
+    // Deciding whether a line is from today, without building a Date for every
+    // one of them. The timestamps are UTC and the day wanted is local, so these
+    // are different days for part of every 24 hours — which is why the fast
+    // path is a three-way comparison and not an equality test.
+    let dayPrefix = TokenUsageReader.utcDayPrefix(of: startOfToday)
+    check(
+        "a timestamp from an earlier day is rejected without parsing",
+        TokenUsageReader.isAtOrAfter(
+            "1999-01-01T00:00:00Z", since: startOfToday, utcDayPrefix: dayPrefix
+        ) == false
+    )
+    check(
+        "a timestamp from a later day is accepted without parsing",
+        TokenUsageReader.isAtOrAfter(
+            "2999-01-01T00:00:00Z", since: startOfToday, utcDayPrefix: dayPrefix
+        )
+    )
+    check(
+        "a timestamp on the boundary day is judged on the real instant",
+        TokenUsageReader.isAtOrAfter(
+            ISO8601DateFormatter().string(from: startOfToday.addingTimeInterval(-1)),
+            since: startOfToday, utcDayPrefix: dayPrefix
+        ) == false
+    )
+    check(
+        "an instant just after the boundary is kept",
+        TokenUsageReader.isAtOrAfter(
+            ISO8601DateFormatter().string(from: startOfToday.addingTimeInterval(60)),
+            since: startOfToday, utcDayPrefix: dayPrefix
+        )
+    )
+    check(
+        "a missing or truncated timestamp is not today",
+        TokenUsageReader.isAtOrAfter(nil, since: startOfToday, utcDayPrefix: dayPrefix) == false
+            && TokenUsageReader.isAtOrAfter("2026", since: startOfToday, utcDayPrefix: dayPrefix) == false
+    )
+
+    // The scanner reads only what has been appended since it last looked. This
+    // is the difference between a poll costing tens of megabytes and costing
+    // nothing, so what is pinned here is that resuming counts the SAME total a
+    // full re-read would — and that the ways a file can betray an offset are
+    // each noticed.
+    let scanRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("hashdisland-scan-\(UUID().uuidString)")
+    let scanProjects = scanRoot.appendingPathComponent("projects/one")
+    try? FileManager.default.createDirectory(at: scanProjects, withIntermediateDirectories: true)
+    let transcript = scanProjects.appendingPathComponent("session.jsonl")
+
+    func assistantLine(_ id: String, _ input: Int) -> String {
+        "{\"type\":\"assistant\",\"timestamp\":\"\(todayStamp)\",\"message\":{\"id\":\"\(id)\",\"usage\":{\"input_tokens\":\(input),\"output_tokens\":0}}}\n"
+    }
+    func writeTranscript(_ text: String) {
+        try? text.data(using: .utf8)?.write(to: transcript)
+    }
+    func appendTranscript(_ text: String) {
+        guard let handle = try? FileHandle(forWritingTo: transcript) else { return }
+        handle.seekToEndOfFile()
+        handle.write(Data(text.utf8))
+        try? handle.close()
+    }
+
+    writeTranscript(assistantLine("a", 10) + assistantLine("b", 20))
+    let scanner = TokenUsageScanner(
+        claudeProjects: scanRoot.appendingPathComponent("projects"),
+        ecosystemFiles: []
+    )
+    check("the scanner counts a transcript it has not seen", scanner.readToday().claude == 30)
+
+    let bytesAfterFirst = scanner.lastBytesRead
+    check("the first pass actually read the file", bytesAfterFirst > 0)
+    check("a second look at an unchanged file reads nothing at all", {
+        _ = scanner.readToday()
+        return scanner.lastBytesRead == 0
+    }())
+    check("and reports the same total", scanner.readToday().claude == 30)
+
+    appendTranscript(assistantLine("c", 5))
+    let afterAppend = scanner.readToday()
+    check("an appended message is added to the running total", afterAppend.claude == 35)
+    check(
+        "only the appended bytes were read",
+        scanner.lastBytesRead > 0 && scanner.lastBytesRead < bytesAfterFirst
+    )
+
+    // A message that streams is rewritten under the same id. Resuming must not
+    // count it twice, which is the whole reason the seen-set cannot be thrown
+    // away between polls.
+    appendTranscript(assistantLine("c", 5))
+    check("a message rewritten as it streams is still counted once", scanner.readToday().claude == 35)
+
+    // A tail with no newline is a line still being written. It must not be
+    // counted as a fragment, and must be counted in full once it lands.
+    appendTranscript("{\"type\":\"assistant\",\"timestamp\":\"\(todayStamp)\",\"message\":{\"id\":\"d\",\"usa")
+    check("a half-written line is not counted", scanner.readToday().claude == 35)
+    appendTranscript("ge\":{\"input_tokens\":7,\"output_tokens\":0}}}\n")
+    check("and it counts in full once the rest arrives", scanner.readToday().claude == 42)
+
+    // Truncation and replacement both mean a remembered offset now points into
+    // the wrong place. The seen-set is shared across every transcript, so one
+    // file's contribution cannot be withdrawn on its own — the day is counted
+    // again instead, which cannot be subtly wrong.
+    writeTranscript(assistantLine("x", 3))
+    check("a file that shrank is counted again rather than resumed", scanner.readToday().claude == 3)
+
+    // A whole re-read must agree with what the incremental passes accumulated.
+    writeTranscript(assistantLine("a", 10) + assistantLine("b", 20) + assistantLine("c", 5))
+    let fresh = TokenUsageScanner(
+        claudeProjects: scanRoot.appendingPathComponent("projects"),
+        ecosystemFiles: []
+    )
+    scanner.reset()
+    check(
+        "resuming and reading whole arrive at the same number",
+        scanner.readToday().claude == fresh.readToday().claude
+    )
+
+    // A new day is a different question, not more of the same one.
+    let tomorrow = Date().addingTimeInterval(86_400)
+    check(
+        "yesterday's count does not carry into a new day",
+        scanner.readToday(now: tomorrow).claude == 0
+    )
+    try? FileManager.default.removeItem(at: scanRoot)
+
+    // The remembered totals exist so the panel opens on a number rather than on
+    // a zero it has not earned. A remembered number from ANOTHER day is not a
+    // stale figure to be corrected — it is a different question's answer.
+    let cacheSuite = "hashdisland.checks.tokencache.\(UUID().uuidString)"
+    let cacheDefaults = UserDefaults(suiteName: cacheSuite)!
+    var remembered = TokenTotals()
+    remembered.claude = 1234
+    TokenTotalsCache.save(remembered, to: cacheDefaults)
+    check(
+        "today's totals are remembered across a launch",
+        TokenTotalsCache.load(from: cacheDefaults)?.totals.claude == 1234
+    )
+    check(
+        "totals from another day are discarded rather than shown",
+        TokenTotalsCache.load(now: tomorrow, from: cacheDefaults) == nil
+    )
+    TokenTotalsCache.clear(in: cacheDefaults)
+    check("clearing the remembered totals leaves nothing", TokenTotalsCache.load(from: cacheDefaults) == nil)
+
+    // "Only when I ask" must mean no clock at all, and every other choice must
+    // name a real period.
+    check("the never option runs on no schedule", TokenScanInterval.never.seconds == nil)
+    check(
+        "every other scan interval is a real period",
+        TokenScanInterval.allCases
+            .filter { $0 != .never }
+            .allSatisfy { ($0.seconds ?? 0) > 0 }
+    )
 
     // Low-battery announcements fire exactly when a threshold is crossed
     // downward, never on charge or within a band.

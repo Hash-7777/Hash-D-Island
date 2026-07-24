@@ -37,8 +37,8 @@ struct TokensDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            NotchSectionHeader("HASHMETERAI", theme: theme)
-            row("Total", monitor.today.total, emphasized: true)
+            NotchSectionHeader("AI TOKENS", theme: theme)
+            row("Total AI tokens", monitor.today.total, emphasized: true)
             // "Number only" is a request for the number. The per-tool breakdown
             // is the part someone choosing that style is asking not to see.
             if style == .labeled {
@@ -53,7 +53,49 @@ struct TokensDetailView: View {
                         .monospacedDigit()
                 }
             }
+            freshness
         }
+    }
+
+    /// When the count was taken, and a way to take it again.
+    ///
+    /// The number is not live — it is counted on a schedule the reader chooses,
+    /// and can be set to no schedule at all. A figure that might be an hour old
+    /// with nothing saying so is a figure that quietly misleads, so it says.
+    private var freshness: some View {
+        HStack(spacing: 6) {
+            Text(freshnessText)
+                .font(.system(size: 9))
+                .foregroundStyle(theme.subtitleColor)
+            Spacer(minLength: 8)
+            Button(action: { monitor.refreshNow() }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(monitor.isCounting ? theme.accent : theme.subtitleColor)
+                    .rotationEffect(.degrees(monitor.isCounting ? 360 : 0))
+                    .animation(
+                        monitor.isCounting
+                            ? .linear(duration: 0.9).repeatForever(autoreverses: false)
+                            : .default,
+                        value: monitor.isCounting
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(monitor.isCounting)
+            .help("Count again now")
+        }
+        .frame(width: Panel.rowWidth)
+    }
+
+    private var freshnessText: String {
+        guard let countedAt = monitor.countedAt else { return "not counted yet" }
+        if monitor.isCounting { return "counting…" }
+        let seconds = Int(Date().timeIntervalSince(countedAt))
+        if seconds < 60 { return "counted just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "counted \(minutes) min ago" }
+        return "counted \(minutes / 60)h ago"
     }
 
     private func row(_ label: String, _ value: Int64, emphasized: Bool = false) -> some View {

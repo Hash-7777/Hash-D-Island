@@ -66,6 +66,48 @@ public struct AppearanceSettings: Codable, Equatable {
     public init() {}
 }
 
+/// How often the AI token count is brought up to date.
+///
+/// Counting tokens means reading the transcripts the day has touched, and on a
+/// busy machine that is tens of megabytes. The reader only looks at what has
+/// been appended since it last ran, so none of these choices is expensive — but
+/// how current a number needs to be is a judgement about the number, not about
+/// the cost, and it belongs to whoever is reading it.
+///
+/// `never` does not mean the count stops working: it means nothing happens on a
+/// clock, and the row is brought up to date when you ask it to.
+public enum TokenScanInterval: String, Codable, CaseIterable, Sendable {
+    case oneMinute
+    case fiveMinutes
+    case tenMinutes
+    case thirtyMinutes
+    case oneHour
+    case never
+
+    /// How long between counts, or nil when only a manual refresh counts.
+    public var seconds: TimeInterval? {
+        switch self {
+        case .oneMinute: return 60
+        case .fiveMinutes: return 300
+        case .tenMinutes: return 600
+        case .thirtyMinutes: return 1_800
+        case .oneHour: return 3_600
+        case .never: return nil
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .oneMinute: return "Every minute"
+        case .fiveMinutes: return "Every 5 minutes"
+        case .tenMinutes: return "Every 10 minutes"
+        case .thirtyMinutes: return "Every 30 minutes"
+        case .oneHour: return "Every hour"
+        case .never: return "Only when I ask"
+        }
+    }
+}
+
 /// How alerts behave.
 public struct AlertSettings: Codable, Equatable {
     /// How long a "something finished" notice stays on the notch. The poster
@@ -90,6 +132,7 @@ private struct SettingsDocument: Codable {
     var canPressMediaKeys: Bool?
     var appearance: AppearanceSettings?
     var alerts: AlertSettings?
+    var tokenScanInterval: TokenScanInterval?
     /// Hand-made position corrections, keyed by display.
     var adjustments: [String: IslandAdjustment]?
 }
@@ -142,6 +185,8 @@ public final class SettingsStore: ObservableObject {
     @Published public var canPressMediaKeys: Bool = false
     @Published public var appearance = AppearanceSettings()
     @Published public var alerts = AlertSettings()
+    /// How often the AI token count is brought up to date.
+    @Published public var tokenScanInterval: TokenScanInterval = .fiveMinutes
     /// Position corrections per display. A display with no entry is automatic.
     @Published public var adjustments: [String: IslandAdjustment] = [:]
 
@@ -199,6 +244,7 @@ public final class SettingsStore: ObservableObject {
             self.canPressMediaKeys = document.canPressMediaKeys ?? false
             self.appearance = document.appearance ?? AppearanceSettings()
             self.alerts = document.alerts ?? AlertSettings()
+            self.tokenScanInterval = document.tokenScanInterval ?? .fiveMinutes
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
             self.isFirstRun = false
         } else {
@@ -315,6 +361,7 @@ public final class SettingsStore: ObservableObject {
             canPressMediaKeys: canPressMediaKeys,
             appearance: appearance,
             alerts: alerts,
+            tokenScanInterval: tokenScanInterval,
             adjustments: adjustments
         )
         if let data = try? JSONEncoder().encode(document) {

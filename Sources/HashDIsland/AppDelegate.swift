@@ -74,6 +74,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        // How often the token count runs is fixed when its sampler starts, for
+        // the same reason battery saver is: an interval cannot be changed under
+        // a running timer. Restarting is what already happens on screen sleep
+        // and wake, so it is a path the features are built to survive.
+        settings.$tokenScanInterval
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.restartFeatures() }
+                }
+            }
+            .store(in: &cancellables)
+
         // Switching a feature off stops it reading, not just showing. The
         // whole config dictionary is watched because @Published fires for any
         // change in it (a reorder, a style); syncRunning only touches a feature
