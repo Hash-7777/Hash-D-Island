@@ -33,15 +33,20 @@ struct TokensView: View {
 struct TokensDetailView: View {
     @ObservedObject var monitor: TokensMonitor
     let theme: Theme
+    let style: TokensStyle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             NotchSectionHeader("HASHMETERAI", theme: theme)
             row("Total", monitor.today.total, emphasized: true)
-            row("Claude Code", monitor.today.claude)
-            if monitor.today.hashCortx > 0 { row("HashCortx", monitor.today.hashCortx) }
-            if monitor.today.hashCerebrum > 0 { row("HashCerebrum", monitor.today.hashCerebrum) }
-            if monitor.today.cached > 0 {
+            // "Number only" is a request for the number. The per-tool breakdown
+            // is the part someone choosing that style is asking not to see.
+            if style == .labeled {
+                row("Claude Code", monitor.today.claude)
+                if monitor.today.hashCortx > 0 { row("HashCortx", monitor.today.hashCortx) }
+                if monitor.today.hashCerebrum > 0 { row("HashCerebrum", monitor.today.hashCerebrum) }
+            }
+            if style == .labeled, monitor.today.cached > 0 {
                 NotchRow("Cached", theme: theme) {
                     Text("+\(Formatters.compactCount(monitor.today.cached))")
                         .foregroundStyle(theme.subtitleColor)

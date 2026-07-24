@@ -9,6 +9,7 @@ import FeatureBattery
 import FeatureDownloads
 import FeatureAirPods
 import FeatureNetwork
+import FeatureThermal
 import FeatureStorage
 
 /// Writes `content` to a fresh temp file and returns its URL.
@@ -766,6 +767,54 @@ MainActor.assumeIsolated {
         // rather than as no time at all.
         BatteryMonitor.minutesToCeiling(minutesToFull: 10, percentage: 79, ceiling: 80) == 1
     )
+
+    // A label drawn ON the accent has to stay readable, and White is one of
+    // the accents on offer — which made the timer's Start button an empty
+    // capsule. Judged on perceived brightness so an accent added later is
+    // handled without anyone remembering this rule exists.
+    check("white is a light accent", AccentColor.named("white").isLight)
+    check("blue is not", AccentColor.named("blue").isLight == false)
+    // Green looked like it should take white text and does not: white on that
+    // green is about 1.75:1, black about 12:1. Trusting the arithmetic over the
+    // impression is the entire reason this is computed rather than listed.
+    check("green needs dark text too", AccentColor.named("green").isLight)
+    check("purple is not", AccentColor.named("purple").isLight == false)
+    check("orange is light enough to need dark text", AccentColor.named("orange").isLight)
+
+    // Every style a feature offers must be one the panel can actually render.
+    // The display styles were inert for a long time — the panel draws only the
+    // expanded view, and none of those took a style — so a setting that changed
+    // nothing sat in the Indicators list for every one of them.
+    let styleFeatures: [(String, [String])] = [
+        ("network", ["both", "downloadOnly", "uploadOnly", "stacked", "compact"]),
+        ("battery", ["iconAndPercent", "percent", "icon", "timeRemaining"]),
+        ("thermal", ["symbolAndNumber", "number", "word", "symbol"]),
+        ("tokens", ["number", "labeled"]),
+    ]
+    // Built here rather than read from the app's manifest, which lives in the
+    // executable and is not importable.
+    let manifest: [NotchFeature] = [
+        NetworkFeature(), BatteryFeature(), ThermalFeature(), TokensFeature(),
+    ]
+    var everyOptionIsKnown = true
+    for (id, known) in styleFeatures {
+        guard let feature = manifest.first(where: { $0.id == id }) else { everyOptionIsKnown = false; continue }
+        for option in feature.displayOptions where !known.contains(option.id) {
+            everyOptionIsKnown = false
+        }
+    }
+    check("every offered display style is one the panel knows", everyOptionIsKnown)
+    check(
+        "the features that offer styles are the ones expected to",
+        Set(manifest.filter { !$0.displayOptions.isEmpty }.map(\.id))
+            == Set(styleFeatures.map(\.0))
+    )
+
+    // Temperature can be read as a word instead of a number.
+    check("a cool die reads Cool", ThermalWording.word(for: 42) == "Cool")
+    check("a working die reads Warm", ThermalWording.word(for: 62) == "Warm")
+    check("a hot die reads Hot", ThermalWording.word(for: 78) == "Hot")
+    check("a very hot die says so", ThermalWording.word(for: 95) == "Very hot")
 
     // Storage: the sums behind "62% full, 91.5 GB free".
     let disk = DiskUsage(name: "Macintosh HD", totalBytes: 245_107_195_904, availableBytes: 91_530_000_000)

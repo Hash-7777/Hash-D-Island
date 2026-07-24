@@ -32,6 +32,10 @@ public final class TokensFeature: NotchFeature {
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(TokensDetailView(monitor: monitor, theme: context.theme))
+        AnyView(TokensDetailView(
+            monitor: monitor,
+            theme: context.theme,
+            style: TokensStyle(rawValue: context.settings.style(for: id)) ?? .labeled
+        ))
     }
 }

@@ -56,6 +56,22 @@ struct ThermalView: View {
 struct ThermalDetailView: View {
     @ObservedObject var monitor: ThermalMonitor
     let theme: Theme
+    let style: ThermalStyle
+
+    /// A degree figure, or the plain word for people who would rather not read
+    /// numbers to find out whether their Mac is hot.
+    private func reading(_ celsius: Double) -> String {
+        style == .word ? ThermalWording.word(for: celsius) : "\(Int(celsius.rounded()))°"
+    }
+
+    private func tint(for celsius: Double) -> Color {
+        switch celsius {
+        case ..<50: return theme.downColor
+        case ..<70: return .yellow
+        case ..<85: return .orange
+        default: return theme.upColor
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -68,10 +84,19 @@ struct ThermalDetailView: View {
             } else {
                 ForEach(monitor.sensors.prefix(5)) { sensor in
                     NotchRow(sensor.name, theme: theme) {
-                        Text("\(Int(sensor.celsius.rounded()))°")
-                            .foregroundStyle(theme.textColor)
-                            .monospacedDigit()
-                            .contentTransition(.numericText())
+                        HStack(spacing: 5) {
+                            if style == .symbol || style == .symbolAndNumber {
+                                Image(systemName: "thermometer.medium")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(tint(for: sensor.celsius))
+                            }
+                            if style != .symbol {
+                                Text(reading(sensor.celsius))
+                                    .foregroundStyle(theme.textColor)
+                                    .monospacedDigit()
+                                    .contentTransition(.numericText())
+                            }
+                        }
                     }
                     .animation(.snappy, value: sensor.celsius)
                 }

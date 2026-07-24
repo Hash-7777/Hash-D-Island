@@ -60,15 +60,10 @@ struct TimerDetailView: View {
             NotchSectionHeader("TIMER", theme: theme)
             switch engine.phase {
             case .idle:
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        quickButton(5)
-                        quickButton(15)
-                        quickButton(25)
-                        Spacer(minLength: 0)
-                    }
-                    customRow
-                }
+                // Just the one row. The 5/15/25 pills were three guesses at a
+                // length nobody asked for, sitting above a control that can
+                // already be any length in a couple of taps.
+                customRow
                 .frame(width: Panel.rowWidth)
             case .running:
                 HStack(spacing: 10) {
@@ -105,17 +100,6 @@ struct TimerDetailView: View {
         }
     }
 
-    private func quickButton(_ minutes: Int) -> some View {
-        Button("\(minutes) min") { engine.begin(minutes: minutes) }
-            .buttonStyle(.plain)
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
-            .foregroundStyle(theme.textColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Capsule(style: .continuous).fill(Color.white.opacity(0.12)))
-            .contentShape(Capsule())
-    }
-
     /// Set your own length: minus / value / plus, then start.
     private var customRow: some View {
         HStack(spacing: 8) {
@@ -141,7 +125,10 @@ struct TimerDetailView: View {
                     Text("Start")
                         .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                 }
-                .foregroundStyle(theme.textColor)
+                // Not theme.textColor. This label sits ON the accent, and one
+                // of the accents on offer is White — which made the button read
+                // as an empty capsule.
+                .foregroundStyle(theme.onAccent)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 5)
                 .background(Capsule(style: .continuous).fill(theme.accent.opacity(0.9)))

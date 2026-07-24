@@ -17,12 +17,28 @@ struct NetworkView: View {
     private let iconWidth: CGFloat = 12
 
     var body: some View {
-        HStack(spacing: 16) {
-            if style != .downloadOnly {
-                metric(systemImage: "arrow.up", rate: monitor.uploadBytesPerSec, color: theme.upColor)
-            }
-            if style != .uploadOnly {
-                metric(systemImage: "arrow.down", rate: monitor.downloadBytesPerSec, color: theme.downColor)
+        Group {
+            switch style {
+            case .stacked:
+                // Both numbers in the width of one, which is the whole point of
+                // it — the notch has more height to spare than width.
+                VStack(alignment: .trailing, spacing: 0) {
+                    stackedLine(monitor.uploadBytesPerSec, theme.upColor)
+                    stackedLine(monitor.downloadBytesPerSec, theme.downColor)
+                }
+            case .compact:
+                // No arrows, one line. Up first, down second, the way every
+                // speed readout on this platform orders them.
+                HStack(spacing: 5) {
+                    compactValue(monitor.uploadBytesPerSec)
+                    Text("·").foregroundStyle(theme.subtitleColor)
+                    compactValue(monitor.downloadBytesPerSec)
+                    Text(Formatters.megabytesUnit)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(theme.subtitleColor)
+                }
+            case .both, .downloadOnly, .uploadOnly:
+                arrowed
             }
         }
         .padding(.horizontal, 12)
@@ -31,6 +47,39 @@ struct NetworkView: View {
             Capsule(style: .continuous).fill(theme.pillBackground)
         )
         .fixedSize()
+    }
+
+    /// The original arrangement: an arrow, a number and a unit per direction.
+    private var arrowed: some View {
+        HStack(spacing: 16) {
+            if style != .downloadOnly {
+                metric(systemImage: "arrow.up", rate: monitor.uploadBytesPerSec, color: theme.upColor)
+            }
+            if style != .uploadOnly {
+                metric(systemImage: "arrow.down", rate: monitor.downloadBytesPerSec, color: theme.downColor)
+            }
+        }
+    }
+
+    /// One line of the stacked form: a small tinted triangle and the figure.
+    private func stackedLine(_ rate: Double, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 4, height: 4)
+            Text(Formatters.megabytesPerSecond(rate))
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.textColor)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.snappy, value: rate)
+        }
+    }
+
+    private func compactValue(_ rate: Double) -> some View {
+        Text(Formatters.megabytesPerSecond(rate))
+            .foregroundStyle(theme.textColor)
+            .monospacedDigit()
+            .contentTransition(.numericText())
+            .animation(.snappy, value: rate)
     }
 
     private func metric(systemImage: String, rate: Double, color: Color) -> some View {
@@ -57,12 +106,36 @@ struct NetworkView: View {
 struct NetworkDetailView: View {
     @ObservedObject var monitor: NetworkMonitor
     let theme: Theme
+    let style: NetworkStyle
 
     var body: some View {
         NotchRow("Internet", theme: theme) {
-            HStack(spacing: 12) {
-                speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+            switch style {
+            case .stacked:
+                VStack(alignment: .trailing, spacing: 1) {
+                    speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+                    speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
+                }
+            case .compact:
+                HStack(spacing: 5) {
+                    Text(Formatters.megabytesPerSecond(monitor.uploadBytesPerSec))
+                        .foregroundStyle(theme.textColor).monospacedDigit()
+                    Text("·").foregroundStyle(theme.subtitleColor)
+                    Text(Formatters.megabytesPerSecond(monitor.downloadBytesPerSec))
+                        .foregroundStyle(theme.textColor).monospacedDigit()
+                    Text("MB/s")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(theme.subtitleColor)
+                }
+            case .downloadOnly:
                 speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
+            case .uploadOnly:
+                speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+            case .both:
+                HStack(spacing: 12) {
+                    speed("arrow.up", monitor.uploadBytesPerSec, theme.upColor)
+                    speed("arrow.down", monitor.downloadBytesPerSec, theme.downColor)
+                }
             }
         }
     }

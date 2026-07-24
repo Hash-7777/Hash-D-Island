@@ -173,6 +173,7 @@ struct BatteryDetailView: View {
     @ObservedObject var monitor: BatteryMonitor
     @ObservedObject var settings: SettingsStore
     let theme: Theme
+    let style: BatteryStyle
     @State private var working = false
 
     /// When the Low Power Mode line appears: while it is on (so it is never a
@@ -188,7 +189,7 @@ struct BatteryDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             NotchRow("Battery", theme: theme) {
                 HStack(spacing: 6) {
-                    if let symbol = stateSymbol {
+                    if style != .percent, let symbol = stateSymbol {
                         Image(systemName: symbol)
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(stateColor)
@@ -198,10 +199,19 @@ struct BatteryDetailView: View {
                             .font(.system(size: 9))
                             .foregroundStyle(theme.subtitleColor)
                     }
-                    Text("\(monitor.percentage)%")
-                        .foregroundStyle(monitor.isLowPowerMode ? .yellow : theme.textColor)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
+                    // "Icon only" still needs something to read here — a row
+                    // labelled Battery with nothing after it is not a readout.
+                    // What it drops is the symbol's twin, not the number.
+                    if style == .timeRemaining, let minutes = timeFigure {
+                        Text(Formatters.hoursMinutes(minutes))
+                            .foregroundStyle(monitor.isLowPowerMode ? .yellow : theme.textColor)
+                            .monospacedDigit()
+                    } else {
+                        Text("\(monitor.percentage)%")
+                            .foregroundStyle(monitor.isLowPowerMode ? .yellow : theme.textColor)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                    }
                 }
             }
 
@@ -271,6 +281,12 @@ struct BatteryDetailView: View {
         // here, and nothing to get out of step if the password prompt is
         // cancelled or the change is made somewhere else entirely.
         BatteryMonitor.setLowPowerMode(!monitor.isLowPowerMode) { _ in working = false }
+    }
+
+    /// Whichever figure of time this state actually has: to full while it
+    /// fills, left while it drains, and nothing at all when it is simply full.
+    private var timeFigure: Int? {
+        monitor.state == .charging ? monitor.minutesToFull : monitor.minutesRemaining
     }
 
     private var stateSymbol: String? {

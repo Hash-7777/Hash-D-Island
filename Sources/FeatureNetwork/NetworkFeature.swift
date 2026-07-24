@@ -1,8 +1,13 @@
 import SwiftUI
 import HashDIslandKit
 
-/// Which throughput directions the readout shows.
+/// How the speed reads. The same two numbers, arranged for different taste and
+/// different amounts of room beside the notch.
 enum NetworkStyle: String {
+    /// Both figures stacked, up above down, in the width of one.
+    case stacked
+    /// Both on one line, separated by a dot, with no arrows.
+    case compact
     case both
     case downloadOnly
     case uploadOnly
@@ -21,6 +26,8 @@ public final class NetworkFeature: NotchFeature {
         FeatureOption(id: NetworkStyle.both.rawValue, title: "Up and down"),
         FeatureOption(id: NetworkStyle.downloadOnly.rawValue, title: "Download only"),
         FeatureOption(id: NetworkStyle.uploadOnly.rawValue, title: "Upload only"),
+        FeatureOption(id: NetworkStyle.stacked.rawValue, title: "Stacked"),
+        FeatureOption(id: NetworkStyle.compact.rawValue, title: "Compact"),
     ]
 
     private let monitor = NetworkMonitor()
@@ -36,6 +43,10 @@ public final class NetworkFeature: NotchFeature {
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(NetworkDetailView(monitor: monitor, theme: context.theme))
+        AnyView(NetworkDetailView(
+            monitor: monitor,
+            theme: context.theme,
+            style: NetworkStyle(rawValue: context.settings.style(for: id)) ?? .both
+        ))
     }
 }

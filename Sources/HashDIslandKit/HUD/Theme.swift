@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Visual tokens shared across the HUD and all features, so everything reads as
@@ -27,6 +28,14 @@ public struct Theme {
         self.pillBackground = pillBackground
         self.accent = accent
         self.cornerRadius = cornerRadius
+    }
+
+    /// What to draw ON TOP of anything filled with the accent. White is one of
+    /// the accents offered, so a filled control cannot assume a white label.
+    public var onAccent: Color {
+        let c = NSColor(accent).usingColorSpace(.sRGB) ?? .white
+        let luma = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent
+        return luma > 0.62 ? Color.black.opacity(0.88) : .white
     }
 
     /// The same theme in a different accent. Everything that tints — icons,
