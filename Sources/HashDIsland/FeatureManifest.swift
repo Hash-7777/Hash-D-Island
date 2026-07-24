@@ -10,6 +10,7 @@ import FeatureDownloads
 import FeatureAirPods
 import FeatureStorage
 import FeatureCPU
+import FeatureMemory
 
 /// The one and only place features are turned on or off.
 ///
@@ -37,6 +38,7 @@ enum FeatureManifest {
             AirPodsFeature(),
             ThermalFeature(),
             CPUFeature(),
+            MemoryFeature(),
             StorageFeature(),
         ]
     }

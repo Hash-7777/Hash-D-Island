@@ -12,6 +12,7 @@ import FeatureNetwork
 import FeatureThermal
 import FeatureStorage
 import FeatureCPU
+import FeatureMemory
 
 /// Writes `content` to a fresh temp file and returns its URL.
 func tempFile(_ content: String) -> URL {
@@ -1073,6 +1074,59 @@ MainActor.assumeIsolated {
         "no sensors at all reads as empty rather than as zero",
         ThermalMonitor.grouped([]).isEmpty
     )
+
+    // Memory in use is the figure Activity Monitor calls Memory Used, because a
+    // readout that disagrees with the tool people already check is one they will
+    // distrust whichever is the more defensible. App memory is the internal
+    // pages minus the ones the system may throw away, plus wired, plus
+    // compressed — free memory and the file cache are available to whatever asks
+    // next, and counting them is what makes some readouts claim a Mac is
+    // permanently full.
+    check(
+        "memory in use is app plus wired plus compressed",
+        MemoryReader.usedBytes(
+            internalPages: 100, purgeablePages: 20, wiredPages: 30,
+            compressedPages: 10, pageSize: 16384
+        ) == (100 - 20 + 30 + 10) * 16384
+    )
+    check(
+        "purgeable pages are not counted as in use",
+        MemoryReader.usedBytes(
+            internalPages: 100, purgeablePages: 100, wiredPages: 0,
+            compressedPages: 0, pageSize: 16384
+        ) == 0
+    )
+    // The counters come from a struct that is not written atomically, so
+    // purgeable can momentarily read higher than internal. Unsigned subtraction
+    // would wrap that into an enormous number and the panel would report a Mac
+    // using several exabytes.
+    check(
+        "a counter that reads backwards cannot wrap into a huge number",
+        MemoryReader.usedBytes(
+            internalPages: 10, purgeablePages: 999, wiredPages: 1,
+            compressedPages: 0, pageSize: 16384
+        ) == 16384
+    )
+    check(
+        "a machine reporting no memory divides by nothing rather than crashing",
+        MemorySnapshot(usedBytes: 5, totalBytes: 0).fraction == 0
+    )
+    check(
+        "the fraction is what is in use over what there is",
+        MemorySnapshot(usedBytes: 8_000_000_000, totalBytes: 16_000_000_000).fraction == 0.5
+    )
+    check(
+        "more in use than exists is never reported",
+        MemorySnapshot(usedBytes: 99, totalBytes: 10).fraction == 1
+    )
+    // And the real reading has to work on whatever Mac is running the checks.
+    let liveMemory = MemoryReader.read()
+    check("memory reads a real total from this Mac", (liveMemory?.totalBytes ?? 0) > 0)
+    check(
+        "and never reports more in use than the Mac holds",
+        liveMemory.map { $0.usedBytes <= $0.totalBytes } ?? false
+    )
+
     // The disk's temperature is called Drive, because the panel has a Storage
     // section of its own for how full it is and two unrelated numbers under one
     // word is a readout that has to be worked out rather than glanced at.
