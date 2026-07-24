@@ -365,7 +365,19 @@ final class MediaRemoteReader {
     /// Fixed commands only — no user-controlled text ever reaches a script.
     /// Runs on its own queue so a click never waits behind a fetch, with a
     /// watchdog so a stalled permission dialog cannot wedge it.
-    func send(_ command: MediaCommand, to source: MediaSource) {
+    func send(_ command: MediaCommand, to source: MediaSource, pressingKeys: Bool = false) {
+        // A browser can only be reached by the keyboard's own media keys, and
+        // only when the user has allowed it. Everything else goes the way it
+        // always did.
+        if source == .other, pressingKeys, MediaKeys.isTrusted {
+            switch command {
+            case .play, .pause: MediaKeys.press(MediaKeys.playPause)
+            case .next: MediaKeys.press(MediaKeys.next)
+            case .previous: MediaKeys.press(MediaKeys.previous)
+            }
+            return
+        }
+
         let arguments: [String]
         switch source {
         case .spotify, .music:

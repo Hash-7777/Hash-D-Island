@@ -836,6 +836,10 @@ MainActor.assumeIsolated {
     check("a hot die reads Hot", ThermalWording.word(for: 78) == "Hot")
     check("a very hot die says so", ThermalWording.word(for: 95) == "Very hot")
 
+    // Reaching a browser needs Accessibility, and the app must not pretend to
+    // have it. These checks run from a bare executable, which does not.
+    check("without permission nothing can be pressed", MediaControl.hasPermission == false)
+
     // Whether the app can be a login item is a question about the BUNDLE, not
     // about whether it is already registered. Asking the registration made the
     // switch disable itself for exactly the people trying to switch it on: a

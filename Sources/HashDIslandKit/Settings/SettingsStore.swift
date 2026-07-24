@@ -87,6 +87,7 @@ private struct SettingsDocument: Codable {
     var launchAtLogin: Bool
     var batterySaver: Bool?
     var canSwitchLowPowerMode: Bool?
+    var canPressMediaKeys: Bool?
     var appearance: AppearanceSettings?
     var alerts: AlertSettings?
     /// Hand-made position corrections, keyed by display.
@@ -116,6 +117,15 @@ public final class SettingsStore: ObservableObject {
     /// panel still shows the state and offers one click to the pane that owns
     /// it.
     @Published public var canSwitchLowPowerMode: Bool = false
+    /// Whether the panel's media buttons may drive a browser by pressing the
+    /// keyboard's media keys.
+    ///
+    /// Off by default, because it needs Accessibility — the one permission this
+    /// app otherwise never asks for. Without it the buttons still work for
+    /// Spotify and Apple Music, which have scripting interfaces; a video in a
+    /// browser simply cannot be reached, since the system's media channel
+    /// accepts commands for it and does nothing.
+    @Published public var canPressMediaKeys: Bool = false
     @Published public var appearance = AppearanceSettings()
     @Published public var alerts = AlertSettings()
     /// Position corrections per display. A display with no entry is automatic.
@@ -172,6 +182,7 @@ public final class SettingsStore: ObservableObject {
             self.launchAtLogin = document.launchAtLogin
             self.batterySaver = document.batterySaver ?? false
             self.canSwitchLowPowerMode = document.canSwitchLowPowerMode ?? false
+            self.canPressMediaKeys = document.canPressMediaKeys ?? false
             self.appearance = document.appearance ?? AppearanceSettings()
             self.alerts = document.alerts ?? AlertSettings()
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
@@ -287,6 +298,7 @@ public final class SettingsStore: ObservableObject {
             launchAtLogin: launchAtLogin,
             batterySaver: batterySaver,
             canSwitchLowPowerMode: canSwitchLowPowerMode,
+            canPressMediaKeys: canPressMediaKeys,
             appearance: appearance,
             alerts: alerts,
             adjustments: adjustments

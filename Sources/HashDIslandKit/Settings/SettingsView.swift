@@ -451,6 +451,15 @@ public struct SettingsView: View {
                 SettingDivider()
 
                 SettingRow(
+                    "Control video in your browser",
+                    detail: "Needs Accessibility, so the buttons can press the media keys. Without it they still work for Spotify and Music."
+                ) {
+                    Toggle("", isOn: mediaKeysBinding).labelsHidden()
+                }
+
+                SettingDivider()
+
+                SettingRow(
                     "Switch Low Power Mode from the panel",
                     detail: "Switch it here instead of in System Settings. macOS asks for your password each time."
                 ) {
@@ -634,6 +643,19 @@ public struct SettingsView: View {
             return "macOS is waiting for you to allow this in System Settings."
         }
         return "Comes back every time you start your Mac."
+    }
+
+    /// Turning it on asks macOS for the permission at that moment, which is
+    /// the only moment the request makes sense — an app that asks at launch for
+    /// something it may never do is an app people say no to.
+    private var mediaKeysBinding: Binding<Bool> {
+        Binding(
+            get: { settings.canPressMediaKeys },
+            set: { value in
+                settings.canPressMediaKeys = value
+                if value { MediaControl.requestPermission() }
+            }
+        )
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

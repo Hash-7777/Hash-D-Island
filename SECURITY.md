@@ -41,13 +41,14 @@ Removing Hash D Island is correspondingly short, and the README's
 | Battery | IOKit power-source info, the connected adapter's own rating (`IOPSCopyExternalPowerAdapterDetails`), and the system's Low Power Mode flag (`ProcessInfo`) | Level, whether it is charging / held / full, time remaining or time to full, how many watts the adapter supplies, and whether Low Power Mode is on. All read-only. macOS offers no public way to *switch* Low Power Mode, so the panel's row opens System Settings at the Battery pane — unless you turn on "Switch Low Power Mode from the panel", which runs the one command that can and therefore asks macOS for an administrator password every time. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
 | AirPods battery | A short `/usr/sbin/system_profiler SPBluetoothDataType` subprocess — the same public report the System Information app shows you | The AirPods readout. That report lists every paired Bluetooth device; the app reads the battery percentages under the AirPods entry and discards the rest. Read-only, runs out of process so it can never wedge the app, and is killed if it takes more than 5 seconds. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). Browsers are asked **once per video**, not once per poll: the answer is remembered whether or not a thumbnail was found, and only re-asked when the track changes. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media-key channel. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). Browsers are asked **once per video**, not once per poll: the answer is remembered whether or not a thumbnail was found, and only re-asked when the track changes. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media channel, and to a browser by pressing the keyboard's media keys if you have allowed that. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. |
 | Processor load | The kernel's own tick counters (`host_statistics`) | The CPU readout. It reads how many ticks the machine spent busy versus idle — a total, with no notion of which programs were responsible. No permission, no subprocess. |
 | Storage | The startup disk's capacity, from the public file-system API | The "62% full" readout. It asks how big the disk is and how much room is left — it never lists, opens or looks inside a single file, and needs no permission. |
 | Downloads | Lists the file names in your `~/Downloads` folder | The "download finished" notice. It reads names and dates only — it never opens, moves, or uploads a file — and shows the name of a file that just completed. |
 | Live activities | `~/.hashdisland/activities.json`, written by your own scripts or Shortcuts | The activity strip. Treated as untrusted input: capped at 256 KB and 8 activities, text length-limited, progress clamped, a logo refused unless it is a readable image under 4 MB. An activity may also name an app to bring forward; that must be a real `.app` bundle, and it happens only when **you click the row** — it can never run a loose executable, pass it an argument, or open a document. The optional Claude Code integration is a hook script YOU install (`scripts/install-claude-hooks.sh`, which backs up your Claude settings first); the hook writes only this feed file, and reads only which app it is running inside so that clicking can take you back to it. |
+| Media keys | `CGEvent`, only with Accessibility granted and only when you have switched it on | So the panel's play, pause and skip buttons can drive a video in a browser. It SENDS three specific keys — play/pause, next, previous — and reads nothing at all. It never captures a keystroke, and with the setting off no key is ever sent. |
 | Mouse position | Global observe-only monitors for position and scrolling | So the island opens when you hover the notch, and a two-finger swipe on the notch opens/closes the panel — scroll events are only ever acted on while the cursor is on the island. It never captures keystrokes. The overlay is fully click-through except while the panel is open — only then does the panel itself receive clicks (for the media buttons), and it turns click-through again the moment it closes. |
 
 ## Permissions it may ask for
@@ -72,8 +73,18 @@ Removing Hash D Island is correspondingly short, and the README's
   a banner when the timer ends. Deny it and the timer still chimes and shows
   "Time's up" in the notch.
 
-That is the complete list. Hash D Island never asks for Accessibility, Input
-Monitoring, Screen Recording, or Full Disk Access.
+- **Accessibility** — asked **only if you turn on "Control video in your
+  browser"**, and never otherwise. It is off by default. macOS gates pressing
+  the keyboard's media keys behind this permission, and pressing them is the
+  only way to reach a video playing in a browser: the system's media channel
+  accepts play and pause commands for one and does nothing with them (measured
+  — pause returns success, the video keeps playing). With this off, the media
+  buttons still work for Spotify and Apple Music, which have scripting
+  interfaces of their own.
+
+That is the complete list. Hash D Island never asks for Input Monitoring,
+Screen Recording, or Full Disk Access, and asks for Accessibility only if you
+switch on the one setting above.
 
 ## Off means off
 

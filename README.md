@@ -54,7 +54,7 @@
            ╰────────────────────────────────╯
 ```
 
-**Now Playing** — artwork, a scrolling title, and full controls for Spotify, Apple Music, or video in your browser. Live progress bar and a system volume slider.
+**Now Playing** — artwork, a scrolling title, and full controls for Spotify and Apple Music. Live progress bar and a system volume slider. Video in a browser can be controlled too, if you allow it in Settings — that one needs Accessibility, because pressing the media keys is the only thing a browser listens to.
 
 **Internet** — upload and download, with a graph of the last half-minute underneath. Or stacked, compact, or one direction only.
 

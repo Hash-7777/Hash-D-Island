@@ -44,14 +44,18 @@ public final class MediaMonitor: ObservableObject {
     private var lastCommand = Date.distantPast
     private static let commandSettleWindow: TimeInterval = 1.5
     private var audioObserver: AudioActivityObserver?
+    /// Whether the user has allowed the media keys, read at the moment a button
+    /// is pressed so switching it on takes effect without a restart.
+    private var pressesKeys: () -> Bool = { false }
     private var samplingInterval: TimeInterval = 0
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
     public init() {}
 
-    public func start(presence: LivePresence) {
+    public func start(presence: LivePresence, pressesKeys: @escaping () -> Bool = { false }) {
         self.presence = presence
+        self.pressesKeys = pressesKeys
 
         // Instant reaction: CoreAudio signals the moment audio starts or stops
         // anywhere, and Spotify/Music broadcast their play-state changes. The
@@ -144,19 +148,19 @@ public final class MediaMonitor: ObservableObject {
         // rather than asked to guess.
         setPlaying(wantsToPlay)
         lastCommand = Date()
-        reader?.send(wantsToPlay ? .play : .pause, to: media.source)
+        reader?.send(wantsToPlay ? .play : .pause, to: media.source, pressingKeys: pressesKeys())
         scheduleRefresh()
     }
 
     public func next() {
         guard let media = nowPlaying else { return }
-        reader?.send(.next, to: media.source)
+        reader?.send(.next, to: media.source, pressingKeys: pressesKeys())
         scheduleRefresh()
     }
 
     public func previous() {
         guard let media = nowPlaying else { return }
-        reader?.send(.previous, to: media.source)
+        reader?.send(.previous, to: media.source, pressingKeys: pressesKeys())
         scheduleRefresh()
     }
 

@@ -14,7 +14,10 @@ public final class MediaFeature: NotchFeature {
     public init() {}
 
     public func start(context: FeatureContext) {
-        monitor.start(presence: context.presence)
+        monitor.start(
+            presence: context.presence,
+            pressesKeys: { [settings = context.settings] in settings.canPressMediaKeys }
+        )
     }
 
     public func stop() { monitor.stop() }
