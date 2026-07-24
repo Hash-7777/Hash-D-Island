@@ -74,7 +74,12 @@ struct MediaDetailView: View {
 
     var body: some View {
         if let media = monitor.nowPlaying {
-            VStack(alignment: .leading, spacing: 10) {
+            // Tight on purpose. The media card sits at the top of a panel that
+            // has to fit eleven other indicators below it before the screen runs
+            // out, so every point it does not need is a point another readout
+            // gets. The controls stay comfortably clickable — the shrink comes
+            // out of the gaps, not the targets.
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 12) {
                     artwork(media)
                     VStack(alignment: .leading, spacing: 3) {
@@ -103,13 +108,13 @@ struct MediaDetailView: View {
 
                 // Controls work for every source: Spotify/Music via their own
                 // scripting, everything else through the system media channel.
-                HStack(spacing: 26) {
+                HStack(spacing: 28) {
                     MediaControlButton(symbol: "backward.fill", size: 12, theme: theme) {
                         monitor.previous()
                     }
                     MediaControlButton(
                         symbol: media.isPlaying ? "pause.fill" : "play.fill",
-                        size: 17,
+                        size: 16,
                         theme: theme
                     ) {
                         monitor.togglePlayPause()
@@ -150,12 +155,12 @@ struct MediaDetailView: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 progressBody(progress, now: context.date)
             }
-            .frame(height: 18)
+            .frame(height: 16)
         } else {
             // `current(now:)` ignores the clock while paused, so any date gives
             // the stopped position; its own is the honest one to pass.
             progressBody(progress, now: progress.at)
-                .frame(height: 18)
+                .frame(height: 16)
         }
     }
 
@@ -255,7 +260,9 @@ private struct PremiumVolumeSlider: View {
                     .onEnded { _ in dragging = false }
             )
         }
-        .frame(height: 20)
+        // Only as tall as the knob at its largest, so the slider carries no
+        // dead space above or below it.
+        .frame(height: 17)
         .onHover { hovering = $0 }
         .animation(.spring(response: 0.25, dampingFraction: 0.8), value: knobSize)
     }
@@ -276,7 +283,10 @@ private struct MediaControlButton: View {
             Image(systemName: symbol)
                 .font(.system(size: size, weight: .bold))
                 .foregroundStyle(theme.textColor)
-                .frame(width: 32, height: 32)
+                // 28 rather than 32: still a comfortable target, and three of
+                // them plus the row's own gaps are the tallest thing in the
+                // media card.
+                .frame(width: 28, height: 28)
                 .background(Circle().fill(Color.white.opacity(hovering ? 0.16 : 0)))
                 .contentShape(Circle())
         }
