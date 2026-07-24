@@ -34,7 +34,18 @@ public struct Sparkline: View {
                             )
                         )
                     path.stroked
-                        .stroke(tint, style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+                        .stroke(
+                            tint,
+                            style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round)
+                        )
+                    // A dot on the newest sample, so the eye knows which end is
+                    // now. Without it a graph reads equally well backwards.
+                    if let last = path.points.last {
+                        Circle()
+                            .fill(tint)
+                            .frame(width: 3, height: 3)
+                            .position(last)
+                    }
                 }
             }
         }
@@ -61,11 +72,34 @@ public struct Sparkline: View {
             }
         }
 
+        /// A smooth curve through the samples rather than a run of straight
+        /// segments.
+        ///
+        /// At this size a polyline of thirty points reads as a row of spikes —
+        /// every sample looks like an event. A curve carries the same data and
+        /// shows the shape of it, which is the only thing a graph this small
+        /// can usefully say. The control points are the midpoints between
+        /// samples, which keeps the curve passing through every reading rather
+        /// than smoothing the peaks away.
         var stroked: Path {
             var path = Path()
-            guard let first = points.first else { return path }
+            let p = points
+            guard let first = p.first else { return path }
             path.move(to: first)
-            for point in points.dropFirst() { path.addLine(to: point) }
+            guard p.count > 2 else {
+                for point in p.dropFirst() { path.addLine(to: point) }
+                return path
+            }
+            for index in 1..<p.count {
+                let previous = p[index - 1]
+                let current = p[index]
+                let mid = CGPoint(
+                    x: (previous.x + current.x) / 2,
+                    y: (previous.y + current.y) / 2
+                )
+                path.addQuadCurve(to: mid, control: previous)
+            }
+            path.addLine(to: p[p.count - 1])
             return path
         }
 

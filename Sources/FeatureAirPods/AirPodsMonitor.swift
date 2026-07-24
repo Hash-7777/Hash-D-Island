@@ -20,7 +20,7 @@ public final class AirPodsMonitor: ObservableObject {
         // Each sample runs system_profiler, a whole subprocess. Doing that
         // every twenty seconds for a readout nobody can see was the single most
         // expensive idle habit the app had.
-        sampler = VisibleSampler(interval: 20.0 * scale, visibility: visibility) { [weak self] in
+        sampler = VisibleSampler(interval: 60.0 * scale, visibility: visibility) { [weak self] in
             self?.sample()
         }
         sampler?.start()

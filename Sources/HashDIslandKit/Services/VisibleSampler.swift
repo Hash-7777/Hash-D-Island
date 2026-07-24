@@ -18,6 +18,9 @@ public final class VisibleSampler {
     private let visibility: PanelVisibility
     private var sampler: PollingSampler?
     private var cancellable: AnyCancellable?
+    /// When this last read anything, so a reopen does not repeat work that is
+    /// still current.
+    private var lastSampled = Date.distantPast
 
     public init(
         interval: TimeInterval,
@@ -49,10 +52,38 @@ public final class VisibleSampler {
             return
         }
         guard sampler == nil else { return }
-        // PollingSampler fires once on start, which is exactly the behaviour
-        // wanted here: the panel opens already showing a current value.
-        let sampler = PollingSampler(interval: interval, tick: sample)
-        self.sampler = sampler
-        sampler.start()
+
+        // Sample on open, unless the last one is still fresh.
+        //
+        // PollingSampler fires once on start, which is what makes the panel
+        // open already showing a current value — but the panel is opened by
+        // hovering a notch, so it is opened by accident constantly. Without
+        // this, brushing past it repeatedly re-ran every reading behind it,
+        // and some of those are expensive: the AirPods row spawns a
+        // system_profiler, the token row rescans transcripts. A value read two
+        // seconds ago is still the value.
+        let elapsed = Date().timeIntervalSince(lastSampled)
+        let sampler: PollingSampler
+        if elapsed >= interval {
+            lastSampled = Date()
+            sampler = PollingSampler(interval: interval) { [weak self] in
+                self?.lastSampled = Date()
+                self?.sample()
+            }
+            self.sampler = sampler
+            sampler.start()
+        } else {
+            // Still fresh: show what is already there, and pick the rhythm back
+            // up when it would have come round anyway.
+            sampler = PollingSampler(interval: interval) { [weak self] in
+                self?.lastSampled = Date()
+                self?.sample()
+            }
+            self.sampler = sampler
+            DispatchQueue.main.asyncAfter(deadline: .now() + (interval - elapsed)) { [weak self] in
+                guard let self, self.sampler === sampler else { return }
+                sampler.start()
+            }
+        }
     }
 }

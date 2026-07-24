@@ -12,7 +12,7 @@ struct CPUDetailView: View {
             HStack(spacing: 8) {
                 if style != .number {
                     Sparkline(values: monitor.history, tint: tint)
-                        .frame(width: 62, height: 16)
+                        .frame(width: 92, height: 22)
                 }
                 if style != .graph {
                     Text(text)

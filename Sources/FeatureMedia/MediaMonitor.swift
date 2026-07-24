@@ -86,7 +86,22 @@ public final class MediaMonitor: ObservableObject {
     /// the CoreAudio and player broadcasts above within a fraction of a second,
     /// and this poll is only the safety net behind them.
     private static let activeInterval: TimeInterval = 2
-    private static let idleInterval: TimeInterval = 12
+    /// A paused track while the speakers are BUSY — so something else is
+    /// playing and this readout is about to be wrong.
+    ///
+    /// This is the case that used to take twelve seconds to notice. The
+    /// CoreAudio signal that should catch it cannot be relied on: a browser
+    /// holding an audio session open means starting a video does not CHANGE
+    /// whether the device is running, so nothing fires. Polling everything
+    /// faster fixed it and tripled the idle cost, which is a bad trade for a
+    /// readout. Asking whether audio is running costs nothing and is only ever
+    /// true when there is something to find.
+    private static let contendedInterval: TimeInterval = 2
+    /// A paused track and silence. Nothing is going to change until the user
+    /// does something, and doing something makes a noise.
+    private static let pausedInterval: TimeInterval = 12
+    /// Nothing playing at all, and nothing to be stale about.
+    private static let idleInterval: TimeInterval = 15
 
     private func startSampling(interval: TimeInterval) {
         guard samplingInterval != interval || sampler == nil else { return }
@@ -230,9 +245,23 @@ public final class MediaMonitor: ObservableObject {
         presence?.setActive("media", shown != nil)
         // Follow the music, not merely the track: a paused song holds the strip
         // but changes nothing, so it is polled as lazily as silence.
-        startSampling(
-            interval: shown?.isPlaying == true ? Self.activeInterval : Self.idleInterval
-        )
+        startSampling(interval: Self.interval(
+            for: shown, audioElsewhere: audioObserver?.isAudioRunning ?? false
+        ))
+    }
+
+    /// How often to look, given what is showing. Pure and package-visible: the
+    /// choice between these three is what decides how quickly the notch notices
+    /// you have switched to something else.
+    package nonisolated static func interval(
+        for shown: NowPlaying?,
+        audioElsewhere: Bool
+    ) -> TimeInterval {
+        guard let shown else { return idleInterval }
+        if shown.isPlaying { return activeInterval }
+        // Paused, but the speakers are busy: whatever is making that sound is
+        // what should be on the notch, so look again shortly.
+        return audioElsewhere ? contendedInterval : pausedInterval
     }
 
     /// Whether a polled play state should be trusted, or the state the button

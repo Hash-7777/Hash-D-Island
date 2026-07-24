@@ -137,7 +137,7 @@ struct NetworkDetailView: View {
                         Sparkline(values: scaled(monitor.upHistory), tint: theme.upColor)
                         Sparkline(values: scaled(monitor.downHistory), tint: theme.downColor)
                     }
-                    .frame(width: 62, height: 16)
+                    .frame(width: 92, height: 22)
                     Text(Formatters.megabytesPerSecond(
                         max(monitor.uploadBytesPerSec, monitor.downloadBytesPerSec)
                     ))

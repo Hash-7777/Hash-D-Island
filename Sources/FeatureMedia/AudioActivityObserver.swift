@@ -25,6 +25,23 @@ final class AudioActivityObserver {
         mElement: kAudioObjectPropertyElementMain
     )
 
+    /// Whether anything on this Mac is playing audio right now.
+    ///
+    /// The same flag the listener watches, read on demand. Its value is what
+    /// makes a paused track interesting: a track that is paused while the
+    /// speakers are busy means something ELSE is playing, and that is the one
+    /// moment worth looking more often — without which the choice is between a
+    /// slow switch and polling hard forever.
+    var isAudioRunning: Bool {
+        guard device != 0 else { return false }
+        var running: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(
+            device, &runningAddress, 0, nil, &size, &running
+        ) == noErr else { return false }
+        return running != 0
+    }
+
     init(onChange: @escaping () -> Void) {
         self.onChange = onChange
 

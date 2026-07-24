@@ -47,6 +47,22 @@ public enum MediaCommand {
 
 /// The current track/video playing anywhere on the Mac.
 public struct NowPlaying {
+    /// Package-visible so the checks can build one, which is what lets the
+    /// polling rules be pinned without a player running.
+    package init(
+        title: String, artist: String?, isPlaying: Bool, artwork: Data?,
+        source: MediaSource, elapsed: Double?, duration: Double?, fetchedAt: Date
+    ) {
+        self.title = title
+        self.artist = artist
+        self.isPlaying = isPlaying
+        self.artwork = artwork
+        self.source = source
+        self.elapsed = elapsed
+        self.duration = duration
+        self.fetchedAt = fetchedAt
+    }
+
     public let title: String
     public let artist: String?
     public let isPlaying: Bool
@@ -116,6 +132,10 @@ final class MediaRemoteReader {
 
     private var cachedArtworkURL: String?
     private var cachedArtwork: Data?
+    /// The track the held artwork belongs to. Artwork is fetched once when a
+    /// track starts and then left alone until the track changes — the cover of
+    /// a song does not change while the song is playing.
+    private var artworkTitle: String?
 
     private static let osascript = "/usr/bin/osascript"
 
@@ -128,6 +148,18 @@ final class MediaRemoteReader {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
       let source = 'other', elapsed = null, duration = null;
+
+      // What the app already holds. Artwork is expensive to produce — Apple
+      // Music base64-encodes the whole image, Spotify costs an Apple Event —
+      // and a track's cover does not change while the track does not. So when
+      // the caller says it already has the art for this exact title, none of
+      // that work is done at all and `artUnchanged` says so.
+      const knownArtTitle = argv.length >= 3 ? argv[2] : '';
+      const haveArt = argv.length >= 4 && argv[3] === '1';
+      let artUnchanged = false;
+      function artIsCurrent(name) {
+        return haveArt && knownArtTitle !== '' && knownArtTitle === name;
+      }
 
       const bundle = $.NSBundle.bundleWithPath('/System/Library/PrivateFrameworks/MediaRemote.framework/');
       bundle.load;
@@ -164,7 +196,11 @@ final class MediaRemoteReader {
             // media channel — so the play button actually resumes it.
             if (st === 'playing' || !title || title === spName) {
               source = 'spotify';
-              artworkUrl = sp.currentTrack.artworkUrl();
+              if (artIsCurrent(spName)) {
+                artUnchanged = true;
+              } else {
+                artworkUrl = sp.currentTrack.artworkUrl();
+              }
               elapsed = sp.playerPosition();
               duration = sp.currentTrack.duration() / 1000;
               title = spName;
@@ -190,10 +226,14 @@ final class MediaRemoteReader {
               title = muName;
               artist = mu.currentTrack.artist();
               playing = (st === 'playing');
-              const arts = mu.currentTrack.artworks;
-              if (arts.length > 0) {
-                const raw = arts[0].rawData();
-                artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+              if (artIsCurrent(muName)) {
+                artUnchanged = true;
+              } else {
+                const arts = mu.currentTrack.artworks;
+                if (arts.length > 0) {
+                  const raw = arts[0].rawData();
+                  artwork = $.NSString.alloc.initWithDataEncoding(raw.base64EncodedDataWithOptions(0), $.NSUTF8StringEncoding).js;
+                }
               }
             }
           }
@@ -209,7 +249,7 @@ final class MediaRemoteReader {
       // is playing but is not a web video (a podcast app, a call, a page with
       // no video id) re-asked every browser for its whole tab list on every
       // single poll.
-      if (source === 'other' && title && !artworkUrl && !artwork) {
+      if (source === 'other' && title && !artworkUrl && !artwork && !artIsCurrent(title)) {
         if (argv.length >= 2 && argv[0] === title) {
           if (argv[1]) artworkUrl = argv[1];
         } else {
@@ -258,7 +298,8 @@ final class MediaRemoteReader {
         return fallback;
       }
 
-      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration });
+      if (source === 'other' && artIsCurrent(title)) artUnchanged = true;
+      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration, artUnchanged: artUnchanged });
     }
     """
 
@@ -293,6 +334,7 @@ final class MediaRemoteReader {
         let playing: Bool?
         let artworkUrl: String?
         let artwork: String?
+        let artUnchanged: Bool?
         let source: String?
         let elapsed: Double?
         let duration: Double?
@@ -395,6 +437,8 @@ final class MediaRemoteReader {
             "-l", "JavaScript", "-e", Self.script,
             retryDue ? "" : cachedThumbTitle,
             cachedThumbURL,
+            artworkTitle ?? "",
+            cachedArtwork != nil ? "1" : "",
         ]
         process.qualityOfService = .utility
         let pipe = Pipe()
@@ -429,7 +473,17 @@ final class MediaRemoteReader {
             lastThumbLookup = Date()
         }
 
-        let artwork = resolveArtwork(url: payload.artworkUrl, base64: payload.artwork)
+        // The script was told what we already hold; when it says nothing has
+        // changed it did none of the work to produce it again, and neither do
+        // we.
+        let artwork: Data?
+        if payload.artUnchanged == true, let cachedArtwork {
+            artwork = cachedArtwork
+        } else {
+            artwork = resolveArtwork(url: payload.artworkUrl, base64: payload.artwork)
+            artworkTitle = artwork == nil ? nil : title
+            if artwork == nil { cachedArtwork = nil }
+        }
         return NowPlaying(
             title: title,
             artist: payload.artist,
@@ -456,6 +510,13 @@ final class MediaRemoteReader {
         }
         if let base64, let data = Data(base64Encoded: base64),
            data.count <= ArtworkPolicy.maxArtworkBytes {
+            // Held like the downloaded kind. Without this the app never told
+            // the script it had Apple Music's artwork, so the script re-encoded
+            // the whole image on every single poll — the most expensive thing
+            // the reader did, done over and over for a picture already on
+            // screen.
+            cachedArtworkURL = nil
+            cachedArtwork = data
             return data
         }
         return nil

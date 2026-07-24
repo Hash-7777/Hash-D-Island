@@ -272,11 +272,29 @@ MainActor.assumeIsolated {
     check("staying open does not resample", samples == 1)
     visibility.setOpen(false)
     visibility.setOpen(true)
-    check("reopening samples again", samples == 2)
+    // Deliberately NOT a fresh sample. The panel is opened by hovering a notch,
+    // so it is opened by accident constantly, and some readings behind it are
+    // expensive — the AirPods row spawns a subprocess, the token row rescans
+    // transcripts. A value read a moment ago is still the value.
+    check("reopening while the reading is still fresh does not repeat it", samples == 1)
     visible.stop()
     visibility.setOpen(false)
     visibility.setOpen(true)
-    check("a stopped sampler ignores the panel", samples == 2)
+    check("a stopped sampler ignores the panel", samples == 1)
+
+    // But once the interval really has passed, a reopen must read again —
+    // otherwise "don't repeat fresh work" quietly becomes "don't update".
+    let brisk = PanelVisibility()
+    var briskSamples = 0
+    let briskSampler = VisibleSampler(interval: 0.05, visibility: brisk) { briskSamples += 1 }
+    briskSampler.start()
+    brisk.setOpen(true)
+    let afterFirstOpen = briskSamples
+    brisk.setOpen(false)
+    Thread.sleep(forTimeInterval: 0.12)
+    brisk.setOpen(true)
+    check("reopening after the interval has passed does read again", briskSamples > afterFirstOpen)
+    briskSampler.stop()
 
     // Watching a folder replaces re-listing it on a timer, so it has to
     // actually fire — a silent failure here would mean a finished download is
@@ -787,7 +805,7 @@ MainActor.assumeIsolated {
     // expanded view, and none of those took a style — so a setting that changed
     // nothing sat in the Indicators list for every one of them.
     let styleFeatures: [(String, [String])] = [
-        ("network", ["both", "downloadOnly", "uploadOnly", "stacked", "compact", "graph"]),
+        ("network", ["graph", "both", "downloadOnly", "uploadOnly", "stacked", "compact"]),
         ("battery", ["iconAndPercent", "percent", "icon", "timeRemaining"]),
         ("thermal", ["symbolAndNumber", "number", "word", "symbol"]),
         ("tokens", ["number", "labeled"]),
@@ -832,6 +850,42 @@ MainActor.assumeIsolated {
     check(
         "the bundle is what decides, and this has none",
         Bundle.main.bundleIdentifier == nil || Bundle.main.bundleURL.pathExtension != "app"
+    )
+
+    // How often Now Playing is looked at. Polling harder while a track sits
+    // paused fixed a slow switch and tripled the idle cost — measured, 1.2% to
+    // 7.5% — which is the wrong trade for a readout. The fast rate is now spent
+    // only when the speakers are busy while our own track is paused, which is
+    // the one arrangement that means something else is playing.
+    func snapshot(playing: Bool) -> NowPlaying {
+        NowPlaying(
+            title: "t", artist: nil, isPlaying: playing, artwork: nil,
+            source: .spotify, elapsed: nil, duration: nil, fetchedAt: Date()
+        )
+    }
+    check(
+        "nothing playing is looked at least often",
+        MediaMonitor.interval(for: nil, audioElsewhere: false) == 15
+    )
+    check(
+        "a playing track is looked at often",
+        MediaMonitor.interval(for: snapshot(playing: true), audioElsewhere: false) == 2
+    )
+    check(
+        "a paused track in silence is left alone",
+        MediaMonitor.interval(for: snapshot(playing: false), audioElsewhere: false) == 12
+    )
+    check(
+        "a paused track while something else plays is chased",
+        MediaMonitor.interval(for: snapshot(playing: false), audioElsewhere: true) == 2
+    )
+    check(
+        "audio elsewhere does not speed up an already playing track",
+        MediaMonitor.interval(for: snapshot(playing: true), audioElsewhere: true) == 2
+    )
+    check(
+        "nor wake anything when there is no track at all",
+        MediaMonitor.interval(for: nil, audioElsewhere: true) == 15
     )
 
     // Processor load is a DIFFERENCE between two tick readings, never a single

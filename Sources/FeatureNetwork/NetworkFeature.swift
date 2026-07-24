@@ -25,12 +25,12 @@ public final class NetworkFeature: NotchFeature {
     public let placement: FeaturePlacement = .leading
 
     public let displayOptions: [FeatureOption] = [
+        FeatureOption(id: NetworkStyle.graph.rawValue, title: "Graph and speed"),
         FeatureOption(id: NetworkStyle.both.rawValue, title: "Up and down"),
         FeatureOption(id: NetworkStyle.downloadOnly.rawValue, title: "Download only"),
         FeatureOption(id: NetworkStyle.uploadOnly.rawValue, title: "Upload only"),
         FeatureOption(id: NetworkStyle.stacked.rawValue, title: "Stacked"),
         FeatureOption(id: NetworkStyle.compact.rawValue, title: "Compact"),
-        FeatureOption(id: NetworkStyle.graph.rawValue, title: "Graph"),
     ]
 
     private let monitor = NetworkMonitor()
