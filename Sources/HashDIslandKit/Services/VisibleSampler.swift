@@ -18,6 +18,15 @@ public final class VisibleSampler {
     private let visibility: PanelVisibility
     private var sampler: PollingSampler?
     private var cancellable: AnyCancellable?
+    /// A start waiting for the rhythm to come round, held so it can be called
+    /// off the moment the panel shuts.
+    ///
+    /// Without this the delayed start captured its sampler strongly and nothing
+    /// could cancel it, so every open scheduled another closure that stayed
+    /// alive for up to a whole interval — five minutes, for the token count.
+    /// The panel is opened by brushing past the notch, so those stacked up: a
+    /// run that opened and closed it eighty times climbed 34 MB doing nothing.
+    private var pendingStart: DispatchWorkItem?
     /// When this last read anything, so a reopen does not repeat work that is
     /// still current.
     private var lastSampled = Date.distantPast
@@ -47,11 +56,13 @@ public final class VisibleSampler {
 
     private func setRunning(_ running: Bool) {
         guard running else {
+            pendingStart?.cancel()
+            pendingStart = nil
             sampler?.stop()
             sampler = nil
             return
         }
-        guard sampler == nil else { return }
+        guard sampler == nil, pendingStart == nil else { return }
 
         // Sample on open, unless the last one is still fresh.
         //
@@ -63,27 +74,32 @@ public final class VisibleSampler {
         // system_profiler, the token row rescans transcripts. A value read two
         // seconds ago is still the value.
         let elapsed = Date().timeIntervalSince(lastSampled)
-        let sampler: PollingSampler
-        if elapsed >= interval {
-            lastSampled = Date()
-            sampler = PollingSampler(interval: interval) { [weak self] in
-                self?.lastSampled = Date()
-                self?.sample()
-            }
-            self.sampler = sampler
-            sampler.start()
-        } else {
-            // Still fresh: show what is already there, and pick the rhythm back
-            // up when it would have come round anyway.
-            sampler = PollingSampler(interval: interval) { [weak self] in
-                self?.lastSampled = Date()
-                self?.sample()
-            }
-            self.sampler = sampler
-            DispatchQueue.main.asyncAfter(deadline: .now() + (interval - elapsed)) { [weak self] in
-                guard let self, self.sampler === sampler else { return }
-                sampler.start()
-            }
+        guard elapsed < interval else {
+            startSampling()
+            return
         }
+
+        // Still fresh: show what is already there, and pick the rhythm back up
+        // when it would have come round anyway. Nothing is built until then —
+        // the work item holds no sampler, and is cancelled if the panel shuts
+        // first, so brushing the notch cannot leave anything behind.
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingStart = nil
+            guard self.visibility.isOpen else { return }
+            self.startSampling()
+        }
+        pendingStart = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + (interval - elapsed), execute: work)
+    }
+
+    private func startSampling() {
+        lastSampled = Date()
+        let sampler = PollingSampler(interval: interval) { [weak self] in
+            self?.lastSampled = Date()
+            self?.sample()
+        }
+        self.sampler = sampler
+        sampler.start()
     }
 }
