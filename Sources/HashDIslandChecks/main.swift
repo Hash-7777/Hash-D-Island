@@ -1434,6 +1434,7 @@ MainActor.assumeIsolated {
     // the panel put them on top of a readout.
     var shouldersFit = true
     var shouldersExactlyFillThePanel = true
+    var controlsClearTheNotch = true
     for width in [132.0, 156.0, 200.0, 240.0, 320.0] {
         let rect = CGRect(x: 640 - width / 2, y: 804, width: width, height: 32)
         let s = NotchState(geometry: NotchGeometry(
@@ -1442,6 +1443,10 @@ MainActor.assumeIsolated {
             hasNotch: true
         ))
         if s.shoulderWidth < NotchState.minimumShoulderWidth { shouldersFit = false }
+        // Centred in its shoulder, a control must still clear the hardware on
+        // one side and the panel's edge on the other — by the same amount,
+        // which is what being centred means.
+        if s.controlClearance <= 0 { controlsClearTheNotch = false }
         // Two shoulders plus the hardware must come to exactly the panel's
         // width, or the buttons drift off its edges as the notch changes size.
         if abs(s.shoulderWidth * 2 + s.notchWidth - s.expandedWidth) > 0.001 {
@@ -1449,6 +1454,7 @@ MainActor.assumeIsolated {
         }
     }
     check("a control fits beside the notch at every notch size", shouldersFit)
+    check("a centred control clears the hardware at every notch size", controlsClearTheNotch)
     check("the two shoulders and the notch come to the panel's width", shouldersExactlyFillThePanel)
 
     // A notchless display gets a stand-in pill rather than a real notch, and the
@@ -1467,6 +1473,10 @@ MainActor.assumeIsolated {
     check(
         "a control still fits beside the stand-in pill on a screen with no notch",
         notchlessState.shoulderWidth >= NotchState.minimumShoulderWidth
+    )
+    check(
+        "and it is still centred clear of it",
+        notchlessState.controlClearance > 0
     )
 
     // A shape that grows out of the notch has to converge ON the notch. The

@@ -82,6 +82,22 @@ public final class NotchState: ObservableObject {
     /// width cannot quietly squeeze the buttons out.
     public static let minimumShoulderWidth: CGFloat = 40
 
+    /// How big the island's own controls are drawn.
+    ///
+    /// Held here rather than in the view because the geometry depends on it:
+    /// each control is centred in its shoulder, so half of this is what decides
+    /// whether it clears the hardware and the panel's edge.
+    public static let controlSize: CGFloat = 26
+
+    /// The gap between a centred control and the physical notch beside it.
+    ///
+    /// Negative would mean the control is drawn under the hardware, where it
+    /// cannot be seen or clicked — worth failing a check over rather than
+    /// finding out on a Mac with a wider notch than the one this was built on.
+    public var controlClearance: CGFloat {
+        shoulderWidth / 2 - Self.controlSize / 2
+    }
+
     /// How far RIGHT the live strip must shift so its internal notch gap sits
     /// exactly on the physical notch. The sides are deliberately unequal
     /// (small art left, wide title right); centering the whole strip would

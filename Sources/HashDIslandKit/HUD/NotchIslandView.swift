@@ -336,26 +336,36 @@ struct NotchIslandView: View {
     /// The middle cell is the hardware. Nothing is ever drawn in it — the notch
     /// is physically in front of the panel — so it is reserved rather than
     /// filled, and the two buttons are pushed out to the panel's own edges.
+    /// Each control sits in the middle of its shoulder — centred between the
+    /// panel's edge and the hardware, and centred in the band's height. Pushed
+    /// out to the panel's edge they read as having been squeezed into a corner;
+    /// centred, the two areas look like the places they were meant for.
     private var notchShoulders: some View {
         HStack(spacing: 0) {
-            CornerButton(symbol: "power", hoverTint: .red) {
-                NSApplication.shared.terminate(nil)
+            IslandControlButton(
+                symbol: "power",
+                tint: Color(red: 1.0, green: 0.35, blue: 0.35),
+                help: "Quit Hash D Island"
+            ) {
+                QuitConfirmation.ask()
             }
-            .padding(.leading, Self.shoulderInset)
-            .frame(width: state.shoulderWidth, alignment: .leading)
+            .frame(width: state.shoulderWidth)
 
             Color.clear
                 .frame(width: state.notchWidth, height: state.notchHeight)
 
-            CornerButton(symbol: "gearshape.fill") { context.openSettings() }
-                .padding(.trailing, Self.shoulderInset)
-                .frame(width: state.shoulderWidth, alignment: .trailing)
+            IslandControlButton(
+                symbol: "gearshape.fill",
+                tint: .white,
+                turnsOnHover: true,
+                help: "Settings"
+            ) {
+                context.openSettings()
+            }
+            .frame(width: state.shoulderWidth)
         }
-        .frame(width: state.expandedWidth, height: state.notchHeight)
+        .frame(width: state.expandedWidth, height: state.notchHeight, alignment: .center)
     }
-
-    /// How far each control sits in from the panel's outer edge.
-    private static let shoulderInset: CGFloat = 8
 
     /// The one feature that owns the strip right now.
     ///
@@ -387,26 +397,65 @@ struct NotchIslandView: View {
     }
 }
 
-/// A quiet corner icon that brightens on hover. `hoverTint` colors the icon
-/// on hover (e.g. red for quit); default is plain white.
-private struct CornerButton: View {
+/// One of the island's own controls: a soft disc that lifts under the pointer
+/// and presses in when clicked.
+///
+/// At rest it is a faint disc rather than a bare glyph. A symbol floating on
+/// black reads as decoration; the disc says it is a control before anyone has
+/// to hover it to find out. Everything then moves together on one spring — the
+/// fill, the ring, the glyph's brightness, the lift and the glow — because a
+/// control whose parts arrive on different curves feels loose rather than
+/// responsive.
+private struct IslandControlButton: View {
     let symbol: String
-    var hoverTint: Color = .white
+    var tint: Color = .white
+    /// Whether the glyph turns under the pointer. True for the gear, where it
+    /// reads as the thing it depicts; wrong for the power symbol, which is not
+    /// a thing that turns.
+    var turnsOnHover: Bool = false
+    let help: String
     let action: () -> Void
+
     @State private var hovering = false
+
+    private var size: CGFloat { 26 }
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(hovering ? hoverTint.opacity(0.9) : Color.white.opacity(0.35))
-                .frame(width: 24, height: 24)
-                .background(Circle().fill((hovering ? hoverTint : .white).opacity(hovering ? 0.14 : 0)))
-                .contentShape(Circle())
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(hovering ? 0.18 : 0.07))
+                Circle()
+                    .strokeBorder(tint.opacity(hovering ? 0.40 : 0.12), lineWidth: 0.8)
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(hovering ? tint : Color.white.opacity(0.55))
+                    .rotationEffect(.degrees(turnsOnHover && hovering ? 60 : 0))
+            }
+            .frame(width: size, height: size)
+            // The lift is small on purpose. These sit a few points from the
+            // physical notch, and anything that grows noticeably up here reads
+            // as the hardware moving.
+            .scaleEffect(hovering ? 1.07 : 1)
+            .shadow(color: tint.opacity(hovering ? 0.35 : 0), radius: 5)
+            .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle())
         .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: hovering)
-        .help(symbol == "power" ? "Quit Hash D Island" : "Settings")
+        .animation(.spring(response: 0.30, dampingFraction: 0.68), value: hovering)
+        .help(help)
+    }
+}
+
+/// Presses in under the click and springs back.
+///
+/// A separate style rather than more state on the button, because whether a
+/// button is being pressed is the one thing a SwiftUI view cannot see about
+/// itself — it belongs to the button's own configuration.
+private struct PressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1)
+            .animation(.spring(response: 0.22, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
