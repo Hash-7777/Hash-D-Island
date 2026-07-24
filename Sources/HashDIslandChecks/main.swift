@@ -1052,6 +1052,28 @@ MainActor.assumeIsolated {
     check("a hot die reads Hot", ThermalWording.word(for: 78) == "Hot")
     check("a very hot die says so", ThermalWording.word(for: 95) == "Very hot")
 
+    // Sensor names come off the hardware cryptic and plentiful; the panel shows
+    // a handful of categories with the hottest reading in each. This is pure so
+    // it can run on the reading queue rather than on the thread drawing the
+    // panel, which is where the whole sweep used to happen every three seconds.
+    let groupedSensors = ThermalMonitor.grouped([
+        ("PMU tdie3", 51),
+        ("PMU tdie7", 58),
+        ("GPU sensor", 44),
+        ("NAND CH0 temp", 36),
+        ("gas gauge battery", 31),
+    ])
+    check("sensors collapse into friendly categories", groupedSensors.count == 4)
+    check("the hottest category leads", groupedSensors.first?.celsius == 58)
+    check(
+        "several readings of one part keep the hottest",
+        groupedSensors.first(where: { $0.name == "Processor" })?.celsius == 58
+    )
+    check(
+        "no sensors at all reads as empty rather than as zero",
+        ThermalMonitor.grouped([]).isEmpty
+    )
+
     // Reaching a browser needs Accessibility, and the app must not pretend to
     // have it. These checks run from a bare executable, which does not.
     check("without permission nothing can be pressed", MediaControl.hasPermission == false)

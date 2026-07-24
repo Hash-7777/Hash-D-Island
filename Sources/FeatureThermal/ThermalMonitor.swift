@@ -24,6 +24,12 @@ public final class ThermalMonitor: ObservableObject {
     private let reader = AppleSiliconThermal()
     private var sampler: VisibleSampler?
     private var observer: NSObjectProtocol?
+    /// Reading the sensors means one IOKit round trip per sensor, and Apple
+    /// Silicon reports dozens of them. That is far too much to do on the thread
+    /// that is drawing the panel — which is exactly where it used to happen,
+    /// every three seconds, while the panel was open and animating.
+    private let queue = DispatchQueue(label: "com.hashdisland.thermal", qos: .utility)
+    private var inFlight = false
 
     public init() {}
 
@@ -56,21 +62,38 @@ public final class ThermalMonitor: ObservableObject {
         }
     }
 
+    /// Read off-main, publish on main. Skips if a previous read is still
+    /// running, so a slow one never stacks up behind itself.
     private func refresh() {
-        let readings = reader?.read() ?? []
+        guard !inFlight, let reader else { return }
+        inFlight = true
+        queue.async { [weak self] in
+            let grouped = Self.grouped(reader.read())
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.inFlight = false
+                self.apply(grouped)
+            }
+        }
+    }
 
-        // Group cryptic sensor names (e.g. "PMU tdie7") into friendly
-        // categories and keep the hottest reading per category.
+    /// Group cryptic sensor names (e.g. "PMU tdie7") into friendly categories,
+    /// keeping the hottest reading in each, hottest category first.
+    ///
+    /// Pure and static so it runs on the reading queue rather than the main
+    /// thread, and so the checks can pin the grouping without any hardware.
+    package static func grouped(_ readings: [(name: String, celsius: Double)]) -> [TempSensor] {
         var byCategory: [String: Double] = [:]
         for reading in readings {
-            let category = Self.friendlyCategory(for: reading.name)
+            let category = friendlyCategory(for: reading.name)
             byCategory[category] = max(byCategory[category] ?? 0, reading.celsius)
         }
-
-        let newSensors = byCategory
+        return byCategory
             .map { TempSensor(name: $0.key, celsius: $0.value) }
             .sorted { $0.celsius > $1.celsius }
+    }
 
+    private func apply(_ newSensors: [TempSensor]) {
         // Publish only on change so steady temperatures cause no redraws.
         if newSensors != sensors { sensors = newSensors }
         let newHottest = newSensors.first?.celsius
