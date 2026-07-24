@@ -1053,6 +1053,49 @@ MainActor.assumeIsolated {
             tallZone.maxY == notch.maxY
         )
 
+        // The alignment invariant, swept across every height a panel could
+        // plausibly reach. The window frame and the keep-open zone are two
+        // consumers of one measurement, and this bug has now appeared twice
+        // from them working it out separately — so rather than fixing the
+        // second instance and hoping, the agreement itself is what is checked.
+        let screen = NotchGeometry.preferredScreen()?.frame
+            ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let top = notch.maxY
+        var aligned = true
+        var capped = true
+        var reaches = true
+        for measured in stride(from: CGFloat(200), through: 2000, by: 37) {
+            let height = NotchWindowController.expandedContentHeight(
+                measured: measured, islandTop: top, screenFrame: screen
+            )
+            // Never taller than the room below the island.
+            if height > top - screen.minY - NotchWindowController.panelBottomMargin + 0.5 {
+                capped = false
+            }
+            // Never taller than the content asked for.
+            if height > measured + 0.5 { aligned = false }
+            // The zone must reach the bottom of whatever height was settled on.
+            let zone = NotchWindowController.expandedZone(
+                notchRect: notch, islandTop: top, width: 300, height: height
+            )
+            if !zone.contains(CGPoint(x: notch.midX, y: top - height + 1)) { reaches = false }
+        }
+        check("the panel never exceeds the room below the island", capped)
+        check("nor claims more height than its content asked for", aligned)
+        check("the keep-open zone reaches the bottom at every height", reaches)
+        check(
+            "an absurd panel is capped rather than run off the screen",
+            NotchWindowController.expandedContentHeight(
+                measured: 5000, islandTop: top, screenFrame: screen
+            ) == top - screen.minY - NotchWindowController.panelBottomMargin
+        )
+        check(
+            "the room below the island is what limits it, not the screen's height",
+            NotchWindowController.expandedContentHeight(
+                measured: 5000, islandTop: top, screenFrame: screen
+            ) > screen.height * 0.8
+        )
+
         slide.horizontal = 80
         liveSettings.setAdjustment(slide, for: key)
         check(

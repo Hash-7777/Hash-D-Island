@@ -179,6 +179,32 @@ public final class NotchWindowController {
 
     // MARK: Live geometry
 
+    /// How tall the open panel is, given what it measured.
+    ///
+    /// ONE function, used by the window frame AND by the keep-open zone. They
+    /// used to work it out separately and drifted apart twice: once the zone
+    /// was left at a nominal height the window had long stopped using, which
+    /// put the last row outside it; and the window capped the panel at four
+    /// fifths of the screen while the zone did not, so a tall enough panel
+    /// would have been clipped by one and overshot by the other. Two
+    /// calculations of the same quantity is the bug, not either answer.
+    ///
+    /// The ceiling is the room actually below the island rather than a
+    /// proportion of the whole screen — the menu bar is not available and the
+    /// screen's height says nothing about what is. A margin is left at the
+    /// bottom so the panel never runs into the very edge of the display.
+    package static let panelBottomMargin: CGFloat = 24
+
+    package static func expandedContentHeight(
+        measured: CGFloat?,
+        islandTop: CGFloat,
+        screenFrame: CGRect
+    ) -> CGFloat {
+        let available = max(0, islandTop - screenFrame.minY - panelBottomMargin)
+        let wanted = measured ?? provisionalExpandedHeight
+        return min(wanted, available)
+    }
+
     /// The region that keeps the panel open, for a panel of a given height.
     ///
     /// The height must be the MEASURED one, not the nominal 460 the state
@@ -287,7 +313,11 @@ public final class NotchWindowController {
             notchRect: notch,
             islandTop: top,
             width: state.expandedWidth,
-            height: max(state.expandedHeight, lastIslandSize?.height ?? 0)
+            height: Self.expandedContentHeight(
+                measured: lastIslandSize?.height,
+                islandTop: top,
+                screenFrame: screenFrame
+            )
         )
     }
 
@@ -342,7 +372,9 @@ public final class NotchWindowController {
         let contentHeight: CGFloat
         let shadowBottom: CGFloat
         if expanded {
-            contentHeight = min(islandHeight ?? provisionalExpandedHeight, screenFrame.height * 0.8)
+            contentHeight = expandedContentHeight(
+                measured: islandHeight, islandTop: topEdge, screenFrame: screenFrame
+            )
             shadowBottom = expandedShadow.1
         } else if live {
             contentHeight = state.liveHeight
@@ -396,11 +428,20 @@ public final class NotchWindowController {
         // moment the panel's real height is known — and again whenever it
         // changes, because turning an indicator on makes the panel taller.
         updateHoverRects()
-        // If open content grew beyond the current window (e.g. a media card
-        // appeared while the panel is open), make room right away.
-        if state.isExpanded, size.height + Self.expandedShadow.1 > window.frame.height {
-            refitWindow()
-        }
+
+        // Then follow the content, in BOTH directions.
+        //
+        // This used to refit only when the panel had outgrown its window, which
+        // left the window too tall after content went away and meant the fit
+        // was only ever corrected by the settle pass afterwards. Comparing
+        // against the height actually wanted covers growing and shrinking with
+        // one rule, and skips the no-ops — a measurement that changes nothing
+        // schedules nothing.
+        guard state.isExpanded else { return }
+        let wanted = Self.expandedContentHeight(
+            measured: size.height, islandTop: islandTop, screenFrame: screenFrame
+        ) + Self.expandedShadow.1
+        if abs(window.frame.height - wanted) > 1 { refitWindow() }
     }
 
     /// Development aid, off unless `HASHDISLAND_DEBUG` is set.
