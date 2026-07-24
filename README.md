@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-312%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="312 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-366%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="366 automated checks passing">
   <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
 </p>
 
@@ -48,9 +48,14 @@
            │ Internet     ↑ 4.2  ↓ 0.4 MB/s │
            │ ▁▂▅▇▅▃▂▁▂▄▆▇▅▃▂▁▂▃▅▇▅▂         │
            │ Battery     86%  1h20m to full │
-           │ CPU   ▁▃▂▅▂▁▂▄▂            18% │
-           │ Tokens today             1.28M │
-           │ Macintosh HD          63% full │
+           │ CPU                        18% │
+           │ ▁▃▂▅▂▁▂▄▂▃▅▂▁▃▂▄▂▁▃▂▅▃▁▂▃▄▂▁▃▂ │
+           │ Memory          9.4 / 16 GB    │
+           │ ▄▄▅▅▄▄▅▅▅▄▄▅▅▄▄▄▅▅▄▄▅▅▄▄▅▄▄▅▅▄ │
+           │ Total AI tokens          1.28M │
+           │ Storage               63% full │
+           │ ███████████████▓▓▓░░░░░░░░░░░░ │
+           │ In use 154 GB · Free 91 GB     │
            ╰────────────────────────────────╯
 ```
 
@@ -60,15 +65,17 @@
 
 **Battery** — level, time remaining, and time to charge, with the adapter's wattage and whether that is a slow or fast charge. If your Mac is capped at 80%, it counts down to *that*. Low Power Mode shows in yellow, the way iPhone does it.
 
-**Processor** — how busy the CPU is, as a number, a graph, or both.
+**Processor** — how busy the CPU is, as a number, a full-width graph of the last half-minute with a floor and ceiling to read it against, or both.
+
+**Memory** — how much of the Mac's memory is in use, the figure Activity Monitor shows, with a matching graph. On Apple Silicon the processor and the graphics share one pool, so this is the whole machine.
 
 **Temperatures** — the real Apple Silicon on-die sensors, as degrees, a word, or a symbol.
 
 **AirPods** — charge left in each earbud and the case.
 
-**AI tokens** — how much you have used today, per tool, counted from the files your tools already write.
+**AI tokens** — how much you have used today, per tool, counted from the files your tools already write. Only what they have written since the last count is read, so it stays cheap however often you ask.
 
-**Storage** — how full the startup disk is, and how much room is left.
+**Storage** — how full the startup disk is, split into what is really in use, what macOS would hand back if you needed the room, and what is free.
 
 **Timer** — any length, counting down at the notch, with a chime at zero.
 
@@ -99,7 +106,7 @@ static func enabledFeatures() -> [NotchFeature] {
         MediaFeature(), ActivitiesFeature(), DownloadsFeature(),
         TimerFeature(), TokensFeature(), NetworkFeature(),
         BatteryFeature(), AirPodsFeature(), ThermalFeature(),
-        CPUFeature(), StorageFeature(),
+        CPUFeature(), MemoryFeature(), StorageFeature(),
     ]
 }
 ```
@@ -110,7 +117,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 312 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 366 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -225,7 +232,7 @@ Apple locked the direct MediaRemote call behind an entitlement on macOS 15.4+/26
 
 ## ◦ Customize it
 
-Hover the notch, click the **gear**. There you can turn each indicator on or off and **drag to reorder** them, choose how each one looks, pick an accent colour and the panel's fill and roundness, set how eager the motion is, choose how long a finished alert stays, turn on **Battery saver**, nudge the island's position and size per display, turn on **Open at Login**, and quit.
+Hover the notch, then click the **gear** beside it (quit sits on the other side of the notch). There you can turn each indicator on or off and **drag to reorder** them, choose how each one looks, pick an accent colour and the panel's fill and roundness, set how eager the motion is, choose how long a finished alert stays, turn on **Battery saver**, set **how often the AI token count runs** (every minute through to only when you ask), nudge the island's position and size per display, turn on **Open at Login**, and quit.
 
 There is no menu-bar item and no Dock icon by design — the notch is the whole interface.
 

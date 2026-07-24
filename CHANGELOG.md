@@ -18,6 +18,10 @@ moment something is.
 - **Hover, or swipe down with two fingers,** to drop the full panel below the
   menu bar. Because it opens below the menu bar, it never covers your menus or
   status icons.
+- **The panel's own controls sit beside the notch** — quit on its left, settings
+  on its right — in the band of panel the hardware leaves showing. They are
+  placed by the layout rather than floated over the first row, so no order you
+  put the indicators in can collide with them.
 
 ### What it shows
 
@@ -34,15 +38,24 @@ moment something is.
   with one click through to the setting that owns it.
 - **AirPods** — charge remaining in each earbud and the case.
 - **Temperatures** — real Apple Silicon on-die sensors, grouped into
-  processor, graphics, storage, battery, and system.
+  processor, graphics, drive, battery, and system.
 - **AI token usage** — today's totals per tool, counted exactly the way
-  HashMeterAi counts them.
+  HashMeterAi counts them. Only what your tools have written since the last
+  count is read, so it stays cheap however often you ask for it; how often it
+  counts is yours to set, from every minute down to only when you ask. The last
+  count is remembered, so the panel opens on a number rather than on a zero it
+  has not earned, with a line saying how old it is.
 - **Timer** — any length you choose, counting
   down at the notch, with a chime and a notification at zero.
-- **Processor load** — how busy the CPU is, as a number, a graph of the last
-  half-minute, or both.
-- **Storage** — how full the startup disk is, with the space left, counted the
-  way Finder counts it.
+- **Processor load** — how busy the CPU is, as a number, a full-width graph of
+  the last half-minute with a floor and ceiling to read it against, or both.
+- **Memory** — how much of the Mac's memory is in use, the same figure Activity
+  Monitor shows, with a matching graph. On Apple Silicon the processor and the
+  graphics share one pool, so this is the whole machine.
+- **Storage** — how full the startup disk is, split into what is genuinely in
+  use, what macOS would hand back if something needed the room, and what is
+  free. That middle figure is usually tens of gigabytes and is the reason a
+  "full" disk and "there is nothing I can delete" are so often both true.
 - **Downloads** — a short notice when one finishes.
 - **Live activities** — a local feed any app, script, or Shortcut can post to,
   with a built-in integration for Claude Code, HashCortX, and HashCerebrum.
@@ -52,13 +65,18 @@ moment something is.
 - Native Swift (SwiftUI + AppKit), tuned for 120Hz ProMotion.
 - Sampling stops entirely while the screen is asleep; timers are coalesced and
   monitors publish only when a displayed value actually changes.
+- With the panel shut it costs nothing measurable: 0% processor and no idle
+  wake-ups at all. Every reading that only appears inside the panel is taken
+  only while the panel is open, and anything slow — the sensors, the AirPods
+  report, the token count — runs off the thread that draws it.
 - Every capability is a self-contained module — adding or removing one touches
   a single manifest line and never the core.
 
 ### Privacy
 
 - No accounts, no analytics, no telemetry, no servers.
-- The app writes no files; its only persistent state is its own settings.
+- The app writes no files; its only persistent state is its own settings, which
+  now also hold the last token totals so the panel can open on a number.
 - Switching an indicator off stops it reading, not just showing — a feature
   that is off is never started at all.
 - One kind of network request exists at all — fetching album or video artwork —
