@@ -215,13 +215,19 @@ public struct SettingsView: View {
             SettingCard {
                 SettingRow(
                     "Open at login",
-                    detail: LoginItem.isSupported
-                        ? "Bring the island back every time you start your Mac."
-                        : "Available once Hash D Island is installed as an app."
+                    detail: loginDetail
                 ) {
                     Toggle("", isOn: launchAtLoginBinding)
                         .labelsHidden()
                         .disabled(!LoginItem.isSupported)
+                }
+
+                if LoginItem.needsApproval {
+                    Button("Approve in System Settings") {
+                        LoginItem.openLoginItemsSettings()
+                    }
+                    .buttonStyle(.link)
+                    .font(.system(size: 10))
                 }
 
                 SettingDivider()
@@ -618,6 +624,16 @@ public struct SettingsView: View {
             get: { settings.features[id]?.styleID ?? "default" },
             set: { value in settings.update(id) { $0.styleID = value } }
         )
+    }
+
+    private var loginDetail: String {
+        if !LoginItem.isSupported {
+            return "Available once Hash D Island is running from your Applications folder."
+        }
+        if LoginItem.needsApproval {
+            return "macOS is waiting for you to allow this in System Settings."
+        }
+        return "Bring the island back every time you start your Mac."
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

@@ -816,6 +816,22 @@ MainActor.assumeIsolated {
     check("a hot die reads Hot", ThermalWording.word(for: 78) == "Hot")
     check("a very hot die says so", ThermalWording.word(for: 95) == "Very hot")
 
+    // Whether the app can be a login item is a question about the BUNDLE, not
+    // about whether it is already registered. Asking the registration made the
+    // switch disable itself for exactly the people trying to switch it on: a
+    // never-registered app reports notFound, which the old test read as "this
+    // Mac cannot do it", and nothing else ever registers it.
+    //
+    // These checks run from a bare executable with no bundle identifier, which
+    // is the case that genuinely cannot register — so this asserts the honest
+    // answer for the process actually asking.
+    check("a bare binary cannot be a login item", LoginItem.isSupported == false)
+    check("and does not claim to be enabled", LoginItem.isEnabled == false)
+    check(
+        "the bundle is what decides, and this has none",
+        Bundle.main.bundleIdentifier == nil || Bundle.main.bundleURL.pathExtension != "app"
+    )
+
     // Storage: the sums behind "62% full, 91.5 GB free".
     let disk = DiskUsage(name: "Macintosh HD", totalBytes: 245_107_195_904, availableBytes: 91_530_000_000)
     check("used is what is not available", disk.usedBytes == 245_107_195_904 - 91_530_000_000)

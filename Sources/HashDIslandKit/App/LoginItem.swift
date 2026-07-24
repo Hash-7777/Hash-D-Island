@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ServiceManagement
 
@@ -11,10 +12,37 @@ public enum LoginItem {
         SMAppService.mainApp.status == .enabled
     }
 
-    /// Whether the OS can currently manage this as a login item (true once the
-    /// app is a registered bundle).
+    /// Whether this copy is even able to be a login item.
+    ///
+    /// Asked of the BUNDLE, not of the registration. It used to be
+    /// `status != .notFound`, and `.notFound` is precisely what an app that has
+    /// never been registered reports — which is the state everybody is in
+    /// before they switch it on. So the switch was disabled for exactly the
+    /// people trying to use it, explaining that the feature would be available
+    /// once the app was installed as an app, while running as an installed app.
+    /// Nothing else registers it, so it could never become available.
+    ///
+    /// macOS manages login items by bundle, so being a bundle is the whole
+    /// requirement: a bare `swift run` binary has no identifier and cannot,
+    /// an installed `.app` can.
     public static var isSupported: Bool {
-        SMAppService.mainApp.status != .notFound
+        Bundle.main.bundleIdentifier != nil
+            && Bundle.main.bundleURL.pathExtension == "app"
+    }
+
+    /// The user has been asked and has not said yes yet. macOS parks the
+    /// request in System Settings rather than prompting, so an app that does
+    /// not mention this leaves the switch looking simply broken.
+    public static var needsApproval: Bool {
+        SMAppService.mainApp.status == .requiresApproval
+    }
+
+    /// Opens the pane where a parked request is approved.
+    public static func openLoginItemsSettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @discardableResult
@@ -27,7 +55,25 @@ public enum LoginItem {
             }
             return true
         } catch {
+            // Say why. This used to fail in silence, so the switch simply
+            // sprang back and there was nothing anywhere to explain it —
+            // which is the least helpful way for a permission-shaped failure
+            // to behave.
+            FileHandle.standardError.write(Data(
+                "Hash D Island: could not \(enabled ? "register" : "unregister") the login item — \(error)\n".utf8
+            ))
             return false
+        }
+    }
+
+    /// What the system currently thinks, in words.
+    package static var statusDescription: String {
+        switch SMAppService.mainApp.status {
+        case .notRegistered: return "notRegistered"
+        case .enabled: return "enabled"
+        case .requiresApproval: return "requiresApproval"
+        case .notFound: return "notFound"
+        @unknown default: return "unknown"
         }
     }
 }
