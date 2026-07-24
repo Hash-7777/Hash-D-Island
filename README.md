@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
   <img src="https://img.shields.io/badge/checks-366%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="366 automated checks passing">
-  <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
 <p align="center">
@@ -273,6 +273,6 @@ Every capability is a self-contained module: adding or removing one touches a si
 
 Release notes in [CHANGELOG.md](CHANGELOG.md) · Security and privacy in [SECURITY.md](SECURITY.md)
 
-**[MIT](LICENSE)** © 2026 Seif Hashish
+**[Apache 2.0](LICENSE)** © 2026 Seif Hashish
 
 </div>

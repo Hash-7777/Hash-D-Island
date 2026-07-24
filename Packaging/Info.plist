@@ -41,6 +41,6 @@
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>Hash D Island reads the names and dates of files in your Downloads folder so it can show a short notice at the notch when a download finishes. It never opens, moves, or uploads a file. Deny this and everything else still works.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Seif Hashish. MIT License.</string>
+	<string>© 2026 Seif Hashish. Apache License 2.0.</string>
 </dict>
 </plist>
