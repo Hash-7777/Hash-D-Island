@@ -41,6 +41,7 @@ public final class NotchWindowController {
     private var cancellables = Set<AnyCancellable>()
     private var lastIslandSize: CGSize?
     private var settleWork: DispatchWorkItem?
+    private var isPinnedOpen = false
 
     /// Shadow room around the island, per state — kept as tight as each
     /// state's shadow needs so a window screenshot captures the island, not a
@@ -245,6 +246,35 @@ public final class NotchWindowController {
     package var openZone: CGRect { collapsedHoverRect }
     /// The measured notch this overlay is built around.
     package var currentNotchRect: CGRect { notchRect }
+
+    /// Where the open panel sits on screen, for anything that hangs off it.
+    public var panelAnchor: CGRect {
+        let height = Self.expandedContentHeight(
+            measured: lastIslandSize?.height, islandTop: islandTop, screenFrame: screenFrame
+        )
+        return CGRect(
+            x: notchRect.midX - state.expandedWidth / 2,
+            y: islandTop - height,
+            width: state.expandedWidth,
+            height: height
+        )
+    }
+
+    /// Holds the panel open regardless of where the cursor is.
+    ///
+    /// Set while settings is showing beside it. Without this the panel closes
+    /// the instant the cursor leaves it to reach the settings — which is the
+    /// only way to get there — and the settings would be left hanging next to
+    /// nothing, which is the opposite of being attached to it.
+    public func setPinnedOpen(_ pinned: Bool) {
+        guard isPinnedOpen != pinned else { return }
+        isPinnedOpen = pinned
+        if pinned {
+            state.setExpanded(true)
+        } else {
+            updateHover()
+        }
+    }
     package var keepOpenZone: CGRect { expandedHoverRect.union(collapsedHoverRect) }
 
     /// Re-measure the current screen, apply the user's correction for it, and
@@ -518,6 +548,7 @@ public final class NotchWindowController {
     }
 
     private func handleScroll(_ event: NSEvent) {
+        guard !isPinnedOpen else { return }
         let delta = event.scrollingDeltaY
         guard abs(delta) >= 10 else { return }
         guard Date().timeIntervalSince(lastSwipe) > 0.5 else { return }
@@ -555,6 +586,12 @@ public final class NotchWindowController {
         // contain every open trigger, or hovering a spot inside one and
         // outside the other flaps open/closed on every mouse move (the live
         // strip is wider than the panel, so its far edges did exactly that).
+        // Pinned beats everything: while settings is open beside the panel,
+        // the cursor is expected to be away from the island.
+        guard !isPinnedOpen else {
+            state.setExpanded(true)
+            return
+        }
         let location = NSEvent.mouseLocation
         let inside: Bool
         if state.isExpanded {

@@ -56,25 +56,82 @@ public struct SettingsView: View {
         }
     }
 
-    public init(settings: SettingsStore, features: [FeatureDescriptor]) {
+    /// Closes the panel. Supplied by the window that owns it, because a
+    /// borderless panel has no title bar to close and needs to offer the button
+    /// itself.
+    private let onClose: () -> Void
+
+    public init(
+        settings: SettingsStore,
+        features: [FeatureDescriptor],
+        onClose: @escaping () -> Void = {}
+    ) {
         self.settings = settings
         self.features = features
+        self.onClose = onClose
     }
 
     public var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Rectangle().fill(Color.white.opacity(0.07)).frame(width: 1)
-            ScrollView { page.padding(24) }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1)
+            VStack(spacing: 0) {
+                header
+                ScrollView { page.padding(.horizontal, 20).padding(.bottom, 20) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // Wide enough for the longest row of display-style buttons. Too narrow
-        // and SwiftUI takes the space back from the sidebar, which clipped its
-        // own title off the left edge.
-        .frame(width: 820, height: 560)
-        .background(Color(red: 0.07, green: 0.07, blue: 0.08))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(panelSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            // The hairline that catches the light along the top edge, the same
+            // one dark glass surfaces have all over macOS. It is most of what
+            // separates a dark rectangle from a piece of the interface.
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.16), .white.opacity(0.04)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
         .preferredColorScheme(.dark)
         .tint(settings.accent.color)
+    }
+
+    /// Frosted where the system allows it, with a dark wash over the top so the
+    /// text stays readable against a bright wallpaper.
+    private var panelSurface: some View {
+        ZStack {
+            VisualEffectView(material: .hudWindow)
+            Color.black.opacity(0.55)
+        }
+    }
+
+    /// The page's own title, and the way out.
+    private var header: some View {
+        HStack(spacing: 8) {
+            Text(section.title)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+            Spacer(minLength: 8)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Color.white.opacity(0.07)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Close")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 10)
     }
 
     // MARK: Sidebar
@@ -82,18 +139,18 @@ public struct SettingsView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Hash D Island")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 14)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
 
             ForEach(Section.allCases) { item in
                 sidebarRow(item)
             }
             Spacer()
         }
-        .frame(width: 172)
+        .frame(width: 146)
         .frame(maxHeight: .infinity)
         .background(Color.white.opacity(0.03))
         // The sidebar keeps its width no matter how wide the page beside it

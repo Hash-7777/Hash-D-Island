@@ -27,7 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // No menu-bar item: the island's gear button is the settings entry.
         let settingsWindow = SettingsWindowController(settings: settings, registry: registry)
-        context.openSettings = { [weak settingsWindow] in settingsWindow?.show() }
+        // The gear opens settings beside the panel it was clicked from, and
+        // holds that panel open for as long as they are both showing.
+        context.openSettings = { [weak self] in self?.toggleSettings() }
+        settingsWindow.onVisibilityChange = { [weak self] visible in
+            self?.controller?.setPinnedOpen(visible)
+        }
 
         // Only the features that are switched on are started at all.
         registry.syncRunning(context: context)
@@ -89,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // First launch: show the settings window so the app is easy to find.
         if settings.isFirstRun {
-            settingsWindow.show()
+            settingsWindow.show(anchor: controller.panelAnchor, on: NotchGeometry.preferredScreen())
         }
     }
 
@@ -97,6 +102,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let registry, let context else { return }
         registry.stopAll()
         registry.syncRunning(context: context)
+    }
+
+    private func toggleSettings() {
+        guard let controller, let settingsWindow else { return }
+        settingsWindow.toggle(anchor: controller.panelAnchor, on: NotchGeometry.preferredScreen())
     }
 
     /// Start or stop the features whose switch has just changed.
@@ -120,6 +130,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let fresh = NotchWindowController(registry: registry, context: context)
         fresh.show()
         controller = fresh
+        // A display change builds a new overlay, and the new one knows nothing
+        // about the settings still open beside it. Without this the panel it is
+        // attached to would quietly collapse behind it.
+        if settingsWindow?.isVisible == true { fresh.setPinnedOpen(true) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

@@ -15,7 +15,17 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
+  <img src="https://img.shields.io/badge/checks-264%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="264 automated checks passing">
   <img src="https://img.shields.io/badge/license-MIT-AEB7C8?style=flat-square&labelColor=0B0C10" alt="MIT license">
+</p>
+
+<p align="center">
+  <a href="#-what-it-shows"><b>What it shows</b></a> &nbsp;·&nbsp;
+  <a href="#-download--install"><b>Install</b></a> &nbsp;·&nbsp;
+  <a href="#-privacy-in-one-paragraph"><b>Privacy</b></a> &nbsp;·&nbsp;
+  <a href="#-when-your-ai-tools-finish"><b>AI alerts</b></a> &nbsp;·&nbsp;
+  <a href="#-live-activities"><b>Live activities</b></a> &nbsp;·&nbsp;
+  <a href="#-develop"><b>Develop</b></a>
 </p>
 
 </div>
@@ -71,6 +81,33 @@ The notch stays a clean black shape at the top of your screen. **Hover it** — 
 The strip shows **one thing at a time**, and the most urgent thing wins. A track will still be playing in ten seconds; a finished job, a battery warning, or something waiting on an answer matters for a few seconds and then never again. Those take the strip and hand it straight back.
 
 Everything opens *below* the menu bar, so it never covers your menus or status icons.
+
+---
+
+## ◦ How it is built
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**Off means off**
+Switching an indicator off stops it *reading*, not just showing. A feature that is off is never started, so it opens no files and asks for no permissions.
+
+</td>
+<td width="33%" valign="top">
+
+**One glance, then gone**
+Something that just happened outranks something merely still true. Alerts take the strip for a few seconds and hand it straight back to the music.
+
+</td>
+<td width="33%" valign="top">
+
+**Verified, not asserted**
+264 automated checks run before every push, covering the parsers, the geometry and the privacy rules. Every commit is signed.
+
+</td>
+</tr>
+</table>
 
 ---
 

@@ -1096,6 +1096,33 @@ MainActor.assumeIsolated {
             ) > screen.height * 0.8
         )
 
+        // Settings hangs off the panel's right edge, sharing its top edge so
+        // the two read as one surface rather than as a window that happened to
+        // appear nearby.
+        let panel = CGRect(x: 490, y: 315, width: 300, height: 517)
+        let roomy = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let beside = SettingsWindowController.frame(besideAnchor: panel, in: roomy)
+        check("settings hangs from the panel's top edge", beside.maxY == panel.maxY)
+        check("settings sits to the right of the panel", beside.minX > panel.maxX)
+        check("with a gap, not touching", beside.minX - panel.maxX >= 8)
+
+        // A laptop display has far less room to the right than a desk monitor,
+        // and running off the screen is worse than overlapping the island.
+        let tight = CGRect(x: 0, y: 0, width: 1280, height: 832)
+        let clamped = SettingsWindowController.frame(
+            besideAnchor: CGRect(x: 490, y: 315, width: 300, height: 517), in: tight
+        )
+        check("it never runs off the right edge", clamped.maxX <= tight.maxX)
+        check("nor off the left", clamped.minX >= tight.minX)
+
+        // Hung from the top of a panel on a short screen, it shortens rather
+        // than hanging past the bottom of the display.
+        let short = CGRect(x: 0, y: 0, width: 1280, height: 700)
+        let shortened = SettingsWindowController.frame(
+            besideAnchor: CGRect(x: 490, y: 200, width: 300, height: 500), in: short
+        )
+        check("it never hangs below the screen", shortened.minY >= short.minY)
+
         slide.horizontal = 80
         liveSettings.setAdjustment(slide, for: key)
         check(
