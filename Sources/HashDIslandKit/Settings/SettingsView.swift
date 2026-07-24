@@ -243,7 +243,8 @@ public struct SettingsView: View {
 
                 SettingRow(
                     "Count AI tokens",
-                    detail: "Only what your tools have written since the last count is read, so this is cheap at any setting. Pick how current you want the number."
+                    detail: "Only what your tools have written since the last count is read, so this is cheap at any setting.",
+                    stacked: true
                 ) {
                     Picker("", selection: $settings.tokenScanInterval) {
                         ForEach(TokenScanInterval.allCases, id: \.self) { interval in
@@ -251,7 +252,7 @@ public struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 170)
+                    .frame(width: 200)
                 }
             }
 
@@ -362,8 +363,12 @@ public struct SettingsView: View {
             )
 
             SettingCard {
-                SettingRow("Accent colour", detail: "Tints icons, bars and highlights.") {
-                    HStack(spacing: 6) {
+                SettingRow(
+                    "Accent colour",
+                    detail: "Tints icons, bars and highlights.",
+                    stacked: true
+                ) {
+                    HStack(spacing: 8) {
                         ForEach(AccentColor.all) { accent in
                             accentDot(accent)
                         }
@@ -775,6 +780,13 @@ private struct SettingRow<Control: View>: View {
     /// is about 270 points wide, and a 220-point control beside a label leaves
     /// the label 40 points to live in. Those go underneath, full width, where
     /// they have room and line up with each other down the page.
+    ///
+    /// **The rule, since this has now been got wrong twice:** anything wider
+    /// than about 120 points must be stacked. A control with a fixed width wins
+    /// the space outright, and the label does not merely wrap — it runs out of
+    /// room to wrap between words and starts breaking them mid-word, so "Accent
+    /// colour" comes out as "Accen / t colour". `minimumLabelWidth` below makes
+    /// that fail visibly rather than quietly.
     let stacked: Bool
 
     init(
@@ -813,6 +825,11 @@ private struct SettingRow<Control: View>: View {
             } else {
                 HStack(alignment: .center, spacing: 16) {
                     label
+                        // The words come first. Without this a control that can
+                        // stretch takes what it likes and the label is left
+                        // breaking mid-word to fit whatever remains.
+                        .layoutPriority(1)
+                        .frame(minWidth: settingRowMinimumLabelWidth, alignment: .leading)
                     Spacer(minLength: 8)
                     control
                 }
@@ -821,7 +838,17 @@ private struct SettingRow<Control: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 9)
     }
+
 }
+
+/// The least room a label may have beside its control before the pairing is
+/// simply wrong and the row should be stacked instead. Enough for two words of
+/// the title at this size, so a squeeze shows up as a row that overflows its
+/// card rather than as text quietly shredded between letters.
+///
+/// File scope rather than a member: `SettingRow` is generic over its control,
+/// and a generic type cannot hold a stored static.
+private let settingRowMinimumLabelWidth: CGFloat = 150
 
 private struct PrivacyLine: View {
     let title: String
