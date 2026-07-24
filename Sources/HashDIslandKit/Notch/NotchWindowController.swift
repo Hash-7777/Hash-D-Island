@@ -179,6 +179,36 @@ public final class NotchWindowController {
 
     // MARK: Live geometry
 
+    /// The region that keeps the panel open, for a panel of a given height.
+    ///
+    /// The height must be the MEASURED one, not the nominal 460 the state
+    /// carries. The panel grows with whatever is turned on, and the window
+    /// already sizes itself from the measurement — but this zone did not, so
+    /// with everything enabled it covered the top two thirds of a panel that
+    /// reached most of the way down the screen. Moving the cursor toward the
+    /// last row left the zone before reaching it, and the panel shut in the
+    /// user's face. The timer sits last, so the timer was unreachable.
+    ///
+    /// Generous at the bottom on purpose: that edge is the one people approach
+    /// slowly, having already travelled the length of the panel to get there.
+    ///
+    /// Pure and package-visible, because the failure only appears at heights a
+    /// checkout does not reproduce on every machine.
+    package static func expandedZone(
+        notchRect: CGRect,
+        islandTop: CGFloat,
+        width: CGFloat,
+        height: CGFloat
+    ) -> CGRect {
+        let slop: CGFloat = 12
+        return CGRect(
+            x: notchRect.midX - (width / 2 + 6),
+            y: islandTop - (height + slop),
+            width: width + 12,
+            height: height + slop
+        )
+    }
+
     /// The overlay's current frame. Package-visible so the checks can prove a
     /// correction actually moves the window.
     package var currentWindowFrame: NSRect { window.frame }
@@ -252,12 +282,12 @@ public final class NotchWindowController {
             width: notch.width + 12,
             height: state.collapsedHeight + 6
         )
-        // Expanded: the whole dropped panel.
-        expandedHoverRect = CGRect(
-            x: notch.midX - (state.expandedWidth / 2 + 6),
-            y: top - (state.expandedHeight + 6),
-            width: state.expandedWidth + 12,
-            height: state.expandedHeight + 6
+        // Expanded: the whole dropped panel, at the height it actually is.
+        expandedHoverRect = Self.expandedZone(
+            notchRect: notch,
+            islandTop: top,
+            width: state.expandedWidth,
+            height: max(state.expandedHeight, lastIslandSize?.height ?? 0)
         )
     }
 
@@ -362,6 +392,10 @@ public final class NotchWindowController {
 
     private func islandSizeChanged(_ size: CGSize) {
         lastIslandSize = size
+        // The keep-open zone is derived from this, so it has to be rebuilt the
+        // moment the panel's real height is known — and again whenever it
+        // changes, because turning an indicator on makes the panel taller.
+        updateHoverRects()
         // If open content grew beyond the current window (e.g. a media card
         // appeared while the panel is open), make room right away.
         if state.isExpanded, size.height + Self.expandedShadow.1 > window.frame.height {

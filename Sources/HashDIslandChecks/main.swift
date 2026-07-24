@@ -1022,6 +1022,37 @@ MainActor.assumeIsolated {
                 && liveController.keepOpenZone.union(zone) == liveController.keepOpenZone
         )
 
+        // The keep-open zone has to reach the bottom of the panel as it really
+        // is, not as the nominal height says. The panel grows with whatever is
+        // switched on; a zone fixed at 460 covered the top two thirds of a tall
+        // one, so the cursor left it before reaching the last row and the panel
+        // shut on the way there. The timer is ordered last, so the timer was
+        // the row nobody could reach.
+        let tallPanel: CGFloat = 640
+        let tallZone = NotchWindowController.expandedZone(
+            notchRect: notch, islandTop: notch.maxY, width: 300, height: tallPanel
+        )
+        check(
+            "the keep-open zone reaches the bottom of a tall panel",
+            tallZone.contains(CGPoint(x: notch.midX, y: notch.maxY - tallPanel + 2))
+        )
+        check(
+            "and a little past it, for a cursor arriving slowly",
+            tallZone.contains(CGPoint(x: notch.midX, y: notch.maxY - tallPanel - 6))
+        )
+        check(
+            "a taller panel gets a taller zone",
+            NotchWindowController.expandedZone(
+                notchRect: notch, islandTop: notch.maxY, width: 300, height: 640
+            ).height > NotchWindowController.expandedZone(
+                notchRect: notch, islandTop: notch.maxY, width: 300, height: 460
+            ).height
+        )
+        check(
+            "the zone still hangs from the island's top edge",
+            tallZone.maxY == notch.maxY
+        )
+
         slide.horizontal = 80
         liveSettings.setAdjustment(slide, for: key)
         check(
