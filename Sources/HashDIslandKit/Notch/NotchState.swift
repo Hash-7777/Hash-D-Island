@@ -60,6 +60,28 @@ public final class NotchState: ObservableObject {
         liveHeight = height
     }
 
+    /// The usable width on each side of the physical notch inside the open
+    /// panel, where the app's own controls live.
+    ///
+    /// The panel is wider than the notch, so the band across its top — as tall
+    /// as the notch itself — has a strip of panel showing either side of the
+    /// hardware. That band exists either way: it is the clearance that keeps the
+    /// first row from being swallowed by the notch. Putting the quit and
+    /// settings buttons in it costs no height at all and means they are placed
+    /// by the layout rather than floated over whichever row happens to be first.
+    public var shoulderWidth: CGFloat {
+        max(0, (expandedWidth - notchWidth) / 2)
+    }
+
+    /// The narrowest a shoulder may be and still hold a control with room to
+    /// breathe — a 24pt button plus its inset from the panel's edge.
+    ///
+    /// `expandedWidth` is `max(notchWidth + 120, 300)`, so a shoulder is never
+    /// below 60 points on any hardware the app measures; this is the floor the
+    /// checks hold that guarantee against, so a future change to the panel's
+    /// width cannot quietly squeeze the buttons out.
+    public static let minimumShoulderWidth: CGFloat = 40
+
     /// How far RIGHT the live strip must shift so its internal notch gap sits
     /// exactly on the physical notch. The sides are deliberately unequal
     /// (small art left, wide title right); centering the whole strip would

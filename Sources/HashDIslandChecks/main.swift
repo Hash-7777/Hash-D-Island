@@ -1133,6 +1133,52 @@ MainActor.assumeIsolated {
     }
     check("one width covers every state on any notch size", coversEveryState)
 
+    // The panel's own controls live in the band either side of the physical
+    // notch. That band is only usable if it is genuinely wider than the notch —
+    // and the panel's width is derived, not fixed, so this has to hold at every
+    // notch size rather than at the one on the developer's Mac.
+    //
+    // What this really pins is that the buttons cannot be squeezed out by a
+    // later change to how the panel is sized. They used to float over the first
+    // row instead of being placed, which is exactly the bug that made reordering
+    // the panel put them on top of a readout.
+    var shouldersFit = true
+    var shouldersExactlyFillThePanel = true
+    for width in [132.0, 156.0, 200.0, 240.0, 320.0] {
+        let rect = CGRect(x: 640 - width / 2, y: 804, width: width, height: 32)
+        let s = NotchState(geometry: NotchGeometry(
+            screenFrame: CGRect(x: 0, y: 0, width: 1280, height: 832),
+            notchRect: rect,
+            hasNotch: true
+        ))
+        if s.shoulderWidth < NotchState.minimumShoulderWidth { shouldersFit = false }
+        // Two shoulders plus the hardware must come to exactly the panel's
+        // width, or the buttons drift off its edges as the notch changes size.
+        if abs(s.shoulderWidth * 2 + s.notchWidth - s.expandedWidth) > 0.001 {
+            shouldersExactlyFillThePanel = false
+        }
+    }
+    check("a control fits beside the notch at every notch size", shouldersFit)
+    check("the two shoulders and the notch come to the panel's width", shouldersExactlyFillThePanel)
+
+    // A notchless display gets a stand-in pill rather than a real notch, and the
+    // controls have to survive that too — it is the narrowest island the app
+    // ever draws.
+    let notchlessState = NotchState(geometry: NotchGeometry(
+        screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+        notchRect: CGRect(
+            x: 720 - NotchGeometry.notchlessWidth / 2,
+            y: 874 - NotchGeometry.notchlessHeight,
+            width: NotchGeometry.notchlessWidth,
+            height: NotchGeometry.notchlessHeight
+        ),
+        hasNotch: false
+    ))
+    check(
+        "a control still fits beside the stand-in pill on a screen with no notch",
+        notchlessState.shoulderWidth >= NotchState.minimumShoulderWidth
+    )
+
     // A shape that grows out of the notch has to converge ON the notch. The
     // live strip is lopsided on purpose, so its own centre is the wrong point:
     // anchoring there would collapse it beside the hardware rather than into it.

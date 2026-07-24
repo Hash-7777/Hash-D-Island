@@ -215,11 +215,14 @@ struct NotchIslandView: View {
     /// laid out (just invisible at first) so the black box is full panel size
     /// from the start and nothing resizes on the reveal.
     private var expandedIsland: some View {
-        expandedContent
+        VStack(spacing: 0) {
+            notchShoulders
+            expandedContent
+                .padding(.top, 16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+        }
             .opacity(panelRevealed ? 1 : 0)
-            .padding(.top, state.notchHeight + 16)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 18)
             .frame(width: state.expandedWidth, alignment: .top)
             .background(
                 ZStack {
@@ -301,20 +304,43 @@ struct NotchIslandView: View {
             }
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))
-        .overlay(alignment: .topTrailing) { cornerControls }
     }
 
-    /// The app's controls, quiet in the panel's top corner: settings gear and
-    /// a quit button (there is no menu-bar item).
-    private var cornerControls: some View {
-        HStack(spacing: 2) {
-            CornerButton(symbol: "gearshape.fill") { context.openSettings() }
+    /// The app's controls, in the band of panel that shows either side of the
+    /// physical notch: quit on the left, settings on the right.
+    ///
+    /// These used to hang off the row stack as an `.overlay(alignment:
+    /// .topTrailing)` with a hand-tuned offset — which meant they were not in
+    /// the layout at all, and simply floated above whichever feature happened to
+    /// be first. That worked only while Now Playing led the panel, because its
+    /// artwork block left a convenient hole in the top-right corner. Reordering
+    /// the panel put a full-width row there instead and the buttons landed on
+    /// top of its value. Placing them by layout, in a band nothing else can
+    /// occupy, means no ordering of features can collide with them again.
+    ///
+    /// The middle cell is the hardware. Nothing is ever drawn in it — the notch
+    /// is physically in front of the panel — so it is reserved rather than
+    /// filled, and the two buttons are pushed out to the panel's own edges.
+    private var notchShoulders: some View {
+        HStack(spacing: 0) {
             CornerButton(symbol: "power", hoverTint: .red) {
                 NSApplication.shared.terminate(nil)
             }
+            .padding(.leading, Self.shoulderInset)
+            .frame(width: state.shoulderWidth, alignment: .leading)
+
+            Color.clear
+                .frame(width: state.notchWidth, height: state.notchHeight)
+
+            CornerButton(symbol: "gearshape.fill") { context.openSettings() }
+                .padding(.trailing, Self.shoulderInset)
+                .frame(width: state.shoulderWidth, alignment: .trailing)
         }
-        .offset(x: 6, y: -10)
+        .frame(width: state.expandedWidth, height: state.notchHeight)
     }
+
+    /// How far each control sits in from the panel's outer edge.
+    private static let shoulderInset: CGFloat = 8
 
     /// The one feature that owns the strip right now.
     ///
