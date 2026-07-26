@@ -25,7 +25,7 @@ struct StorageDetailView: View {
                         .font(.system(size: 9))
                         .foregroundStyle(theme.subtitleColor)
                     Spacer(minLength: 8)
-                    Text("\(Formatters.bytes(usage.availableBytes)) free")
+                    Text("\(Formatters.bytes(usage.freeBytes)) free")
                         .font(.system(size: 9))
                         .foregroundStyle(theme.subtitleColor)
                         .monospacedDigit()
@@ -38,16 +38,17 @@ struct StorageDetailView: View {
         }
     }
 
-    /// One bar in three parts rather than a single fill: what is genuinely
-    /// taken, what macOS would hand back if something needed the room, and what
-    /// is free right now.
+    /// One bar in two parts: what is in use, and what is free.
+    ///
+    /// It used to have a third, middle band for space macOS said it would hand
+    /// back. That band was removed with the figure behind it — see
+    /// `StorageReader` — because it was reporting two thirds of this disk as
+    /// about to return, and nothing else on the Mac agreed.
     ///
     /// The parts are not labelled underneath. This is a glanceable panel with
-    /// eleven other indicators in it, and three more lines of legend cost more
-    /// height than the words were worth — the percentage above already says how
-    /// full, and the figure beside it already says how much is left. The middle
-    /// band is the only thing the bar adds that no number here states, so it is
-    /// named in the tooltip rather than given a row of its own.
+    /// eleven other indicators in it, and a row of legend costs more height than
+    /// the words are worth: the percentage above already says how full, and the
+    /// figure beside it already says how much is left.
     private func bar(_ usage: DiskUsage) -> some View {
         GeometryReader { geo in
             HStack(spacing: 0) {
@@ -73,10 +74,6 @@ struct StorageDetailView: View {
     private func color(for kind: DiskUsage.Segment) -> Color {
         switch kind {
         case .taken: return fill
-        // Reclaimable is drawn as a lighter shade of taken rather than a colour
-        // of its own: it IS taken right now, just not permanently, and giving it
-        // an unrelated hue would read as a third kind of thing.
-        case .reclaimable: return fill.opacity(0.35)
         case .free: return Color.white.opacity(0.12)
         }
     }

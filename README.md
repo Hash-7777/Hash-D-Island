@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-373%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="373 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-374%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="374 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -74,7 +74,7 @@
 
 **AI tokens** — how much you have used today, per tool, counted from the files your tools already write. Only what they have written since the last count is read, so it stays cheap however often you ask.
 
-**Storage** — how full the startup disk is, as a bar split into what is really in use, what macOS would hand back if you needed the room, and what is free.
+**Storage** — how full the startup disk is, and how much room is left, with a bar underneath. The free figure is the one `df`, `diskutil` and Finder all agree on, so it matches every other tool on your Mac.
 
 **Timer** — any length, counting down at the notch, with a chime at zero.
 
@@ -116,7 +116,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 373 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 374 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks

@@ -1,41 +1,33 @@
 import Foundation
 
-/// How full the startup disk is, and roughly what is taking the room.
+/// How full the startup disk is.
 public struct DiskUsage: Equatable {
     /// The volume's name, as Finder shows it.
     public let name: String
     public let totalBytes: Int64
-    /// Free as macOS itself reports it — counting space it is willing to purge.
-    /// This is the number Finder shows and the one people recognise.
-    public let availableBytes: Int64
-    /// Free right now, without macOS throwing anything away.
-    public let plainAvailableBytes: Int64
-
-    public init(
-        name: String,
-        totalBytes: Int64,
-        availableBytes: Int64,
-        plainAvailableBytes: Int64 = 0
-    ) {
-        self.name = name
-        self.totalBytes = totalBytes
-        self.availableBytes = availableBytes
-        self.plainAvailableBytes = min(plainAvailableBytes, availableBytes)
-    }
-
-    /// Genuinely occupied — what would still be taken if macOS purged
-    /// everything it is willing to.
-    public var usedBytes: Int64 { max(0, totalBytes - availableBytes) }
-
-    /// Space macOS is holding but would hand back if something needed it —
-    /// caches, local snapshots, downloaded files it can fetch again.
+    /// Free right now: the one figure Finder, `df` and `diskutil` all agree on.
     ///
-    /// This is the whole reason Finder and `df` disagree about a disk, usually
-    /// by tens of gigabytes, and why "the disk is full" and "there is nothing I
-    /// can delete" are both true at once. Naming it is most of the help.
-    public var purgeableBytes: Int64 {
-        max(0, availableBytes - plainAvailableBytes)
+    /// Deliberately NOT
+    /// `volumeAvailableCapacityForImportantUsageKey`. That key answers a
+    /// different question — "how much could I write if I really had to" — and
+    /// it counts room macOS believes it could make by evicting and purging. On
+    /// the Mac this was corrected against it returned **229.95 GB on a 245 GB
+    /// disk holding 180 GB of data**, i.e. it offered up more room than the
+    /// volume had files. Driving "% full" from it reported a disk that was 74%
+    /// full as **7% full**, which is not a rounding error but the wrong
+    /// question answered confidently.
+    public let freeBytes: Int64
+
+    public init(name: String, totalBytes: Int64, freeBytes: Int64) {
+        let total = max(0, totalBytes)
+        self.name = name
+        self.totalBytes = total
+        // A disk cannot have more free than it has, whatever the system says.
+        self.freeBytes = min(max(0, freeBytes), total)
     }
+
+    /// Everything not free right now — apps, files, and system data alike.
+    public var usedBytes: Int64 { max(0, totalBytes - freeBytes) }
 
     /// Whole percent used, 0 to 100. Zero when the volume reports no size,
     /// rather than a division by nothing.
@@ -46,30 +38,26 @@ public struct DiskUsage: Equatable {
 
     /// The bar's parts, in order, each as a fraction of the disk.
     ///
-    /// Always sums to exactly one, because the three quantities are defined
-    /// against each other rather than measured separately: taken is what is not
-    /// free at all, reclaimable is the gap between the two free figures, and
-    /// free is the smaller of them. Nothing here can drift apart between
-    /// samples the way independently measured parts would.
+    /// Always sums to exactly one, because the two quantities are defined
+    /// against each other rather than measured separately: free is what the
+    /// volume reports, and taken is the rest. Nothing here can drift apart
+    /// between samples the way independently measured parts would.
     public var segments: [(fraction: Double, kind: Segment)] {
         guard totalBytes > 0 else { return [] }
         let total = Double(totalBytes)
         return [
             (Double(usedBytes) / total, .taken),
-            (Double(purgeableBytes) / total, .reclaimable),
-            (Double(plainAvailableBytes) / total, .free),
+            (Double(freeBytes) / total, .free),
         ]
     }
 
     public enum Segment: String, CaseIterable, Sendable {
         case taken
-        case reclaimable
         case free
 
         public var label: String {
             switch self {
             case .taken: return "In use"
-            case .reclaimable: return "Reclaimable"
             case .free: return "Free"
             }
         }
@@ -77,7 +65,6 @@ public struct DiskUsage: Equatable {
         public var detail: String {
             switch self {
             case .taken: return "Apps, files and system data."
-            case .reclaimable: return "Caches and snapshots macOS hands back when something needs the room."
             case .free: return "Available right now."
             }
         }
@@ -86,29 +73,47 @@ public struct DiskUsage: Equatable {
 
 /// Reads the startup disk's capacity from the public file-system API.
 ///
-/// `volumeAvailableCapacityForImportantUsage` rather than the plain available
-/// figure, because that is the number macOS itself shows: it counts space
-/// currently held by things the system is willing to purge — caches, local
-/// snapshots — as available, which is why Finder's number and `df` disagree by
-/// tens of gigabytes and Finder's is the one people recognise. Both are read, so
-/// the difference between them can be named rather than left as a mystery.
+/// **Which "free" — the correction this file exists to record.** macOS offers
+/// two, and they are not two shades of the same answer:
 ///
-/// A finer breakdown — apps, documents, photos — is deliberately NOT attempted.
-/// There is no cheap API for it. Splitting macOS from your own files looked
-/// free, since APFS already keeps them on separate volumes, but `statfs`
-/// reports the whole container for both and answers 180 GB either way: the
-/// split is simply not available that way, and a plausible-looking wrong number
-/// is worse than none. Every remaining honest route is a full walk of the disk
-/// or a permission prompt for folders this app has no other reason to open,
-/// and neither is worth it for a readout. macOS already has a screen that does
-/// it properly, and — the part that matters — one you can act on, so the panel
-/// offers a way there instead.
+///   * `volumeAvailableCapacity` — free right now. Agrees with `df`, with
+///     `diskutil`'s container free space, and with the number a person gets by
+///     subtracting what they know they have.
+///   * `volumeAvailableCapacityForImportantUsage` — what could be *made* free
+///     for something the system deems important, counting room it believes it
+///     could win back by purging caches and evicting files.
 ///
-/// What IS free is the difference between the two free figures, and it is the
-/// most useful thing here: on the machine this was written on, 29 GB of a
-/// "full" disk turned out to be caches macOS would hand back on demand. That
-/// gap is exactly why "the disk is full" and "there is nothing I can delete"
-/// are so often both true, and naming it is most of the help.
+/// This readout used the second, on the reasoning that it is "the number Finder
+/// shows". Measured, that was simply wrong. On a 245 GB disk whose five APFS
+/// volumes consume 180 GB (157 GB of it the Data volume), it returned
+/// **229.95 GB available** — more room than the disk has files — and the panel
+/// therefore announced a 74%-full disk as **7% full, 228 GB free**. There were
+/// no local snapshots to explain it; the key is answering a question the panel
+/// was not asking. A readout whose whole promise is that you can check it must
+/// use the figure every other tool on the Mac would corroborate.
+///
+/// Apple's own Storage pane is not a tiebreaker here: it reports "14.99 GB of
+/// 245.11 GB used" while listing categories that sum far past that, so it is
+/// showing the sealed system volume's usage above a breakdown of the data
+/// volume. `diskutil apfs list` is the thing that reconciles — per-volume
+/// consumption summing to container total minus container free, exactly.
+///
+/// **No reclaimable band.** The gap between the two figures used to be drawn as
+/// a middle segment named "Reclaimable", on the reasoning that naming it is
+/// most of the help. On this machine that gap was 165 GB — more than the Data
+/// volume holds in total — so the band was inviting people to believe two
+/// thirds of their disk was about to come back. The figure cannot be
+/// corroborated by anything else on the system, and this file's own standard is
+/// that a plausible-looking wrong number is worse than none. The bar is now
+/// simply what is used and what is free.
+///
+/// **No category breakdown.** Deliberately not attempted, and this is unchanged:
+/// there is no cheap API for it, splitting macOS from your own files is not
+/// available through `statfs` (both volumes report the whole container), and
+/// every remaining honest route is a full walk of the disk or a permission
+/// prompt for folders this app has no other reason to open. macOS already has a
+/// screen that does it properly and that you can act on, so the panel offers a
+/// way there instead.
 package enum StorageReader {
     package static let volumeURL = URL(fileURLWithPath: "/")
 
@@ -121,25 +126,15 @@ package enum StorageReader {
             .volumeNameKey,
             .volumeTotalCapacityKey,
             .volumeAvailableCapacityKey,
-            .volumeAvailableCapacityForImportantUsageKey,
         ]
         guard let values = try? volume.resourceValues(forKeys: keys),
               let total = values.volumeTotalCapacity, total > 0
         else { return nil }
 
-        let important = values.volumeAvailableCapacityForImportantUsage ?? 0
-        let plain = Int64(values.volumeAvailableCapacity ?? 0)
-        // Never claim more free than the disk holds, whatever the system says.
-        let available = min(Int64(important), Int64(total))
-
         return DiskUsage(
             name: values.volumeName ?? "Startup disk",
             totalBytes: Int64(total),
-            availableBytes: available,
-            // The plain figure can exceed the purgeable-inclusive one on a
-            // volume with nothing to purge, and a negative reclaimable figure
-            // would be nonsense rather than merely odd.
-            plainAvailableBytes: min(plain, available)
+            freeBytes: Int64(values.volumeAvailableCapacity ?? 0)
         )
     }
 }

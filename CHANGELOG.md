@@ -52,10 +52,9 @@ moment something is.
 - **Memory** — how much of the Mac's memory is in use, the same figure Activity
   Monitor shows, with a matching graph. On Apple Silicon the processor and the
   graphics share one pool, so this is the whole machine.
-- **Storage** — how full the startup disk is, split into what is genuinely in
-  use, what macOS would hand back if something needed the room, and what is
-  free. That middle figure is usually tens of gigabytes and is the reason a
-  "full" disk and "there is nothing I can delete" are so often both true.
+- **Storage** — how full the startup disk is and how much room is left, with a
+  bar underneath. The free figure is the one `df`, `diskutil` and Finder all
+  report, so it can be checked against any of them.
 - **Downloads** — a short notice when one finishes.
 - **Live activities** — a local feed any app, script, or Shortcut can post to,
   with a built-in integration for Claude Code, HashCortX, and HashCerebrum.

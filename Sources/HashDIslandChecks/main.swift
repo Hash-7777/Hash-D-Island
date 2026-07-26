@@ -1286,79 +1286,99 @@ MainActor.assumeIsolated {
         }()
     )
 
-    // Storage: the sums behind "62% full, 91.5 GB free".
-    let disk = DiskUsage(name: "Macintosh HD", totalBytes: 245_107_195_904, availableBytes: 91_530_000_000)
-    check("used is what is not available", disk.usedBytes == 245_107_195_904 - 91_530_000_000)
+    // Storage: the sums behind "74% full, 64.5 GB free".
+    let disk = DiskUsage(name: "Macintosh HD", totalBytes: 245_107_195_904, freeBytes: 91_530_000_000)
+    check("used is what is not free", disk.usedBytes == 245_107_195_904 - 91_530_000_000)
     check("percent full is rounded to a whole number", disk.percentUsed == 63)
     check(
         "an empty disk is not full",
-        DiskUsage(name: "x", totalBytes: 1_000, availableBytes: 1_000).percentUsed == 0
+        DiskUsage(name: "x", totalBytes: 1_000, freeBytes: 1_000).percentUsed == 0
     )
     check(
         "a full disk reads 100",
-        DiskUsage(name: "x", totalBytes: 1_000, availableBytes: 0).percentUsed == 100
+        DiskUsage(name: "x", totalBytes: 1_000, freeBytes: 0).percentUsed == 100
     )
     check(
         "a volume reporting no size divides by nothing rather than crashing",
-        DiskUsage(name: "x", totalBytes: 0, availableBytes: 0).percentUsed == 0
+        DiskUsage(name: "x", totalBytes: 0, freeBytes: 0).percentUsed == 0
     )
     check(
-        "free space is never reported as more than the disk holds",
-        StorageReader.read(volume: StorageReader.volumeURL).map { $0.availableBytes <= $0.totalBytes } ?? true
+        "a disk cannot report more free than it holds",
+        DiskUsage(name: "x", totalBytes: 1_000, freeBytes: 9_999).freeBytes == 1_000
+    )
+    check(
+        "a negative free figure is not believed",
+        DiskUsage(name: "x", totalBytes: 1_000, freeBytes: -5).freeBytes == 0
     )
     check("the real startup disk reads back", StorageReader.read(volume: StorageReader.volumeURL) != nil)
 
-    // The bar is drawn in parts, so the parts must come to exactly the disk. The
-    // two volumes and the two free figures are sampled a moment apart and from
-    // different APIs, so anything derived by adding them up can drift; "other"
-    // is therefore whatever the measurable figures do NOT account for, which
-    // makes the sum exact by construction rather than by luck.
-    let split = DiskUsage(
-        name: "x",
-        totalBytes: 1_000,
-        availableBytes: 400,
-        plainAvailableBytes: 300
-    )
+    // The bar is drawn in parts, so the parts must come to exactly the disk.
+    // Free is what the volume reports and taken is the rest, so the sum is
+    // exact by construction rather than by luck.
+    let split = DiskUsage(name: "x", totalBytes: 1_000, freeBytes: 300)
     check("the segments come to exactly the whole disk", {
         let sum = split.segments.reduce(0.0) { $0 + $1.fraction }
         return abs(sum - 1.0) < 0.000001
     }())
-    check("reclaimable space is the gap between the two free figures", split.purgeableBytes == 100)
-    check("what is in use excludes what macOS would hand back", split.usedBytes == 600)
-    check(
-        "a volume with nothing to purge reports no reclaimable space",
-        DiskUsage(
-            name: "x", totalBytes: 1_000, availableBytes: 300, plainAvailableBytes: 300
-        ).purgeableBytes == 0
-    )
-    // The two free figures come from different keys and can disagree the wrong
-    // way round on a volume with nothing to purge. A negative reclaimable
-    // figure would invert the bar rather than merely read oddly.
-    check(
-        "a plain figure larger than the purgeable one cannot go negative",
-        DiskUsage(
-            name: "x", totalBytes: 1_000, availableBytes: 200, plainAvailableBytes: 900
-        ).purgeableBytes == 0
-    )
+    check("what is in use is everything not free", split.usedBytes == 700)
     check(
         "a disk reporting no size has no segments to draw",
-        DiskUsage(name: "x", totalBytes: 0, availableBytes: 0).segments.isEmpty
+        DiskUsage(name: "x", totalBytes: 0, freeBytes: 0).segments.isEmpty
     )
-    // And the real disk's parts have to add up too.
-    if let real = StorageReader.read(volume: StorageReader.volumeURL) {
+
+    // ── The regression this section exists for ───────────────────────────────
+    //
+    // "% full" was driven by volumeAvailableCapacityForImportantUsage, which
+    // answers "how much could be MADE free for something important" — it counts
+    // room macOS believes it could win back. Measured on a 245 GB disk holding
+    // 180 GB, that key returned 229.95 GB, so the panel called a 74%-full disk
+    // "7% full, 228 GB free". Every fixture above still passed, because a
+    // fixture cannot tell you which of two real keys you should have asked.
+    //
+    // So the rule is pinned against the machine itself: read both keys, and if
+    // they disagree, require the readout to follow the plain one.
+    let volumeKeys: Set<URLResourceKey> = [
+        .volumeTotalCapacityKey,
+        .volumeAvailableCapacityKey,
+        .volumeAvailableCapacityForImportantUsageKey,
+    ]
+    if let real = StorageReader.read(volume: StorageReader.volumeURL),
+       let values = try? StorageReader.volumeURL.resourceValues(forKeys: volumeKeys),
+       let plainFree = values.volumeAvailableCapacity,
+       let importantFree = values.volumeAvailableCapacityForImportantUsage {
+
+        check("the disk's free space is the figure df and diskutil agree on", real.freeBytes == Int64(plainFree))
+        check(
+            "the optimistic \"could be made free\" figure is not used as free space",
+            importantFree == Int64(plainFree) || real.freeBytes != Int64(importantFree)
+        )
+        check("free space is never reported as more than the disk holds", real.freeBytes <= real.totalBytes)
         check("the real disk's segments come to the whole disk", {
             let sum = real.segments.reduce(0.0) { $0 + $1.fraction }
             return abs(sum - 1.0) < 0.000001
         }())
-        check(
-            "reclaimable space is never more than the disk reports free",
-            real.purgeableBytes <= real.availableBytes
-        )
         check("no segment of the real disk is negative", real.segments.allSatisfy { $0.fraction >= 0 })
+
+        // An independent API, so the readout is corroborated rather than merely
+        // self-consistent: statfs is what `df` itself reports.
+        var fs = statfs()
+        if statfs("/", &fs) == 0 {
+            let statfsFree = Int64(fs.f_bavail) * Int64(fs.f_bsize)
+            let drift = abs(Double(real.freeBytes - statfsFree)) / Double(max(1, statfsFree))
+            if drift >= 0.02 {
+                print("       reported \(real.freeBytes) vs statfs \(statfsFree)")
+            }
+            check("the free figure agrees with what df measures independently", drift < 0.02)
+        } else {
+            check("the free figure agrees with what df measures independently", false)
+        }
     } else {
+        check("the disk's free space is the figure df and diskutil agree on", false)
+        check("the optimistic \"could be made free\" figure is not used as free space", false)
+        check("free space is never reported as more than the disk holds", false)
         check("the real disk's segments come to the whole disk", false)
-        check("reclaimable space is never more than the disk reports free", false)
         check("no segment of the real disk is negative", false)
+        check("the free figure agrees with what df measures independently", false)
     }
 
     // Sizes are shown in the units macOS uses — powers of a thousand, so the
