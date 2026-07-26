@@ -8,13 +8,18 @@ source. This page says exactly what the app reads, what it never does, and why.
 No accounts. No analytics. No telemetry. No servers. Hash D Island never uploads
 anything, anywhere.
 
-There is exactly **one** kind of network request the app can ever make:
-fetching the picture for what's playing — album art from Spotify's own image
-servers, or a web video's thumbnail from YouTube's thumbnail server. Those
-requests are HTTPS-only, restricted to exactly those hosts (`scdn.co`,
-`spotifycdn.com`, `ytimg.com`), and capped at 5 MB — any other URL, and any
-redirect that would leave those hosts, is refused outright (see `ArtworkPolicy`
-in `Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
+There is exactly **one** kind of network request the app can ever make, and on a
+current macOS it does not make it at all: fetching the picture for what's
+playing. macOS now hands the artwork over directly, along with the title, so
+there is nothing to download — covers appear for every app, including ones this
+app knows nothing about, without a single byte leaving the Mac.
+
+The download path remains for the case where a macOS version does not answer
+that call. If it is ever used, it is HTTPS-only, restricted to exactly the hosts
+that serve those images (`scdn.co`, `spotifycdn.com`, `ytimg.com`), and capped
+at 5 MB — any other URL, and any redirect that would leave those hosts, is
+refused outright (see `ArtworkPolicy` in
+`Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
 checks). The fetch uses an ephemeral session, so no artwork is ever written to
 disk. Nothing else in the app touches the network.
 
@@ -44,7 +49,8 @@ Removing Hash D Island is correspondingly short, and the README's
 | Battery | IOKit power-source info, the connected adapter's own rating (`IOPSCopyExternalPowerAdapterDetails`), and the system's Low Power Mode flag (`ProcessInfo`) | Level, whether it is charging / held / full, time remaining or time to full, how many watts the adapter supplies, and whether Low Power Mode is on. All read-only. macOS offers no public way to *switch* Low Power Mode, so the panel's row opens System Settings at the Battery pane — unless you turn on "Switch Low Power Mode from the panel", which runs the one command that can and therefore asks macOS for an administrator password every time. |
 | Temperatures | Apple Silicon on-die sensors via the IOKit HID event system | The temperature readout. Read-only. |
 | AirPods battery | A short `/usr/sbin/system_profiler SPBluetoothDataType` subprocess — the same public report the System Information app shows you | The AirPods readout. That report lists every paired Bluetooth device; the app reads the battery percentages under the AirPods entry and discards the rest. Read-only, runs out of process so it can never wedge the app, and is killed if it takes more than 5 seconds. |
-| Now Playing | A short `/usr/bin/osascript` subprocess asks macOS and Spotify/Music for the current track and position; for a web video it reads your browser's open tab addresses and titles to find the one whose title matches what's playing, and derives that video's thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back). Browsers are asked **once per video**, not once per poll: the answer is remembered whether or not a thumbnail was found, and only re-asked when the track changes. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display. The play/pause/skip buttons send fixed commands — to Spotify/Music via their scripting, to anything else via the system's media channel, and to a browser by pressing the keyboard's media keys if you have allowed that. Runs out of process so it can never crash the app, and is killed if it takes more than 10 seconds. |
+| Now Playing | macOS's own MediaRemote, asked **in process** for what is playing: title, artist, play state, position, and the artwork itself. No subprocess, and **no Apple Events — so reading a track asks no app for anything and can raise no permission prompt.** If a macOS version does not answer that call, it falls back to the older route below. A CoreAudio started/stopped signal and the players' own public play-state broadcasts wake the reader immediately | The media display, for **any** app that publishes a track — Spotify, Music, TV, Podcasts, a browser, or something nobody has heard of — all read identically. The play/pause/skip buttons send fixed commands: to Spotify/Music via their scripting (which is the only thing that reliably resumes them once paused), to anything else via the system's media channel, and to a browser by pressing the keyboard's media keys if you have allowed that. Dragging the progress bar asks the system to move the playhead. |
+| Now Playing — **fallback only** | A short `/usr/bin/osascript` subprocess asking macOS and Spotify/Music for the current track, and for a web video reading your browser's open tab addresses and titles to find the one whose title matches, to derive its thumbnail (the tab list stays inside the subprocess — only the matching thumbnail URL comes back) | Reached only when the in-process call above is unavailable or has nothing, which on a current macOS is never. It is kept because these are private Apple APIs and this app supports several macOS versions. When it does run it behaves exactly as before: browsers asked once per video rather than once per poll, out of process so it can never crash the app, killed after 10 seconds. |
 | System volume | CoreAudio, the public system-audio API | The panel's volume slider — read with each media poll, written only while you drag it. The same control your volume keys drive; no subprocess, no permission. |
 | AI token usage | Local usage files: `~/.claude/projects/**/*.jsonl`, `~/.hashcortx/usage.jsonl`, and HashCerebrum's `usage.jsonl` | The tokens-today readout. Read-only; it adds up numbers and nothing more. Each file's read position is remembered within a run, so a count reads only what your tools have appended since the last one rather than re-reading the day's transcripts every time. How often it counts is yours to set in Settings, from every minute down to only when you ask; the last totals are kept in the app's own preferences so the panel can show a number immediately. |
 | Processor load | The kernel's own tick counters (`host_statistics`) | The CPU readout. It reads how many ticks the machine spent busy versus idle — a total, with no notion of which programs were responsible. No permission, no subprocess. |
@@ -57,11 +63,16 @@ Removing Hash D Island is correspondingly short, and the README's
 
 ## Permissions it may ask for
 
-- **Automation (control Spotify / Music)** — macOS shows this prompt the first
-  time Now Playing asks Spotify or Music for the current track. Deny it and
-  every other feature keeps working.
-- **Automation (control your browser)** — asked only if a web video is playing
-  and nothing else already provided artwork. Hash D Island then reads your open
+- **Automation (control Spotify / Music)** — no longer asked in order to *read*
+  anything: what is playing now comes from macOS itself. It is asked the first
+  time you press play, pause or skip on a track owned by Spotify or Music,
+  because once either is paused it releases the system's media session and only
+  its own scripting can start it again. Deny it and everything except those two
+  buttons for those two apps keeps working.
+- **Automation (control your browser)** — on a current macOS, not asked at all:
+  a web video's picture now comes from the system with everything else. It
+  remains only on the fallback path described in the table, asked only if a web
+  video is playing and nothing else already provided artwork. Hash D Island then reads your open
   browser tabs' addresses and titles to find the one whose title matches what's
   playing, and derives only that video's thumbnail. This happens once per
   video, not continuously: the result is remembered — including "no thumbnail

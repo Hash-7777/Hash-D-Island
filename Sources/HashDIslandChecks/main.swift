@@ -397,6 +397,92 @@ MainActor.assumeIsolated {
     check("the player wins once the window has passed", settles(2.0, false, true) == false)
     check("the window is exclusive at its edge", settles(1.5, false, true) == false)
 
+    // Reading Now Playing straight from MediaRemote, artwork and all. This is
+    // what lets any app work — Anghami, TV, Podcasts, VLC — rather than only
+    // the three the old subprocess knew how to scrape covers from.
+    func mediaInfo(
+        title: String? = "Night Drive",
+        artist: String? = "HASH",
+        rate: Double? = 1,
+        elapsed: Double? = 12,
+        duration: Double? = 240,
+        artwork: Data? = Data([0xFF, 0xD8, 0xFF])
+    ) -> [String: Any] {
+        var info: [String: Any] = [:]
+        if let title { info["kMRMediaRemoteNowPlayingInfoTitle"] = title }
+        if let artist { info["kMRMediaRemoteNowPlayingInfoArtist"] = artist }
+        if let rate { info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] = NSNumber(value: rate) }
+        if let elapsed { info["kMRMediaRemoteNowPlayingInfoElapsedTime"] = NSNumber(value: elapsed) }
+        if let duration { info["kMRMediaRemoteNowPlayingInfoDuration"] = NSNumber(value: duration) }
+        if let artwork { info["kMRMediaRemoteNowPlayingInfoArtworkData"] = artwork }
+        return info
+    }
+
+    check("a track reads back from the system's own dictionary", {
+        guard let s = NowPlayingDirect.snapshot(from: mediaInfo()) else { return false }
+        return s.title == "Night Drive" && s.artist == "HASH" && s.isPlaying
+            && s.elapsed == 12 && s.duration == 240 && s.artwork?.count == 3
+    }())
+    check(
+        "a dictionary with no title is not a track",
+        NowPlayingDirect.snapshot(from: mediaInfo(title: nil)) == nil
+    )
+    check(
+        "an empty title is not a title",
+        NowPlayingDirect.snapshot(from: mediaInfo(title: "")) == nil
+    )
+    check(
+        "a rate of zero is paused, not absent",
+        NowPlayingDirect.snapshot(from: mediaInfo(rate: 0))?.isPlaying == false
+    )
+    // A live stream reports no length. Dividing a progress bar by it gives
+    // either a full bar or a crash, so it is treated as having none — which the
+    // panel already knows how to draw.
+    check(
+        "a stream with no length reports none rather than zero",
+        NowPlayingDirect.snapshot(from: mediaInfo(duration: 0))?.duration == nil
+    )
+    check(
+        "a negative position is not believed",
+        NowPlayingDirect.snapshot(from: mediaInfo(elapsed: -5))?.elapsed == 0
+    )
+    // The cover arrives as bytes from the system rather than a download, but it
+    // is still decoded into an image on the main thread, so it is still bounded.
+    check(
+        "an absurd cover is refused",
+        NowPlayingDirect.snapshot(
+            from: mediaInfo(artwork: Data(count: NowPlayingDirect.maxArtworkBytes + 1))
+        )?.artwork == nil
+    )
+    check(
+        "an empty cover is refused",
+        NowPlayingDirect.snapshot(from: mediaInfo(artwork: Data()))?.artwork == nil
+    )
+    check(
+        "a track with no cover is still a track",
+        NowPlayingDirect.snapshot(from: mediaInfo(artwork: nil))?.title == "Night Drive"
+    )
+
+    // The bundle id picks a CONTROL channel and nothing else. An app nobody
+    // listed is not unsupported — it is shown, given artwork and read exactly
+    // like any other, and simply takes the route that suits it.
+    check(
+        "Spotify is recognised so its own scripting can resume it",
+        NowPlayingDirect.source(forBundleIdentifier: "com.spotify.client") == .spotify
+    )
+    check(
+        "Music is recognised the same way",
+        NowPlayingDirect.source(forBundleIdentifier: "com.apple.Music") == .music
+    )
+    check(
+        "an app nobody listed still gets a channel",
+        NowPlayingDirect.source(forBundleIdentifier: "com.anghami.desktop") == .other
+    )
+    check(
+        "so does an app that names itself nothing at all",
+        NowPlayingDirect.source(forBundleIdentifier: nil) == .other
+    )
+
     // A command that did not take is discovered by MEASUREMENT — by asking
     // whether the player actually obeyed — not by recognising the app that is
     // playing. The system's media channel reports success for a browser and

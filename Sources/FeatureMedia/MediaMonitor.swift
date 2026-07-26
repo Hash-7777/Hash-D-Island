@@ -338,6 +338,28 @@ public final class MediaMonitor: ObservableObject {
         }
     }
 
+    /// Whether the playhead can be dragged. False puts the bar back to being a
+    /// readout, which is what it should look like if it cannot be used.
+    public var canSeek: Bool { reader?.canSeek ?? false }
+
+    /// Move to a position in the track, from dragging the progress bar.
+    ///
+    /// The bar is moved locally at once rather than waiting for the player to
+    /// confirm. A drag has to track the finger to be a drag at all, and the
+    /// next poll is up to two seconds away — long enough that waiting would
+    /// feel like the bar was stuck, and the poll corrects it anyway if the
+    /// player lands somewhere else.
+    public func seek(to seconds: Double) {
+        guard let progress, progress.duration > 0 else { return }
+        let target = min(max(0, seconds), progress.duration)
+        self.progress = MediaProgress(
+            elapsed: target, duration: progress.duration,
+            isPlaying: progress.isPlaying, at: Date()
+        )
+        reader?.seek(to: target)
+        scheduleRefresh()
+    }
+
     /// Slider input: CoreAudio is a direct call, so every tick of the drag is
     /// applied immediately — zero latency, perfectly smooth.
     public func setVolume(_ volume: Int) {

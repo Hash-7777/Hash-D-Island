@@ -37,6 +37,25 @@ struct NotchIslandView: View {
     /// the panel read as the physical notch stretching open before it reveals.
     @State private var panelRevealed = false
 
+    /// The wobble a drop makes when it lands. Kicked to 1 the instant the panel
+    /// opens or closes, then sprung back to 0 on a deliberately under-damped
+    /// curve so it overshoots several times before settling.
+    ///
+    /// This is what was missing from the water-drop effect. The shape already
+    /// grew out of the notch on the right curve, but it arrived at its final
+    /// size and simply stopped, which is how a box behaves — a drop does not
+    /// stop, it overshoots and rings down as surface tension pulls it back. The
+    /// stretch is applied on top of the transition rather than folded into it
+    /// so the two can differ: the arrival is a single confident motion, the
+    /// settle is the decaying ring after it.
+    @State private var settle: CGFloat = 0
+
+    /// How far the wobble squashes and stretches, as fractions. Small on
+    /// purpose — this should be felt rather than watched, and anything past a
+    /// few percent stops reading as water and starts reading as jelly.
+    private static let settleSquash: CGFloat = 0.028
+    private static let settleStretch: CGFloat = 0.045
+
     /// Whether the live strip is actually drawn.
     ///
     /// The panel and the strip are different shapes holding different layouts.
@@ -182,6 +201,23 @@ struct NotchIslandView: View {
                 : .spring(response: 0.30 * motionScale, dampingFraction: 1.0),
             value: liveShown
         )
+        // The settle, applied last so it rides on top of the whole island.
+        // Anchored to the top edge: a drop hangs from where it came out of, so
+        // the wobble has to happen below the notch and never move it.
+        .scaleEffect(
+            x: 1 - settle * Self.settleSquash,
+            y: 1 + settle * Self.settleStretch,
+            anchor: .top
+        )
+        .onChange(of: showExpanded) { _, _ in
+            // Kicked instantly, released on a spring: the impulse IS the
+            // gesture. Animating INTO the stretch as well would round off the
+            // leading edge and lose the sense of something being pulled.
+            settle = 1
+            withAnimation(.spring(response: 0.5 * motionScale, dampingFraction: 0.38)) {
+                settle = 0
+            }
+        }
     }
 
     // MARK: The three pills

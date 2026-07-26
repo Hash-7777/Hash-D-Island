@@ -74,6 +74,9 @@ struct MediaDetailView: View {
     /// Shuts the panel, for the one case that needs it: raising a system
     /// permission dialog the panel would otherwise cover.
     var onClose: () -> Void = {}
+    /// Where the finger is during a drag of the progress bar, in seconds. Nil
+    /// when nobody is dragging, which is when the clock owns the bar again.
+    @State private var scrubbing: Double?
 
     var body: some View {
         if let media = monitor.nowPlaying {
@@ -238,8 +241,11 @@ struct MediaDetailView: View {
     }
 
     private func progressBody(_ progress: MediaProgress, now: Date) -> some View {
-        let current = progress.current(now: now)
+        // While a drag is in progress the finger is the truth, not the clock:
+        // otherwise the poll behind it fights the drag and the bar stutters.
+        let current = scrubbing ?? progress.current(now: now)
         let fraction = progress.duration > 0 ? current / progress.duration : 0
+        let seekable = monitor.canSeek && progress.duration > 0
         return VStack(spacing: 4) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -247,9 +253,35 @@ struct MediaDetailView: View {
                     Capsule()
                         .fill(theme.textColor)
                         .frame(width: max(3, geo.size.width * CGFloat(fraction)))
+                    // A grab handle, but only when there is something to grab.
+                    // A bar that cannot be moved should not look like it can.
+                    if seekable {
+                        Circle()
+                            .fill(theme.textColor)
+                            .frame(width: scrubbing == nil ? 7 : 10)
+                            .offset(x: geo.size.width * CGFloat(fraction) - (scrubbing == nil ? 3.5 : 5))
+                            .animation(.easeOut(duration: 0.12), value: scrubbing == nil)
+                    }
                 }
+                // The hit area is the full row rather than the 3pt bar: a line
+                // that thin is not something anyone can reliably catch.
+                .contentShape(Rectangle())
+                .gesture(
+                    seekable
+                        ? DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let ratio = min(max(0, value.location.x / max(1, geo.size.width)), 1)
+                                scrubbing = ratio * progress.duration
+                            }
+                            .onEnded { value in
+                                let ratio = min(max(0, value.location.x / max(1, geo.size.width)), 1)
+                                monitor.seek(to: ratio * progress.duration)
+                                scrubbing = nil
+                            }
+                        : nil
+                )
             }
-            .frame(height: 3)
+            .frame(height: seekable ? 12 : 3)
             HStack {
                 Text(timeText(current))
                 Spacer()

@@ -12,10 +12,10 @@
   <img src="https://img.shields.io/badge/macOS-14%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/Swift-SwiftUI%20%2B%20AppKit-47D67A?style=flat-square&logo=swift&logoColor=white&labelColor=0B0C10" alt="Swift">
-  <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
+  <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-400%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="400 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-413%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="413 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -58,7 +58,7 @@
            ╰────────────────────────────────╯
 ```
 
-**Now Playing** — artwork, a scrolling title, and full controls for Spotify and Apple Music. Live progress bar and a system volume slider. Video in a browser can be controlled too, if you allow it in Settings — that one needs Accessibility, because pressing the media keys is the only thing a browser listens to.
+**Now Playing** — works with **anything that plays**: Spotify, Apple Music, TV, Podcasts, Anghami, VLC, a video in your browser, or an app nobody has heard of. Real artwork for all of them, a scrolling title, a **draggable** progress bar, and a system volume slider. macOS hands the cover over itself, so no app is ever asked for it and nothing is downloaded. Video in a browser can be controlled too, if you allow it in Settings — that one needs Accessibility, because pressing the media keys is the only thing a browser listens to.
 
 > **After updating the app, re-approve Accessibility.** macOS ties that approval to the exact build it was given, and this app is not signed with a paid Apple developer certificate — so a new version arrives as a stranger. The switch in **System Settings → Privacy & Security → Accessibility** keeps *showing* Hash D Island as allowed while every media key is quietly dropped.
 >
@@ -122,7 +122,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 400 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 413 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -158,7 +158,7 @@ A notch is where this belongs, and on a notched Mac the island is measured to ma
 
 ## ◦ Privacy, in one paragraph
 
-No accounts. No analytics. No telemetry. No servers. There is exactly **one** kind of network request the app can ever make: fetching the picture for what's playing — album art from Spotify's image servers, or a video's thumbnail from YouTube's. Those are HTTPS-only, restricted to those hosts, size-capped, and refused if a redirect would leave them. The app itself writes no files; its only persistent state is its own settings.
+No accounts. No analytics. No telemetry. No servers. On a current macOS it makes **no network request at all**: the system hands over the artwork along with the title, so there is nothing to download. A download path remains for older macOS versions that do not answer that call — HTTPS-only, restricted to the image hosts, size-capped, and refused if a redirect would leave them. The app itself writes no files; its only persistent state is its own settings.
 
 **Off means off.** Switching an indicator off stops the work, not just the display — a feature that is off is never started, so it opens no files, runs no subprocess, and can trigger none of the permission prompts. Every claim here is checkable by reading the source, and pinned by the automated checks.
 

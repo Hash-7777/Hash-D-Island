@@ -320,6 +320,14 @@ final class MediaRemoteReader {
         guard FileManager.default.isExecutableFile(atPath: Self.osascript) else { return nil }
     }
 
+    /// Reads Now Playing from MediaRemote in process. Nil when this build of
+    /// macOS does not export what it needs, which puts every read back on the
+    /// subprocess.
+    private let direct = NowPlayingDirect()
+
+    /// Whether the playhead can be moved on this machine.
+    var canSeek: Bool { direct?.canSeek ?? false }
+
     /// Fetches the current track; completion is called on a background queue.
     /// If the previous fetch is still running (osascript stalled on a permission
     /// dialog), this poll is skipped instead of queueing up behind it.
@@ -330,15 +338,56 @@ final class MediaRemoteReader {
         stateLock.unlock()
         guard !busy else { return }
 
-        queue.async { [weak self] in
-            let result = self?.run()
-            if let self {
+        // The direct read is preferred for every reason at once: it is five
+        // times faster, it sends no Apple Events so it can never raise a
+        // permission dialog or stall behind one, and it carries the artwork —
+        // for ANY app, not just the three the subprocess knew how to scrape.
+        guard let direct else {
+            queue.async { [weak self] in self?.finishSubprocessFetch(completion) }
+            return
+        }
+
+        direct.read(on: queue) { [weak self] snapshot in
+            guard let self else { completion(nil); return }
+            guard let snapshot else {
+                // The system knows of no track. Fall back rather than conclude:
+                // this is also what an unexpected macOS would look like, and
+                // the subprocess can still answer on one.
+                self.finishSubprocessFetch(completion)
+                return
+            }
+            // Which app is playing decides only how a command would be sent.
+            direct.readOwner(on: self.queue) { bundle in
                 self.stateLock.lock()
                 self.inFlight = false
                 self.stateLock.unlock()
+                completion(NowPlaying(
+                    title: snapshot.title,
+                    artist: snapshot.artist,
+                    isPlaying: snapshot.isPlaying,
+                    artwork: snapshot.artwork,
+                    source: NowPlayingDirect.source(forBundleIdentifier: bundle),
+                    elapsed: snapshot.elapsed,
+                    duration: snapshot.duration,
+                    fetchedAt: Date()
+                ))
             }
-            completion(result)
         }
+    }
+
+    /// The original subprocess route, now only reached when the direct read is
+    /// unavailable or has nothing.
+    private func finishSubprocessFetch(_ completion: @escaping (NowPlaying?) -> Void) {
+        let result = run()
+        stateLock.lock()
+        inFlight = false
+        stateLock.unlock()
+        completion(result)
+    }
+
+    /// Moves the playhead, if this build of macOS allows it.
+    func seek(to seconds: Double) {
+        direct?.seek(to: seconds)
     }
 
     private struct Payload: Decodable {
