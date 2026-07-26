@@ -84,6 +84,24 @@ public final class MediaMonitor: ObservableObject {
         self.presence = presence
         self.pressesKeys = pressesKeys
 
+        // Say plainly, once, when the app is set up to control browser video
+        // but macOS will not let it. This is worth a line on stderr rather than
+        // only a notice in the panel, because the state it reports is one the
+        // user cannot see: the Accessibility switch can READ as on while the
+        // permission is not in force. macOS records the approval against the
+        // exact build it was given, so installing a new version of an app that
+        // is only ad-hoc signed silently invalidates it — the switch stays on,
+        // and every media key is dropped.
+        if pressesKeys(), !MediaKeys.isTrusted {
+            FileHandle.standardError.write(Data("""
+            Hash D Island: browser control is switched on, but macOS is not \
+            allowing this app to press the media keys. If the Accessibility \
+            switch already looks on, turn it off and on again — a new build \
+            has to be approved afresh.
+
+            """.utf8))
+        }
+
         // A cover arrives after the track it belongs to, because waiting for it
         // used to hold the title off the screen. It is applied only if that
         // track is still the one showing — by the time an image lands the user

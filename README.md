@@ -60,6 +60,8 @@
 
 **Now Playing** — artwork, a scrolling title, and full controls for Spotify and Apple Music. Live progress bar and a system volume slider. Video in a browser can be controlled too, if you allow it in Settings — that one needs Accessibility, because pressing the media keys is the only thing a browser listens to.
 
+> **After updating the app, re-approve Accessibility.** macOS ties that approval to the exact build it was given, and this app is not signed with a paid Apple developer certificate — so a new version arrives as a stranger. The switch in **System Settings → Privacy & Security → Accessibility** keeps *showing* Hash D Island as allowed while every media key is quietly dropped. Switch it off and on again and browser control works. Only browser video is affected; nothing else in the app uses that permission.
+
 **Internet** — upload and download, with a graph of the last half-minute underneath. Or stacked, compact, or one direction only.
 
 **Battery** — level, time remaining, and time to charge, with the adapter's wattage and whether that is a slow or fast charge. If your Mac is capped at 80%, it counts down to *that*. Low Power Mode shows in yellow, the way iPhone does it.

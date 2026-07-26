@@ -182,7 +182,12 @@ struct MediaDetailView: View {
             // the setting is called "Control video in your browser".
             return "A browser only listens to the media keys. Turn on \"Control video in your browser\" in Settings."
         case .accessibilityMissing:
-            return "macOS needs to allow this app to press the media keys."
+            // The switch reading "on" while the permission is not in force is
+            // the normal case after an update, not an edge case, so the remedy
+            // is the message rather than a footnote to it. Telling someone to
+            // grant a permission they can see is already granted reads as the
+            // app being broken.
+            return "macOS is not allowing the media keys. If Accessibility already looks on, switch it off and on — a new version has to be approved again."
         }
     }
 
