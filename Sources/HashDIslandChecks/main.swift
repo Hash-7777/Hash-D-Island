@@ -1313,9 +1313,34 @@ MainActor.assumeIsolated {
         "audio elsewhere does not speed up an already playing track",
         MediaMonitor.interval(for: snapshot(playing: true), audioElsewhere: true) == 2
     )
+    // An empty notch while the speakers are busy is the one state that is about
+    // to be wrong: something is playing and has not been found yet. This used
+    // to wait the full idle interval regardless, which is what made a video
+    // take several seconds to appear. The CoreAudio signal cannot cover it —
+    // a browser holds its audio session open between videos, so starting one
+    // changes nothing for the signal to fire on.
     check(
-        "nor wake anything when there is no track at all",
-        MediaMonitor.interval(for: nil, audioElsewhere: true) == 15
+        "a sound with nothing on the notch is chased at once",
+        MediaMonitor.interval(for: nil, audioElsewhere: true) == 2
+    )
+    // But audio running does not prove there is a track to find. A call, a
+    // game, an alert — chasing those forever would cost a subprocess every two
+    // seconds for the length of a meeting.
+    check(
+        "chasing a silent-running sound gives up",
+        MediaMonitor.interval(for: nil, audioElsewhere: true, fruitlessLooks: 6) == 15
+    )
+    check(
+        "and it is still chased on the last look before that",
+        MediaMonitor.interval(for: nil, audioElsewhere: true, fruitlessLooks: 5) == 2
+    )
+    check(
+        "a fruitless count means nothing once the sound has stopped",
+        MediaMonitor.interval(for: nil, audioElsewhere: false, fruitlessLooks: 99) == 15
+    )
+    check(
+        "and nothing once a track has actually been found",
+        MediaMonitor.interval(for: snapshot(playing: true), audioElsewhere: true, fruitlessLooks: 99) == 2
     )
 
     // Processor load is a DIFFERENCE between two tick readings, never a single

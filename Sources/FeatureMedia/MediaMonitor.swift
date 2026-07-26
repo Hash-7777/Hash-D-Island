@@ -48,6 +48,9 @@ public final class MediaMonitor: ObservableObject {
     /// is pressed so switching it on takes effect without a restart.
     private var pressesKeys: () -> Bool = { false }
     private var samplingInterval: TimeInterval = 0
+    /// Consecutive looks that found no track while audio was running. Bounds
+    /// the chase after a sound that has no now-playing session behind it.
+    private var fruitlessLooks = 0
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
@@ -115,6 +118,12 @@ public final class MediaMonitor: ObservableObject {
     private nonisolated static let pausedInterval: TimeInterval = 12
     /// Nothing playing at all, and nothing to be stale about.
     private nonisolated static let idleInterval: TimeInterval = 15
+    /// How many brisk looks a sound with no track behind it earns before the
+    /// reader stops chasing it. Six at the contended interval is about twelve
+    /// seconds — long enough for any player to publish itself, short enough
+    /// that a video call does not cost a subprocess every two seconds for an
+    /// hour.
+    private nonisolated static let fruitlessLookLimit = 6
 
     private func startSampling(interval: TimeInterval) {
         guard samplingInterval != interval || sampler == nil else { return }
@@ -325,21 +334,60 @@ public final class MediaMonitor: ObservableObject {
         }
 
         presence?.setActive("media", shown != nil)
+
+        // Count the looks that found nothing while the speakers were busy, so
+        // chasing a sound with no track behind it gives up rather than running
+        // for the length of a call. Anything else resets it — including the
+        // sound stopping — so the next thing to start is chased just as
+        // promptly.
+        let audioRunning = audioObserver?.isAudioRunning ?? false
+        if shown == nil, audioRunning {
+            fruitlessLooks += 1
+        } else {
+            fruitlessLooks = 0
+        }
+
         // Follow the music, not merely the track: a paused song holds the strip
         // but changes nothing, so it is polled as lazily as silence.
         startSampling(interval: Self.interval(
-            for: shown, audioElsewhere: audioObserver?.isAudioRunning ?? false
+            for: shown, audioElsewhere: audioRunning, fruitlessLooks: fruitlessLooks
         ))
     }
 
     /// How often to look, given what is showing. Pure and package-visible: the
-    /// choice between these three is what decides how quickly the notch notices
-    /// you have switched to something else.
+    /// choice between these is what decides how quickly the notch notices you
+    /// have started or switched to something else.
     package nonisolated static func interval(
         for shown: NowPlaying?,
-        audioElsewhere: Bool
+        audioElsewhere: Bool,
+        fruitlessLooks: Int = 0
     ) -> TimeInterval {
-        guard let shown else { return idleInterval }
+        guard let shown else {
+            // Nothing on the notch, but the speakers are busy. Something is
+            // probably playing that we have not caught yet, and this is the one
+            // moment that must not be lazy.
+            //
+            // This was the "it takes five seconds to appear" bug. An empty
+            // notch waited the full idle interval no matter what the machine
+            // was doing, on the reasoning that silence has nothing to be stale
+            // about — true of silence, and exactly wrong about a video that has
+            // just started. The CoreAudio signal is supposed to catch the
+            // start, and cannot be relied on here for the same reason it could
+            // not be relied on for the paused case below: a browser holds its
+            // audio session open between videos, so starting one does not
+            // change whether the device is running and nothing fires.
+            //
+            // But "audio is running" does not prove a track exists to find. A
+            // video call, a game, an alert sound — none of them publish a
+            // now-playing session, and chasing those forever would spend a
+            // subprocess every two seconds for the length of a meeting. So the
+            // chase is bounded: look briskly a few times, and if nothing turns
+            // up, accept that this sound has nothing behind it and go back to
+            // sleep. The count resets when the sound stops, so the next thing
+            // to start is chased just as promptly.
+            guard audioElsewhere, fruitlessLooks < fruitlessLookLimit else { return idleInterval }
+            return contendedInterval
+        }
         if shown.isPlaying { return activeInterval }
         // Paused, but the speakers are busy: whatever is making that sound is
         // what should be on the notch, so look again shortly.
