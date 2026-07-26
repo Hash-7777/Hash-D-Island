@@ -103,8 +103,15 @@ public final class SettingsWindowController {
             window.animator().setFrame(away, display: true)
             window.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            window.orderOut(nil)
-            self?.onVisibilityChange(false)
+            // AppKit runs this on the main thread, but the closure is typed
+            // Sendable so the compiler cannot know that, and reaching
+            // main-actor state from it is an error under Swift 6. Asserting
+            // what AppKit already guarantees is the same pattern the hover and
+            // scroll monitors use.
+            MainActor.assumeIsolated {
+                window.orderOut(nil)
+                self?.onVisibilityChange(false)
+            }
         }
     }
 

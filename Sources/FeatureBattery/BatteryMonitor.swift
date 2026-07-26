@@ -301,7 +301,12 @@ public final class BatteryMonitor: ObservableObject {
     }
 
     /// At or above this, a Mac on power has finished rather than been held.
-    package static let nearlyFull = 95
+    ///
+    /// `nonisolated` because the pure helpers that read it are, and a constant
+    /// has nothing to be isolated about. Without it the compiler is right to
+    /// object: `ceiling(after:percentage:known:)` is nonisolated and was
+    /// reaching a main-actor value, which Swift 6 rejects outright.
+    package nonisolated static let nearlyFull = 95
 
     /// What the battery is doing, from the three things IOKit reports.
     ///

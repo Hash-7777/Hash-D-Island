@@ -82,7 +82,17 @@ public final class ThermalMonitor: ObservableObject {
     ///
     /// Pure and static so it runs on the reading queue rather than the main
     /// thread, and so the checks can pin the grouping without any hardware.
-    package static func grouped(_ readings: [(name: String, celsius: Double)]) -> [TempSensor] {
+    ///
+    /// `nonisolated` is the part that makes that true rather than merely
+    /// intended. Being `static` inside a `@MainActor` class does not exempt it:
+    /// it inherited the class's isolation, so `refresh()` calling it from the
+    /// sampling queue was reaching main-actor code off the main thread — the
+    /// exact thing moving this work off the main thread was meant to avoid, and
+    /// an error rather than a warning under Swift 6. It is pure, so the fix is
+    /// to say so.
+    package nonisolated static func grouped(
+        _ readings: [(name: String, celsius: Double)]
+    ) -> [TempSensor] {
         var byCategory: [String: Double] = [:]
         for reading in readings {
             let category = friendlyCategory(for: reading.name)
@@ -101,7 +111,11 @@ public final class ThermalMonitor: ObservableObject {
     }
 
     /// Maps a raw sensor name to a friendly, human category.
-    private static func friendlyCategory(for rawName: String) -> String {
+    ///
+    /// `nonisolated` for the same reason as `grouped`, which is its only
+    /// caller: it is string matching with no state behind it, and it runs on
+    /// the sampling queue.
+    private nonisolated static func friendlyCategory(for rawName: String) -> String {
         let name = rawName.lowercased()
         if name.contains("gas gauge") || name.contains("batt") { return "Battery" }
         if name.contains("gpu") { return "Graphics" }
