@@ -498,6 +498,59 @@ MainActor.assumeIsolated {
             .allSatisfy { $0.panelShadowRadius > 0 }
     )
 
+    // ── A reported position has to earn its place ───────────────────────────
+    //
+    // Between polls the bar runs on its own clock, which is what makes it move
+    // smoothly instead of in one-second steps. A reported position measures the
+    // same track a moment earlier, so the two are never exactly equal — and
+    // adopting the report every time drags the readout back across a second
+    // boundary and then forwards again. On screen: 1:41, 1:40, 1:41, over and
+    // over, on a track playing perfectly normally.
+    func at(_ elapsed: Double, _ seconds: Double, playing: Bool = true, length: Double = 300) -> MediaProgress {
+        MediaProgress(
+            elapsed: elapsed, duration: length, isPlaying: playing,
+            at: Date(timeIntervalSince1970: seconds)
+        )
+    }
+    check(
+        "the first position is always taken",
+        MediaMonitor.adopt(at(10, 0), over: nil)
+    )
+    // The clock says 40s; the report says 40.6s. Nothing has happened.
+    check(
+        "a report that agrees with the clock is ignored",
+        MediaMonitor.adopt(at(40.6, 40), over: at(10, 10)) == false
+    )
+    // Ten seconds adrift is a seek, not drift.
+    check(
+        "a report that disagrees is taken at once",
+        MediaMonitor.adopt(at(120, 40), over: at(10, 10))
+    )
+    check(
+        "so is a jump backwards",
+        MediaMonitor.adopt(at(5, 40), over: at(10, 10))
+    )
+    // Play state and length are facts about the track, not estimates of where
+    // it is, so they are adopted whatever the position says.
+    check(
+        "a change of play state is always taken",
+        MediaMonitor.adopt(at(40.6, 40, playing: false), over: at(10, 10))
+    )
+    check(
+        "a change of track length is always taken",
+        MediaMonitor.adopt(at(40.6, 40, length: 500), over: at(10, 10))
+    )
+    // A paused track does not advance, so its clock and its report agree
+    // exactly and nothing should keep replacing it.
+    check(
+        "a paused track's unchanged report is ignored",
+        MediaMonitor.adopt(at(30, 90, playing: false), over: at(30, 10, playing: false)) == false
+    )
+    check(
+        "the tolerance is wide enough for rounding, narrow enough to catch a seek",
+        MediaMonitor.positionTolerance > 1 && MediaMonitor.positionTolerance < 5
+    )
+
     // ── The position is a snapshot, not a reading ────────────────────────────
     //
     // kMRMediaRemoteNowPlayingInfoElapsedTime is where the track was at

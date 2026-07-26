@@ -10,6 +10,16 @@ public struct MediaProgress: Equatable {
     public let isPlaying: Bool
     public let at: Date
 
+    /// Package-visible so the checks can build one, which is what lets the
+    /// rule about which reported positions to believe be pinned without a
+    /// player running.
+    package init(elapsed: Double, duration: Double, isPlaying: Bool, at: Date) {
+        self.elapsed = elapsed
+        self.duration = duration
+        self.isPlaying = isPlaying
+        self.at = at
+    }
+
     /// Position now: the last reported position plus wall time while playing.
     public func current(now: Date) -> Double {
         let base = isPlaying ? elapsed + now.timeIntervalSince(at) : elapsed
@@ -424,12 +434,26 @@ public final class MediaMonitor: ObservableObject {
         }
 
         if let shown, let elapsed = shown.elapsed, let duration = shown.duration, duration > 0 {
-            progress = MediaProgress(
+            let reported = MediaProgress(
                 elapsed: elapsed,
                 duration: duration,
                 isPlaying: shown.isPlaying,
                 at: shown.fetchedAt
             )
+            // Only take a reported position when it actually says something new.
+            //
+            // Between polls the bar advances on its own clock, which is what
+            // makes it move smoothly. The reported position is the same track
+            // measured a moment earlier and rounded on the way, so it lands a
+            // fraction either side of where the clock has already got to —
+            // and adopting it every time drags the readout back and forth
+            // across a second boundary. On screen that is 1:41, 1:40, 1:41,
+            // over and over, on a track playing perfectly normally.
+            //
+            // So a poll that merely agrees is ignored, and the clock keeps
+            // running. A poll that DISAGREES — a seek, a track change, a
+            // stall — is worth more than the clock and is taken at once.
+            progress = Self.adopt(reported, over: progress) ? reported : progress
         } else {
             progress = nil
         }
@@ -554,6 +578,43 @@ public final class MediaMonitor: ObservableObject {
         guard accessibilityGranted else { return .accessibilityMissing }
         return nil
     }
+
+    /// Whether a freshly reported position should replace the one the bar is
+    /// already running on.
+    ///
+    /// The bar advances on its own clock between polls, which is what makes it
+    /// move smoothly rather than in one-second steps. The reported position
+    /// measures the same track a moment earlier, so the two are never exactly
+    /// equal — and taking the report every time drags the readout back across a
+    /// second boundary and then forwards again: 1:41, 1:40, 1:41, on a track
+    /// playing normally.
+    ///
+    /// The rule is that a report has to earn its place. Agreement within the
+    /// tolerance means the clock is right and the report adds nothing. Anything
+    /// larger is a real event — a seek, a track change, a stall, a stream that
+    /// jumped — and the report is then the only thing that knows the truth.
+    ///
+    /// A change of play state or of track length is always adopted, whatever
+    /// the position says: those are facts about the track rather than estimates
+    /// of where it is.
+    ///
+    /// Pure and package-visible so the checks can pin it without a player.
+    package nonisolated static func adopt(
+        _ reported: MediaProgress,
+        over current: MediaProgress?,
+        tolerance: TimeInterval = positionTolerance
+    ) -> Bool {
+        guard let current else { return true }
+        if reported.isPlaying != current.isPlaying { return true }
+        if Int(reported.duration) != Int(current.duration) { return true }
+        let expected = current.current(now: reported.at)
+        return abs(reported.elapsed - expected) > tolerance
+    }
+
+    /// How far a reported position may differ from the running clock before it
+    /// is believed. Wide enough to swallow the rounding and the delay in a
+    /// reading; far narrower than any real jump.
+    package nonisolated static let positionTolerance: TimeInterval = 2.5
 
     /// Whether a polled play state should be trusted, or the state the button
     /// already showed kept for a moment longer.

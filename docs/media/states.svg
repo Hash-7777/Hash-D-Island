@@ -1,102 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" role="img" aria-label="The notch at rest, then a slim live strip beside it showing a track, then the full panel dropped below it.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 250" width="780" height="250" role="img" aria-label="Three states. At rest the island is exactly the notch. When something is playing a slim strip appears beside the notch. Hovering the notch drops the full panel below the menu bar.">
   <title>Three states of Hash D Island</title>
   <style>
-    .bg      { fill: #0B0C10; }
-    .lid     { fill: #16181F; }
-    .screen  { fill: #05060A; }
-    .notch   { fill: #000; }
-    .label   { fill: #8FBAFF; font: 600 12px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: .08em; }
-    .cap     { fill: #6C7689; font: 400 11px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
-    .txt     { fill: #E8EBF2; font: 500 9px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
-    .dim     { fill: #7E879B; font: 400 8px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
-    .accent  { fill: #E5A34B; }
-    .green   { fill: #47D67A; }
+    text { font-family: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif; }
+    .num   { fill:#3D4353; font-size:38px; font-weight:700; }
+    .head  { fill:#F2F5FA; font-size:13px; font-weight:650; }
+    .sub   { fill:#78829A; font-size:10.5px; }
+    .ui    { fill:#E8EBF2; font-size:8px; font-weight:600; }
+    .uidim { fill:#79839A; font-size:7.5px; font-weight:500; }
+    .amber { fill:#E5A34B; }
+    .green { fill:#47D67A; }
+    .bar-t { fill:#8FBAFF; }
 
-    /* Each panel breathes in turn, so the eye is walked left to right. */
-    .step    { opacity: .55; transform-origin: center; animation: wake 6s ease-in-out infinite; }
-    .s2      { animation-delay: 2s; }
-    .s3      { animation-delay: 4s; }
-    @keyframes wake {
-      0%, 8%    { opacity: .55; }
-      14%, 30%  { opacity: 1; }
-      38%, 100% { opacity: .55; }
+    /* transform-box is what makes transform-origin mean the element's own box.
+       Without it SVG resolves the origin against the whole canvas, which threw
+       every animated part clean across the picture. */
+    .anim { transform-box: fill-box; }
+
+    /* Each card lifts in turn, walking the eye left to right. */
+    .card { opacity:.45; transform-box: fill-box; transform-origin: 50% 100%;
+            animation: lift 7.5s cubic-bezier(.4,0,.2,1) infinite; }
+    .c2 { animation-delay: 2.5s; }
+    .c3 { animation-delay: 5s; }
+    @keyframes lift {
+      0%,4%    { opacity:.45; transform: translateY(0); }
+      10%,28%  { opacity:1;   transform: translateY(-4px); }
+      34%,100% { opacity:.45; transform: translateY(0); }
     }
 
-    /* The bars beside the track title, as if sound were moving them. */
-    .bar { animation: dance 1.1s ease-in-out infinite; transform-origin: bottom; }
-    .b2  { animation-delay: .18s; }
-    .b3  { animation-delay: .36s; }
-    .b4  { animation-delay: .54s; }
-    @keyframes dance {
-      0%, 100% { transform: scaleY(.35); }
-      50%      { transform: scaleY(1); }
-    }
+    .bar { transform-box: fill-box; transform-origin: 50% 100%;
+           animation: dance 1s ease-in-out infinite; }
+    .d1 { animation-delay:.0s } .d2 { animation-delay:.13s }
+    .d3 { animation-delay:.26s } .d4 { animation-delay:.39s }
+    @keyframes dance { 0%,100% { transform: scaleY(.3) } 50% { transform: scaleY(1) } }
 
-    /* The panel's progress line filling. */
-    .fill { animation: grow 6s ease-in-out infinite; transform-origin: left; }
-    @keyframes grow {
-      0%   { transform: scaleX(.06); }
-      70%  { transform: scaleX(.62); }
-      100% { transform: scaleX(.62); }
-    }
+    .fill { transform-box: fill-box; transform-origin: 0% 50%;
+            animation: grow 7.5s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes grow { 0%,5% { transform: scaleX(.05) } 30%,100% { transform: scaleX(.66) } }
 
     @media (prefers-reduced-motion: reduce) {
-      .step, .bar, .fill { animation: none; opacity: 1; }
+      .card, .bar, .fill { animation: none; opacity: 1; }
+      .fill { transform: scaleX(.66); }
     }
   </style>
 
-  <rect class="bg" width="760" height="300" rx="14"/>
+  <rect width="780" height="250" rx="16" fill="#0B0C10"/>
 
-  <!-- ─────────── 1. at rest ─────────── -->
-  <g class="step">
-    <text class="label" x="40" y="34">AT REST</text>
-    <text class="cap"   x="40" y="52">it is just the notch</text>
-    <rect class="lid"    x="40"  y="70" width="200" height="118" rx="10"/>
-    <rect class="screen" x="46"  y="76" width="188" height="106" rx="7"/>
-    <path class="notch" d="M112 76 h56 a8 8 0 0 1 0 0 v14 a7 7 0 0 1-7 7 h-42 a7 7 0 0 1-7-7 z"/>
-    <text class="dim" x="140" y="230" text-anchor="middle">invisible until it</text>
-    <text class="dim" x="140" y="243" text-anchor="middle">has something to say</text>
+  <!-- ══════════ 1 · at rest ══════════ -->
+  <g class="card">
+    <rect x="24" y="24" width="228" height="202" rx="13" fill="#101219" stroke="#1E2230"/>
+    <text class="num"  x="44" y="64">1</text>
+    <text class="head" x="76" y="53">At rest</text>
+    <text class="sub"  x="76" y="68">it is exactly the notch</text>
+
+    <!-- lid -->
+    <rect x="44" y="88" width="188" height="104" rx="9" fill="#191C25"/>
+    <rect x="49" y="93" width="178" height="94"  rx="6" fill="#0C0F18"/>
+    <!-- the notch: square top, rounded bottom, like the real shape -->
+    <path d="M110 93 h56 v13 a6 6 0 0 1-6 6 h-44 a6 6 0 0 1-6-6 z" fill="#000"/>
+
+    <text class="sub" x="138" y="212" text-anchor="middle" font-size="9.5">nothing to see until</text>
+    <text class="sub" x="138" y="224" text-anchor="middle" font-size="9.5">there is something to say</text>
   </g>
 
-  <!-- ─────────── 2. live strip ─────────── -->
-  <g class="step s2">
-    <text class="label" x="280" y="34">SOMETHING LIVE</text>
-    <text class="cap"   x="280" y="52">a strip, no hover needed</text>
-    <rect class="lid"    x="280" y="70" width="200" height="118" rx="10"/>
-    <rect class="screen" x="286" y="76" width="188" height="106" rx="7"/>
-    <!-- strip flanking the notch -->
-    <path class="notch" d="M300 76 h160 a6 6 0 0 1 0 0 v15 a7 7 0 0 1-7 7 H307 a7 7 0 0 1-7-7 z"/>
-    <rect class="accent" x="306" y="80" width="9" height="9" rx="2"/>
-    <text class="txt" x="404" y="88">Night Drive</text>
-    <g class="accent">
-      <rect class="bar"     x="446" y="80" width="2" height="9" rx="1"/>
-      <rect class="bar b2"  x="450" y="80" width="2" height="9" rx="1"/>
-      <rect class="bar b3"  x="454" y="80" width="2" height="9" rx="1"/>
-      <rect class="bar b4"  x="458" y="80" width="2" height="9" rx="1"/>
+  <!-- ══════════ 2 · live strip ══════════ -->
+  <g class="card c2">
+    <rect x="276" y="24" width="228" height="202" rx="13" fill="#101219" stroke="#1E2230"/>
+    <text class="num"  x="296" y="64">2</text>
+    <text class="head" x="328" y="53">Something live</text>
+    <text class="sub"  x="328" y="68">a strip — no hover needed</text>
+
+    <rect x="296" y="88" width="188" height="104" rx="9" fill="#191C25"/>
+    <rect x="301" y="93" width="178" height="94"  rx="6" fill="#0C0F18"/>
+    <!-- strip: wider than the notch, flanking it -->
+    <path d="M318 93 h144 v13 a6 6 0 0 1-6 6 H324 a6 6 0 0 1-6-6 z" fill="#000"/>
+    <rect class="amber" x="323" y="96" width="9" height="9" rx="2.5"/>
+    <text class="ui" x="337" y="103">Night Drive</text>
+    <g class="amber">
+      <rect class="bar d1" x="440" y="97" width="2" height="8" rx="1"/>
+      <rect class="bar d2" x="444" y="97" width="2" height="8" rx="1"/>
+      <rect class="bar d3" x="448" y="97" width="2" height="8" rx="1"/>
+      <rect class="bar d4" x="452" y="97" width="2" height="8" rx="1"/>
     </g>
-    <text class="dim" x="380" y="230" text-anchor="middle">one thing at a time,</text>
-    <text class="dim" x="380" y="243" text-anchor="middle">the most urgent wins</text>
+
+    <text class="sub" x="390" y="212" text-anchor="middle" font-size="9.5">one thing at a time —</text>
+    <text class="sub" x="390" y="224" text-anchor="middle" font-size="9.5">the most urgent wins</text>
   </g>
 
-  <!-- ─────────── 3. the panel ─────────── -->
-  <g class="step s3">
-    <text class="label" x="520" y="34">HOVER THE NOTCH</text>
-    <text class="cap"   x="520" y="52">everything, below the menu bar</text>
-    <rect class="lid"    x="520" y="70" width="200" height="118" rx="10"/>
-    <rect class="screen" x="526" y="76" width="188" height="106" rx="7"/>
-    <path class="notch" d="M592 76 h56 v10 a6 6 0 0 1-6 6 h-44 a6 6 0 0 1-6-6 z"/>
-    <!-- the dropped panel: square top, rounded bottom, like the real one -->
-    <path d="M566 76 h108 v78 a12 12 0 0 1-12 12 H578 a12 12 0 0 1-12-12 z" fill="#0E1016" stroke="#262A35" stroke-width="1"/>
-    <rect class="accent" x="574" y="92" width="16" height="16" rx="3"/>
-    <text class="txt" x="596" y="100">Night Drive</text>
-    <text class="dim" x="596" y="110">HASH</text>
-    <rect x="574" y="118" width="92" height="3" rx="1.5" fill="#252A36"/>
-    <rect class="fill accent" x="574" y="118" width="92" height="3" rx="1.5"/>
-    <text class="dim"   x="574" y="136">Internet</text>
-    <text class="green" x="666" y="136" text-anchor="end" style="font:500 8px ui-sans-serif,system-ui">4.2 MB/s</text>
-    <text class="dim"   x="574" y="150">Storage</text>
-    <text class="txt"   x="666" y="150" text-anchor="end">74% full</text>
-    <text class="dim" x="620" y="230" text-anchor="middle">never covers your menus</text>
-    <text class="dim" x="620" y="243" text-anchor="middle">or status icons</text>
+  <!-- ══════════ 3 · the panel ══════════ -->
+  <g class="card c3">
+    <rect x="528" y="24" width="228" height="202" rx="13" fill="#101219" stroke="#1E2230"/>
+    <text class="num"  x="548" y="64">3</text>
+    <text class="head" x="580" y="53">Hover the notch</text>
+    <text class="sub"  x="580" y="68">everything, below the menu bar</text>
+
+    <rect x="548" y="88" width="188" height="104" rx="9" fill="#191C25"/>
+    <rect x="553" y="93" width="178" height="94"  rx="6" fill="#0C0F18"/>
+    <path d="M614 93 h56 v13 a6 6 0 0 1-6 6 h-44 a6 6 0 0 1-6-6 z" fill="#000"/>
+    <!-- the dropped panel, square top and rounded bottom like the app draws it -->
+    <path d="M592 93 h100 v76 a11 11 0 0 1-11 11 H603 a11 11 0 0 1-11-11 z"
+          fill="#0C0E15" stroke="#2A2F3C" stroke-width="1"/>
+    <rect class="amber" x="600" y="112" width="15" height="15" rx="3.5"/>
+    <text class="ui"    x="620" y="119">Night Drive</text>
+    <text class="uidim" x="620" y="128">HASH</text>
+    <rect x="600" y="135" width="84" height="2.5" rx="1.25" fill="#242936"/>
+    <rect class="fill amber" x="600" y="135" width="84" height="2.5" rx="1.25"/>
+    <text class="uidim" x="600" y="151">Internet</text>
+    <text class="green" x="684" y="151" text-anchor="end" font-size="7.5" font-weight="600">4.2 MB/s</text>
+    <text class="uidim" x="600" y="164">Storage</text>
+    <text class="ui"    x="684" y="164" text-anchor="end">74% full</text>
+
+    <text class="sub" x="642" y="212" text-anchor="middle" font-size="9.5">never covers your menus</text>
+    <text class="sub" x="642" y="224" text-anchor="middle" font-size="9.5">or your status icons</text>
   </g>
 </svg>

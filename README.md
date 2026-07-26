@@ -6,15 +6,16 @@
 
 ### Your notch, finally alive.
 
-**The dead space around your MacBook notch becomes something worth looking at.**
-Now playing, internet speed, battery, temperatures and today's AI usage — one glance away, and nothing ever leaves your Mac.
+**Apple gave you a notch. This gives you a reason to look at it.**
+
+What's playing, how fast your internet is, what your battery is doing, how hot the chip is running, what you have spent on AI today — all of it a glance away, and **none of it leaves your Mac**. No account. No telemetry. Not a single network request.
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-12%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 12+">
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-426%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="426 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-434%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="434 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -42,35 +43,37 @@ Swipe **down** on the notch to open it. Swipe **sideways** across the open panel
 
 ## ◦ What it shows
 
-| | |
-|---|---|
-| ♪ **Now playing** | Anything that plays — Spotify, Music, TV, Podcasts, Anghami, VLC, a browser tab. Real artwork for all of it, a draggable progress bar, and a volume slider. |
-| ↕ **Internet** | Live upload and download, with the last half-minute graphed. |
-| ▮ **Battery** | Level, time left, time to full, adapter wattage, and Low Power Mode. Capped at 80%? It counts down to *that*. |
-| ◷ **Processor & memory** | How busy the CPU is and how much memory is in use — the figures Activity Monitor shows. |
-| ° **Temperatures** | The real Apple Silicon on-die sensors. |
-| ◔ **AI tokens** | What you have spent today across Claude Code, HashCortX and HashCerebrum. |
-| ▤ **Storage** | How full the disk is — the figure `df` and Disk Utility agree on. |
-| ⧗ **Timer** | Any length, counting down at the notch, with a chime. |
-| ⤓ **Downloads** | A quiet notice the moment one lands. |
-| ◈ **AirPods** | Charge left in each earbud and the case. |
-| ⚑ **Live activities** | Anything your scripts, Shortcuts or AI tools post. |
+**Now playing** — anything that plays. Spotify, Apple Music, TV, Podcasts, Anghami, VLC, a browser tab. Real artwork for all of it, a title that scrolls, a progress bar you can drag, and a volume slider.
 
-Every one can be switched off, reordered by dragging, and restyled.
+**Internet** — live upload and download, with the last half-minute graphed underneath.
+
+**Battery** — level, time left, time to full, adapter wattage, Low Power Mode. Capped at 80% for its health? It counts down to *that*, not to a full charge it will never reach.
+
+**Processor and memory** — how hard your Mac is working, in the same figures Activity Monitor shows.
+
+**Temperatures** — the real Apple Silicon on-die sensors, not an estimate.
+
+**AI tokens** — what you have spent today, across Claude Code, HashCortX and HashCerebrum.
+
+**Storage** — how full the disk is, using the figure `df` and Disk Utility agree on.
+
+**Timer**, **downloads**, **AirPods charge**, and **live activities** anything can post to.
+
+Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 ---
 
 ## ◦ Why this one
 
-**Everything that plays gets artwork.** Not a list of supported apps — macOS is asked directly for what is playing, so an app nobody ever wrote support for still shows its cover.
+**Every app gets artwork — not a list of supported ones.** There is no hand-written support per player here, so nothing falls off the end of a list. macOS itself is asked what is playing, which means a niche music app, a podcast player, or something released next year arrives with real cover art and working controls on day one, with no update from me.
 
-**It makes no network requests.** None. The artwork arrives from the system, so there is nothing to download and nothing to leak.
+**Zero network requests.** Not "encrypted", not "anonymised" — none. The artwork comes from the system, so there is nothing to fetch and nothing that could ever leak. You can verify that claim with Little Snitch in about ten seconds.
 
 **Off means off.** Switching an indicator off stops it *reading*, not just showing. A feature that is off opens no files, runs no subprocess, and can trigger none of the permission prompts.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 426 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 434 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -91,7 +94,18 @@ All checks passed.
 2. First launch, macOS says it cannot verify the developer. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**. Once only.
 3. **Hover the notch.** No Dock icon, no menu-bar item — the notch is the whole interface. The gear beside it opens settings.
 
-**Requirements:** an Apple Silicon Mac, macOS 12 or later. *(Built and verified on macOS 26; older versions get the same features with lighter effects.)*
+### Which macOS
+
+| Release | Version | Supported |
+|---|:---:|---|
+| **Tahoe** | 26 | ✅ built and verified on this |
+| **Sequoia** | 15 | ✅ full |
+| **Sonoma** | 14 | ✅ full |
+| **Ventura** | 13 | ✅ full |
+| **Monterey** | 12 | ✅ everything except Open at Login, which needs macOS 13 — the app says so rather than failing quietly |
+| Big Sur | 11 | ❌ some of the drawing it relies on does not exist there |
+
+Any **Apple Silicon** Mac (M1 and later). Older releases get every feature, with a little longer per animation and one less heavy effect, so the motion stays smooth on the machines with the least to spare.
 
 > **Why the extra step?** It reads system-wide Now Playing and the real temperature sensors, which need Apple interfaces the App Store does not allow — so it ships straight from here. Everything it reads is spelled out in **[SECURITY.md](SECURITY.md)**.
 

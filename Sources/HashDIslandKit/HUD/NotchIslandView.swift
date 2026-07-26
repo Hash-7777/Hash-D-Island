@@ -44,24 +44,27 @@ struct NotchIslandView: View {
     /// the panel read as the physical notch stretching open before it reveals.
     @State private var panelRevealed = false
 
-    /// The wobble a drop makes when it lands. Kicked to 1 the instant the panel
-    /// opens or closes, then sprung back to 0 on a deliberately under-damped
-    /// curve so it overshoots several times before settling.
-    ///
-    /// This is what was missing from the water-drop effect. The shape already
-    /// grew out of the notch on the right curve, but it arrived at its final
-    /// size and simply stopped, which is how a box behaves — a drop does not
-    /// stop, it overshoots and rings down as surface tension pulls it back. The
-    /// stretch is applied on top of the transition rather than folded into it
-    /// so the two can differ: the arrival is a single confident motion, the
-    /// settle is the decaying ring after it.
-    @State private var settle: CGFloat = 0
-
-    /// How far the wobble squashes and stretches, as fractions. Small on
-    /// purpose — this should be felt rather than watched, and anything past a
-    /// few percent stops reading as water and starts reading as jelly.
-    private static let settleSquash: CGFloat = 0.028
-    private static let settleStretch: CGFloat = 0.045
+    // ── The settle, and why it is a spring rather than an effect ────────────
+    //
+    // The water-drop wobble was first built as a second animated transform:
+    // an impulse kicked on open, released on an under-damped spring, applied
+    // as a scaleEffect over the whole island. It was wrong, and the way it was
+    // wrong is worth keeping.
+    //
+    // That scaleEffect sat on the container that HOLDS the transitioning
+    // views. While the panel arrives and the strip leaves, both exist, and both
+    // are already being scaled by their own transitions — so an outer scale
+    // animating on a DIFFERENT curve multiplied against them frame by frame.
+    // Captured in slow motion: the strip's artwork and title smeared across
+    // three positions at once during the open, like a bad ghost.
+    //
+    // The wobble now comes from the opening spring itself — lower damping
+    // overshoots and rings down, which is the same physical behaviour with
+    // nothing layered on top. One transform per view, and nothing to compound.
+    //
+    // RULE, since it was learned the expensive way: never animate a transform
+    // on a container whose children are mid-transition. Put it on a child that
+    // is staying put, or express it in the spring that is already running.
 
     /// Whether the live strip is actually drawn.
     ///
@@ -196,9 +199,14 @@ struct NotchIslandView: View {
         // springs are fully damped, because a bouncing close reads as a crash.
         // The motion setting scales all four responses together, so calm and
         // lively stay recognisably the same animation.
+        // Opening undershoots its damping so the panel overshoots its height
+        // slightly and rings down — the drop landing. Closing is fully damped,
+        // because a bouncing close reads as a crash. This spring IS the wobble;
+        // see the note above for the transform that used to do it and why it
+        // could not stay.
         .animation(
             showExpanded
-                ? .spring(response: 0.55 * motionScale, dampingFraction: 0.72)
+                ? .spring(response: 0.52 * motionScale, dampingFraction: 0.62)
                 : .spring(response: 0.42 * motionScale, dampingFraction: 0.98),
             value: showExpanded
         )
@@ -208,23 +216,6 @@ struct NotchIslandView: View {
                 : .spring(response: 0.30 * motionScale, dampingFraction: 1.0),
             value: liveShown
         )
-        // The settle, applied last so it rides on top of the whole island.
-        // Anchored to the top edge: a drop hangs from where it came out of, so
-        // the wobble has to happen below the notch and never move it.
-        .scaleEffect(
-            x: 1 - settle * Self.settleSquash,
-            y: 1 + settle * Self.settleStretch,
-            anchor: .top
-        )
-        .onChange(of: showExpanded) { _ in
-            // Kicked instantly, released on a spring: the impulse IS the
-            // gesture. Animating INTO the stretch as well would round off the
-            // leading edge and lose the sense of something being pulled.
-            settle = 1
-            withAnimation(.spring(response: 0.5 * motionScale, dampingFraction: 0.38)) {
-                settle = 0
-            }
-        }
     }
 
     // MARK: The three pills
