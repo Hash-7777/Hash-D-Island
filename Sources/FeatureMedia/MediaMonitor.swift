@@ -57,6 +57,15 @@ public final class MediaMonitor: ObservableObject {
         self.presence = presence
         self.pressesKeys = pressesKeys
 
+        // A cover arrives after the track it belongs to, because waiting for it
+        // used to hold the title off the screen. It is applied only if that
+        // track is still the one showing — by the time an image lands the user
+        // may have skipped again, and the previous song's cover is worse than
+        // the placeholder.
+        reader?.onArtwork = { [weak self] title, data in
+            Task { @MainActor [weak self] in self?.applyArtwork(data, for: title) }
+        }
+
         // Instant reaction: CoreAudio signals the moment audio starts or stops
         // anywhere, and Spotify/Music broadcast their play-state changes. The
         // poll below is only the safety net (seek positions, sources that
@@ -89,7 +98,7 @@ public final class MediaMonitor: ObservableObject {
     /// Dropping the rate costs no responsiveness: pressing play is caught by
     /// the CoreAudio and player broadcasts above within a fraction of a second,
     /// and this poll is only the safety net behind them.
-    private static let activeInterval: TimeInterval = 2
+    private nonisolated static let activeInterval: TimeInterval = 2
     /// A paused track while the speakers are BUSY — so something else is
     /// playing and this readout is about to be wrong.
     ///
@@ -100,12 +109,12 @@ public final class MediaMonitor: ObservableObject {
     /// faster fixed it and tripled the idle cost, which is a bad trade for a
     /// readout. Asking whether audio is running costs nothing and is only ever
     /// true when there is something to find.
-    private static let contendedInterval: TimeInterval = 2
+    private nonisolated static let contendedInterval: TimeInterval = 2
     /// A paused track and silence. Nothing is going to change until the user
     /// does something, and doing something makes a noise.
-    private static let pausedInterval: TimeInterval = 12
+    private nonisolated static let pausedInterval: TimeInterval = 12
     /// Nothing playing at all, and nothing to be stale about.
-    private static let idleInterval: TimeInterval = 15
+    private nonisolated static let idleInterval: TimeInterval = 15
 
     private func startSampling(interval: TimeInterval) {
         guard samplingInterval != interval || sampler == nil else { return }
@@ -155,13 +164,82 @@ public final class MediaMonitor: ObservableObject {
     public func next() {
         guard let media = nowPlaying else { return }
         reader?.send(.next, to: media.source, pressingKeys: pressesKeys())
-        scheduleRefresh()
+        skipping()
     }
 
     public func previous() {
         guard let media = nowPlaying else { return }
         reader?.send(.previous, to: media.source, pressingKeys: pressesKeys())
-        scheduleRefresh()
+        skipping()
+    }
+
+    /// What a skip does to the panel before the player has answered.
+    ///
+    /// Play and pause could always flip optimistically, because the button
+    /// knows the answer. A skip does not — nobody knows the next title until
+    /// the player says so — so it used to change nothing at all for up to a
+    /// full poll, and the honest reading of a control that does nothing is that
+    /// it is broken. The bar cannot show a position in a track that is being
+    /// left, so it goes to the start immediately: that is true of whatever
+    /// comes next, and it is the one piece of feedback available at once.
+    ///
+    /// Then it asks again quickly rather than waiting out the poll — three
+    /// times, backing off, which is over inside a second and a half and is the
+    /// difference between a skip that lands and one that seems to hang.
+    private func skipping() {
+        if let progress {
+            self.progress = MediaProgress(
+                elapsed: 0, duration: progress.duration, isPlaying: progress.isPlaying, at: Date()
+            )
+        }
+        for delay in Self.skipFollowUps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.refresh()
+            }
+        }
+    }
+
+    /// When to look again after a skip. The first is as soon as a player could
+    /// plausibly have answered; the rest cover a slow one without ever becoming
+    /// a poll in their own right.
+    private static let skipFollowUps: [TimeInterval] = [0.25, 0.7, 1.5]
+
+    /// Whether a cover that has just finished downloading still belongs on
+    /// screen.
+    ///
+    /// Artwork is fetched off the polling queue so a track can be shown without
+    /// waiting for its picture, which means a cover can land after the user has
+    /// already skipped past the song it belongs to. Showing it then would put
+    /// the wrong album beside the right title — a worse failure than the
+    /// placeholder it replaced, and one that would sit there until the next
+    /// track change. Pure and package-visible so the checks can pin it without
+    /// a player.
+    package nonisolated static func acceptsArtwork(
+        arrivedFor arrivedTitle: String,
+        showing shownTitle: String?
+    ) -> Bool {
+        guard let shownTitle, !arrivedTitle.isEmpty else { return false }
+        return shownTitle == arrivedTitle
+    }
+
+    /// Fills in a cover that arrived after its track.
+    private func applyArtwork(_ data: Data, for title: String) {
+        guard let media = nowPlaying,
+              Self.acceptsArtwork(arrivedFor: title, showing: media.title),
+              media.artwork != data
+        else { return }
+        withAnimation(.easeOut(duration: 0.25)) {
+            nowPlaying = NowPlaying(
+                title: media.title,
+                artist: media.artist,
+                isPlaying: media.isPlaying,
+                artwork: data,
+                source: media.source,
+                elapsed: media.elapsed,
+                duration: media.duration,
+                fetchedAt: media.fetchedAt
+            )
+        }
     }
 
     /// Slider input: CoreAudio is a direct call, so every tick of the drag is

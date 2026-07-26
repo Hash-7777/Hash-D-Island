@@ -324,6 +324,27 @@ MainActor.assumeIsolated {
     check("the player wins once the window has passed", settles(2.0, false, true) == false)
     check("the window is exclusive at its edge", settles(1.5, false, true) == false)
 
+    // A cover is fetched off the polling queue so a track can appear without
+    // waiting on an HTTP request — which means it can land after the user has
+    // already skipped past the song it belongs to. The wrong album beside the
+    // right title is a worse failure than the placeholder it would replace.
+    check(
+        "a cover is shown when its own track is still the one playing",
+        MediaMonitor.acceptsArtwork(arrivedFor: "Night Drive", showing: "Night Drive")
+    )
+    check(
+        "a cover that arrives after a skip is dropped",
+        MediaMonitor.acceptsArtwork(arrivedFor: "Night Drive", showing: "Something Else") == false
+    )
+    check(
+        "a cover arriving once the notch is empty is dropped",
+        MediaMonitor.acceptsArtwork(arrivedFor: "Night Drive", showing: nil) == false
+    )
+    check(
+        "a cover with no track to belong to is dropped",
+        MediaMonitor.acceptsArtwork(arrivedFor: "", showing: "") == false
+    )
+
     // Panel-only readouts sample only while anyone can see them.
     let visibility = PanelVisibility()
     var samples = 0

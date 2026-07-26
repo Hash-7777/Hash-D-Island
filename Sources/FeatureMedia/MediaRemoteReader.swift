@@ -126,9 +126,19 @@ final class MediaRemoteReader {
     /// Commands run on their own queue so a click NEVER waits behind an
     /// in-flight fetch — play/pause must feel instant.
     private let commandQueue = DispatchQueue(label: "com.hashdisland.media.commands", qos: .userInitiated)
+    /// Downloading a cover is the one slow thing here, and it is never the
+    /// thing the reader was asked for. It gets its own queue so the track can
+    /// be published the moment the script returns.
+    private let artworkQueue = DispatchQueue(label: "com.hashdisland.media.artwork", qos: .utility)
 
     private let stateLock = NSLock()
     private var inFlight = false
+
+    /// Called when a cover finishes downloading, with the title it belongs to,
+    /// on a background queue. The title comes back with it because by then the
+    /// track may already have changed, and artwork for the previous song is
+    /// worse than none.
+    var onArtwork: ((String, Data) -> Void)?
 
     private var cachedArtworkURL: String?
     private var cachedArtwork: Data?
@@ -136,6 +146,9 @@ final class MediaRemoteReader {
     /// track starts and then left alone until the track changes — the cover of
     /// a song does not change while the song is playing.
     private var artworkTitle: String?
+    /// The cover URL currently being downloaded, so a poll landing mid-download
+    /// does not start the same fetch again.
+    private var pendingArtworkURL: String?
 
     private static let osascript = "/usr/bin/osascript"
 
@@ -488,14 +501,7 @@ final class MediaRemoteReader {
         // The script was told what we already hold; when it says nothing has
         // changed it did none of the work to produce it again, and neither do
         // we.
-        let artwork: Data?
-        if payload.artUnchanged == true, let cachedArtwork {
-            artwork = cachedArtwork
-        } else {
-            artwork = resolveArtwork(url: payload.artworkUrl, base64: payload.artwork)
-            artworkTitle = artwork == nil ? nil : title
-            if artwork == nil { cachedArtwork = nil }
-        }
+        let artwork = artworkNow(for: title, payload: payload)
         return NowPlaying(
             title: title,
             artist: payload.artist,
@@ -508,30 +514,67 @@ final class MediaRemoteReader {
         )
     }
 
-    /// Resolve artwork: prefer a downloaded URL (Spotify), else base64 (Music).
-    /// Downloads are cached by URL so we don't refetch the same image each poll,
-    /// and only URLs passing `ArtworkPolicy` are ever fetched.
-    private func resolveArtwork(url: String?, base64: String?) -> Data? {
-        if let url, !url.isEmpty {
-            guard ArtworkPolicy.isTrustedURL(url) else { return nil }
-            if url == cachedArtworkURL, let cached = cachedArtwork { return cached }
-            let data = download(url)
-            cachedArtworkURL = url
-            cachedArtwork = data
-            return data
-        }
-        if let base64, let data = Data(base64Encoded: base64),
+    /// The artwork to publish with THIS snapshot — never a download.
+    ///
+    /// The cover used to be resolved inline, which meant a track change waited
+    /// on an HTTP request with a four-second timeout before the *title* could
+    /// reach the screen. Pressing skip therefore looked like it had not worked:
+    /// the song had already changed, and the notch was still showing the old
+    /// one because it was busy fetching a picture. Nothing here blocks now.
+    /// Anything already in hand is returned; anything that needs the network is
+    /// started on `artworkQueue` and delivered through `onArtwork` when it
+    /// lands, as a second, later update to a track that is already on screen.
+    ///
+    /// Music's artwork is the exception that stays inline: it arrives as base64
+    /// inside the payload we have already paid for, so decoding it is arithmetic
+    /// rather than waiting.
+    private func artworkNow(for title: String, payload: Payload) -> Data? {
+        if payload.artUnchanged == true, let cachedArtwork { return cachedArtwork }
+
+        if let base64 = payload.artwork, let data = Data(base64Encoded: base64),
            data.count <= ArtworkPolicy.maxArtworkBytes {
-            // Held like the downloaded kind. Without this the app never told
-            // the script it had Apple Music's artwork, so the script re-encoded
-            // the whole image on every single poll — the most expensive thing
-            // the reader did, done over and over for a picture already on
-            // screen.
             cachedArtworkURL = nil
             cachedArtwork = data
+            artworkTitle = title
             return data
         }
+
+        guard let url = payload.artworkUrl, !url.isEmpty, ArtworkPolicy.isTrustedURL(url) else {
+            cachedArtwork = nil
+            cachedArtworkURL = nil
+            artworkTitle = nil
+            return nil
+        }
+
+        if url == cachedArtworkURL, let cached = cachedArtwork { return cached }
+
+        // A new cover. Publish the track without it and go and get it.
+        startArtworkDownload(url: url, for: title)
+        cachedArtwork = nil
+        cachedArtworkURL = nil
+        artworkTitle = nil
         return nil
+    }
+
+    /// Downloads a cover off the polling queue and hands it back when it lands.
+    ///
+    /// The cache is only ever written back on `queue`, the same serial queue
+    /// `run` uses, so the download touching it cannot race a poll reading it.
+    private func startArtworkDownload(url: String, for title: String) {
+        guard pendingArtworkURL != url else { return }
+        pendingArtworkURL = url
+        artworkQueue.async { [weak self] in
+            guard let self else { return }
+            let data = self.download(url)
+            self.queue.async {
+                if self.pendingArtworkURL == url { self.pendingArtworkURL = nil }
+                guard let data else { return }
+                self.cachedArtworkURL = url
+                self.cachedArtwork = data
+                self.artworkTitle = title
+                self.onArtwork?(title, data)
+            }
+        }
     }
 
     private func download(_ urlString: String) -> Data? {
