@@ -82,6 +82,11 @@ moment something is.
 - One kind of network request exists at all — fetching album or video artwork —
   restricted to Spotify's and YouTube's image hosts over HTTPS, size-capped,
   and refused if a redirect would leave those hosts.
+- The activity feed is treated as untrusted throughout, including the app a row
+  may name: clicking one can only ever reach a real `.app` bundle installed
+  where macOS keeps applications, with symlinks followed before the path is
+  judged. A bundle dropped anywhere else is refused, so nothing that can write
+  the feed can dress a stray app up as the window you were working in.
 - Everything it reads, every permission it can ask for, and both private Apple
   APIs it uses are listed in [SECURITY.md](SECURITY.md).
 

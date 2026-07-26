@@ -478,25 +478,60 @@ MainActor.assumeIsolated {
     try? Data().write(to: emptyLogo)
     check("an empty image is refused", imagePath(forFeed: emptyLogo.path) == nil)
 
-    // The app an activity names is a capability, so it is bounded like every
-    // other field from the feed: a real .app bundle or nothing. Clicking a row
-    // may bring a window forward; it may never run a loose executable.
-    func appPath(forFeed value: String) -> String? {
+    // The app an activity names is a capability, not a hint: clicking the row
+    // hands it to NSWorkspace, which STARTS a bundle that is not already
+    // running. So it is bounded like every other field from the feed, and then
+    // bounded again on where it lives — only the folders macOS keeps
+    // applications in. A feed anyone can write must not be able to dress a
+    // dropped bundle up as the window you were working in.
+    //
+    // `appsRoot` stands in for /Applications here so the rule itself is what is
+    // being measured, rather than whatever happens to be installed.
+    let appsRoot = logoDir.appendingPathComponent("Applications")
+    try? FileManager.default.createDirectory(at: appsRoot, withIntermediateDirectories: true)
+
+    func appPath(forFeed value: String, roots: [String] = [appsRoot.path]) -> String? {
         let file = tempFile("[{\"id\":\"A\",\"title\":\"Jump\",\"app\":\"\(value)\"}]")
         defer { try? FileManager.default.removeItem(at: file) }
-        return ActivitiesReader.read(from: file).first?.appPath
+        return ActivitiesReader.read(from: file, appRoots: roots).first?.appPath
     }
 
-    let fakeApp = logoDir.appendingPathComponent("Pretend.app")
-    try? FileManager.default.createDirectory(at: fakeApp, withIntermediateDirectories: true)
-    check("a real app bundle is accepted", appPath(forFeed: fakeApp.path) == fakeApp.path)
+    let installedApp = appsRoot.appendingPathComponent("Pretend.app")
+    try? FileManager.default.createDirectory(at: installedApp, withIntermediateDirectories: true)
+    check("an installed app bundle is accepted", appPath(forFeed: installedApp.path) == installedApp.path)
     check("a loose executable is refused", appPath(forFeed: "/bin/sh") == nil)
     check("a plain file named .app is refused", appPath(forFeed: notAnImage.path) == nil)
-    check("a missing bundle is refused", appPath(forFeed: logoDir.appendingPathComponent("Gone.app").path) == nil)
+    check("a missing bundle is refused", appPath(forFeed: appsRoot.appendingPathComponent("Gone.app").path) == nil)
     check("an empty app path is refused", appPath(forFeed: "") == nil)
     check(
         "an app path that climbs out is resolved before it is judged",
-        appPath(forFeed: logoDir.appendingPathComponent("../../../bin/sh").path) == nil
+        appPath(forFeed: appsRoot.appendingPathComponent("../../../bin/sh").path) == nil
+    )
+
+    // A bundle dropped somewhere out of the way is the whole reason the rule
+    // exists: it can be a perfectly real .app and must still be refused.
+    let strayApp = logoDir.appendingPathComponent("Update.app")
+    try? FileManager.default.createDirectory(at: strayApp, withIntermediateDirectories: true)
+    check("an app outside the standard folders is refused", appPath(forFeed: strayApp.path) == nil)
+
+    // A symlink standing in an allowed folder while pointing outside it is the
+    // way around a check that only reads the path as text.
+    let disguised = appsRoot.appendingPathComponent("Innocent.app")
+    try? FileManager.default.createSymbolicLink(at: disguised, withDestinationURL: strayApp)
+    check("a link into an allowed folder is followed before it is judged", appPath(forFeed: disguised.path) == nil)
+
+    // And the folder name is matched on its parts, not as a prefix of the text.
+    let lookalike = logoDir.appendingPathComponent("Applications-mine")
+    try? FileManager.default.createDirectory(at: lookalike, withIntermediateDirectories: true)
+    let lookalikeApp = lookalike.appendingPathComponent("Evil.app")
+    try? FileManager.default.createDirectory(at: lookalikeApp, withIntermediateDirectories: true)
+    check("a folder that merely starts the same is refused", appPath(forFeed: lookalikeApp.path) == nil)
+
+    // The allowed folders are the ones macOS actually keeps applications in.
+    check(
+        "the standard folders are where macOS keeps applications",
+        ActivitiesReader.standardAppRoots.contains("/Applications")
+            && ActivitiesReader.standardAppRoots.contains("/System/Applications")
     )
     check(
         "an activity that names no app simply has none",

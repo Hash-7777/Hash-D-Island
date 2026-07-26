@@ -169,9 +169,13 @@ struct ActivitiesDetailView: View {
 
     private func activate(_ activity: LiveActivity) {
         guard let path = activity.appPath else { return }
-        // Bring it forward, never launch it fresh: this is a way back to a
-        // window that already exists. `activates` is what puts it in front
-        // rather than merely running it.
+        // `activates` puts it in front when it is already open, which is what
+        // this is for — a way back to the window that is waiting. It is not a
+        // guarantee against starting it: `openApplication` launches a bundle
+        // that is not running. That is why the path is confined to the standard
+        // application folders before it ever reaches here (see
+        // `ActivitiesReader.safeAppPath`) — a click must never be able to start
+        // something a feed dropped somewhere out of the way.
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         NSWorkspace.shared.openApplication(

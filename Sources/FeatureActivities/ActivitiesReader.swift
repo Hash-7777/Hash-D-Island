@@ -133,7 +133,10 @@ package enum ActivitiesReader {
         read(from: feedURL)
     }
 
-    package static func read(from url: URL) -> [LiveActivity] {
+    package static func read(
+        from url: URL,
+        appRoots: [String] = standardAppRoots
+    ) -> [LiveActivity] {
         guard let data = try? Data(contentsOf: url),
               data.count <= maxFeedBytes,
               let items = try? JSONDecoder().decode([ActivityDTO].self, from: data) else {
@@ -163,7 +166,7 @@ package enum ActivitiesReader {
                     min(max($0, minDismissAfter), maxDismissAfter)
                 },
                 imagePath: dto.image.flatMap(safeImagePath),
-                appPath: dto.app.flatMap(safeAppPath)
+                appPath: dto.app.flatMap { safeAppPath($0, roots: appRoots) }
             )
             if !activity.isExpired { result.append(activity) }
         }
@@ -213,26 +216,66 @@ package enum ActivitiesReader {
         return resolved.path
     }
 
-    /// An app path the panel is willing to bring forward.
+    /// The only folders an activity may name an app inside.
     ///
-    /// The feed is world-writable by anything running as you, so this is
-    /// deliberately the narrowest capability that still does the job: it must
-    /// name an existing `.app` bundle, and the panel only ever acts on it when
-    /// the user clicks the row. Nothing here can run a loose executable, pass an
-    /// argument, or open a document — the app is asked to come forward and
-    /// that is all. Resolved before it is judged, so `..` cannot smuggle in a
-    /// path that reads as something else.
-    private static func safeAppPath(_ raw: String) -> String? {
+    /// Where macOS itself keeps applications, and nowhere else.
+    package static var standardAppRoots: [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return [
+            "/Applications",
+            "/System/Applications",
+            "/System/Library/CoreServices",
+            home + "/Applications",
+        ]
+    }
+
+    /// An app path the panel is willing to open.
+    ///
+    /// Clicking a row hands the named bundle to `NSWorkspace`, which brings it
+    /// forward if it is already open and **starts it if it is not**. That is a
+    /// launch, so the field is treated as the capability it is rather than as a
+    /// hint, and it is narrowed on three axes at once:
+    ///
+    ///   * It must be a real `.app` bundle — never a loose executable, and no
+    ///     argument or document can be passed with it.
+    ///   * It must sit inside one of `standardAppRoots`. The feed is writable by
+    ///     anything running as you, so without this a dropped `/tmp/Update.app`
+    ///     could wear the words "your build finished" and be opened by a click
+    ///     the reader believed was a way back to their own window. Every app
+    ///     somebody would genuinely want to return to already lives in these
+    ///     folders.
+    ///   * Symlinks are resolved before any of that is judged, so a link cannot
+    ///     stand inside an allowed folder while pointing at a bundle outside it.
+    ///
+    /// And it is still only ever acted on when the user clicks the row.
+    private static func safeAppPath(_ raw: String, roots: [String]) -> String? {
         let trimmed = String(raw.prefix(1024))
         guard !trimmed.isEmpty else { return nil }
         let expanded = (trimmed as NSString).expandingTildeInPath
-        let resolved = URL(fileURLWithPath: expanded).standardizedFileURL
+        // `standardizedFileURL` only collapses `..` as text; a symlink still
+        // has to be followed before the path can be judged on where it lands.
+        let resolved = URL(fileURLWithPath: expanded)
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
         guard resolved.pathExtension.lowercased() == "app" else { return nil }
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: resolved.path, isDirectory: &isDirectory),
               isDirectory.boolValue
         else { return nil }
+
+        // Compare on path components, not on text: a prefix match would let
+        // "/Applications-mine/Evil.app" pass for being inside "/Applications".
+        let parts = resolved.standardizedFileURL.pathComponents
+        let allowed = roots.contains { root in
+            let rootParts = URL(fileURLWithPath: root)
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+                .pathComponents
+            return parts.count > rootParts.count && Array(parts.prefix(rootParts.count)) == rootParts
+        }
+        guard allowed else { return nil }
+
         return resolved.path
     }
 

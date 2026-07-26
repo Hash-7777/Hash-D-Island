@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-368%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="368 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-372%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="372 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -116,7 +116,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 368 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 372 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -211,7 +211,7 @@ macOS has no system API to read another app's live activity — that only exists
 
 There are two kinds. A **countdown** is something still happening, and shows its time left. A **notice** is something that already happened — set `dismissAfter` (seconds) instead, and it draws no timer and leaves on its own. A number ticking down next to the word "finished" only ever asked you to watch something that was already over.
 
-Two optional extras: `image` is a path to a logo shown instead of the symbol, and `app` is a path to an `.app` bundle — set it and the row in the panel becomes clickable, bringing that app forward.
+Two optional extras: `image` is a path to a logo shown instead of the symbol, and `app` is a path to an installed `.app` bundle — set it and the row in the panel becomes clickable, bringing that app forward. The app has to live where macOS keeps applications (`/Applications`, `/System/Applications`, or `~/Applications`); anything else is ignored, so a feed can never point a click at a bundle dropped somewhere out of the way.
 
 ```sh
 ./scripts/post-activity.sh "Food delivery" "Rider on the way" bicycle 12
