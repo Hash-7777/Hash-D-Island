@@ -35,7 +35,11 @@ public struct IslandAdjustment: Codable, Equatable, Sendable {
     public static let horizontalRange: ClosedRange<Double> = -240...240
     public static let verticalRange: ClosedRange<Double> = -20...200
     public static let widthRange: ClosedRange<Double> = -80...200
-    public static let heightRange: ClosedRange<Double> = -12...40
+    /// Height has the widest headroom of the four. A notch is a fixed piece of
+    /// hardware and needs almost none, but a display without one is being given
+    /// a shape rather than matched to one — and the old ceiling of +40 was not
+    /// enough to make that shape look deliberate on a large screen.
+    public static let heightRange: ClosedRange<Double> = -12...90
 
     /// This adjustment with every value forced inside its range. Applied on the
     /// way in, so a hand-edited preferences file cannot push the island off the

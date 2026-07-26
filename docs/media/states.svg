@@ -74,7 +74,7 @@
     <!-- strip: wider than the notch, flanking it -->
     <path d="M318 93 h144 v13 a6 6 0 0 1-6 6 H324 a6 6 0 0 1-6-6 z" fill="#000"/>
     <rect class="amber" x="323" y="96" width="9" height="9" rx="2.5"/>
-    <text class="ui" x="337" y="103">Night Drive</text>
+    <text class="ui" x="337" y="103">Hash D Island</text>
     <g class="amber">
       <rect class="bar d1" x="440" y="97" width="2" height="8" rx="1"/>
       <rect class="bar d2" x="444" y="97" width="2" height="8" rx="1"/>
@@ -100,8 +100,8 @@
     <path d="M592 93 h100 v76 a11 11 0 0 1-11 11 H603 a11 11 0 0 1-11-11 z"
           fill="#0C0E15" stroke="#2A2F3C" stroke-width="1"/>
     <rect class="amber" x="600" y="112" width="15" height="15" rx="3.5"/>
-    <text class="ui"    x="620" y="119">Night Drive</text>
-    <text class="uidim" x="620" y="128">HASH</text>
+    <text class="ui"    x="620" y="119">Hash D Island</text>
+    <text class="uidim" x="620" y="128">your notch</text>
     <rect x="600" y="135" width="84" height="2.5" rx="1.25" fill="#242936"/>
     <rect class="fill amber" x="600" y="135" width="84" height="2.5" rx="1.25"/>
     <text class="uidim" x="600" y="151">Internet</text>

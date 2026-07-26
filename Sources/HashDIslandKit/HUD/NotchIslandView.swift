@@ -469,23 +469,27 @@ private struct IslandControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(tint.opacity(hovering ? 0.18 : 0.07))
-                Circle()
-                    .strokeBorder(tint.opacity(hovering ? 0.40 : 0.12), lineWidth: 0.8)
-                Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(hovering ? tint : Color.white.opacity(0.55))
-                    .rotationEffect(.degrees(turnsOnHover && hovering ? 60 : 0))
-            }
-            .frame(width: size, height: size)
-            // The lift is small on purpose. These sit a few points from the
-            // physical notch, and anything that grows noticeably up here reads
-            // as the hardware moving.
-            .scaleEffect(hovering ? 1.07 : 1)
-            .shadow(color: tint.opacity(hovering ? 0.35 : 0), radius: 5)
-            .contentShape(Circle())
+            // The symbol alone, with no disc behind it.
+            //
+            // These sit in the band of panel either side of the notch — black,
+            // a few points from the hardware — and a filled ring around each
+            // one drew two more shapes up there competing with the one shape
+            // the island is trying to be. The glyph carries the meaning on its
+            // own; brightening it on hover is all the feedback a target this
+            // size needs.
+            //
+            // The hit area stays the full 26pt square regardless, so nothing
+            // got harder to click by getting quieter to look at.
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(hovering ? tint : Color.white.opacity(0.5))
+                .rotationEffect(.degrees(turnsOnHover && hovering ? 60 : 0))
+                .frame(width: size, height: size)
+                // The lift is small on purpose. These sit a few points from the
+                // physical notch, and anything that grows noticeably up here
+                // reads as the hardware moving.
+                .scaleEffect(hovering ? 1.10 : 1)
+                .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
         .onHover { hovering = $0 }

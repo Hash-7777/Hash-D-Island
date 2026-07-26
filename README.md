@@ -15,7 +15,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-434%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="434 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-440%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="440 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -73,7 +73,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 434 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 440 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -96,20 +96,17 @@ All checks passed.
 
 ### Which macOS
 
-| Release | Version | Supported |
-|---|:---:|---|
-| **Tahoe** | 26 | ✅ built and verified on this |
-| **Sequoia** | 15 | ✅ full |
-| **Sonoma** | 14 | ✅ full |
-| **Ventura** | 13 | ✅ full |
-| **Monterey** | 12 | ✅ everything except Open at Login, which needs macOS 13 — the app says so rather than failing quietly |
-| Big Sur | 11 | ❌ some of the drawing it relies on does not exist there |
+<div align="center">
+<img src="docs/media/support.svg" alt="Supported macOS releases: Tahoe 26 built and verified, Sequoia 15, Sonoma 14 and Ventura 13 fully supported, Monterey 12 supported except Open at Login, Big Sur 11 not supported." width="100%">
+</div>
+
+On **Monterey**, everything works except Open at Login, which needs macOS 13 — and the app says so plainly rather than failing quietly. **Big Sur** is out: some of the drawing this relies on does not exist there.
 
 Any **Apple Silicon** Mac (M1 and later). Older releases get every feature, with a little longer per animation and one less heavy effect, so the motion stays smooth on the machines with the least to spare.
 
 > **Why the extra step?** It reads system-wide Now Playing and the real temperature sensors, which need Apple interfaces the App Store does not allow — so it ships straight from here. Everything it reads is spelled out in **[SECURITY.md](SECURITY.md)**.
 
-No notch? It still works — a small pill hangs below the menu bar instead, nudgeable per display.
+**No notch?** It still works. The island is drawn against the top bezel and made exactly as tall as your menu bar, so it fills the one part macOS never uses — the middle, between the app menus on the left and the status icons on the right. Nudge its position and size per display in Settings.
 
 ---
 

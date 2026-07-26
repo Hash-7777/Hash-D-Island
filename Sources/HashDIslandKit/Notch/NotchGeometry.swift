@@ -57,21 +57,54 @@ public struct NotchGeometry {
             )
         }
 
-        // No notch: hang the island from the bottom of the menu bar, centered.
-        let top = frame.maxY - menuBarHeight(for: screen)
+        // No notch. The island still hangs from the very top of the screen, so
+        // it meets the bezel exactly the way the hardware notch does.
+        //
+        // It used to hang from the BOTTOM of the menu bar instead, on the
+        // reasoning that painting over the menu bar would be taking space that
+        // is not ours. The result floated: a dark pill with a strip of desktop
+        // above it, attached to nothing, which reads as a mistake rather than
+        // as restraint — and no amount of adjusting could close that gap,
+        // because growing the island only ever grew it downwards, away from the
+        // edge it needed to reach.
+        //
+        // So it is anchored to the top and made exactly as tall as the menu bar,
+        // which fills that band precisely and reads as a notch that was always
+        // there. The space it takes is the middle of the menu bar, which is the
+        // one part of it macOS never uses: app menus sit hard left, status items
+        // hard right. The PANEL still opens below the menu bar, so nothing that
+        // drops down ever covers a menu.
+        return notchless(screenFrame: frame, menuBarHeight: menuBarHeight(for: screen))
+    }
+
+    /// The stand-in island for a display with no notch.
+    ///
+    /// Split out from `forScreen` and made pure so the rule can be checked
+    /// without an NSScreen — the previous checks built a geometry by hand and
+    /// asserted things about it, which tested the fixture rather than the rule
+    /// and would have passed no matter what this did.
+    package static func notchless(screenFrame frame: CGRect, menuBarHeight bar: CGFloat) -> NotchGeometry {
+        let height = min(max(bar, notchlessMinHeight), notchlessMaxHeight)
         let notchRect = CGRect(
             x: frame.midX - notchlessWidth / 2,
-            y: top - notchlessHeight,
+            y: frame.maxY - height,
             width: notchlessWidth,
-            height: notchlessHeight
+            height: height
         )
         return NotchGeometry(
             screenFrame: frame,
             notchRect: notchRect,
             hasNotch: false,
-            islandTop: top
+            islandTop: frame.maxY
         )
     }
+
+    /// Bounds on the height of a drawn island, for a display that has no notch
+    /// to copy. The menu bar decides it within these — the point is to fill that
+    /// band exactly — but a screen reporting something absurd should not produce
+    /// a black slab or an invisible sliver.
+    package static let notchlessMinHeight: CGFloat = 22
+    package static let notchlessMaxHeight: CGFloat = 38
 
     /// How tall the menu bar is on this screen. The status bar's own thickness
     /// is the reliable answer; the others are floors for the case where the

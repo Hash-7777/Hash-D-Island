@@ -1978,14 +1978,40 @@ MainActor.assumeIsolated {
     )
     check("a notched display hangs from the screen edge", notched.islandTop == 982)
 
-    let notchless = NotchGeometry(
-        screenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
-        notchRect: CGRect(x: 894, y: 1030, width: 132, height: 26),
-        hasNotch: false,
-        islandTop: 1056
+    // A display with no notch is given a shape rather than matched to one, and
+    // it has to meet the top bezel exactly as the hardware does. It used to hang
+    // BELOW the menu bar, which left a strip of desktop above it — a dark pill
+    // attached to nothing, which reads as a fault rather than as restraint. Worse,
+    // no adjustment could close that gap, because height only ever grew downwards.
+    //
+    // Built through the real rule rather than by hand: the checks that replaced
+    // asserted things about a geometry the check itself had constructed, so they
+    // would have passed whatever the code did.
+    let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+    let notchless = NotchGeometry.notchless(screenFrame: screen, menuBarHeight: 25)
+    check("a notchless island hangs from the screen edge, like the hardware", notchless.islandTop == 1080)
+    check("and it reaches that edge with no gap above it", notchless.notchRect.maxY == 1080)
+    check("it is exactly as tall as the menu bar", notchless.notchRect.height == 25)
+    check("and centred on the screen", notchless.notchRect.midX == screen.midX)
+    check("it still reports itself as having no notch", notchless.hasNotch == false)
+    // A screen reporting something absurd must not produce a black slab across
+    // the top or an invisible sliver.
+    check(
+        "an implausibly tall menu bar is bounded",
+        NotchGeometry.notchless(screenFrame: screen, menuBarHeight: 400).notchRect.height
+            == NotchGeometry.notchlessMaxHeight
     )
-    check("a notchless display hangs below the menu bar", notchless.islandTop < 1080)
-    check("the notchless island clears the menu bar", notchless.notchRect.maxY <= notchless.islandTop)
+    check(
+        "and an implausibly short one is too",
+        NotchGeometry.notchless(screenFrame: screen, menuBarHeight: 1).notchRect.height
+            == NotchGeometry.notchlessMinHeight
+    )
+    // The panel still opens below the menu bar, so nothing that drops down can
+    // cover a menu — only the resting shape occupies that band.
+    check(
+        "the height adjustment can make the shape genuinely taller",
+        IslandAdjustment.heightRange.upperBound >= 80
+    )
 
     // Hand corrections: applied on top of the measurement, clamped so a
     // hand-edited file cannot push the island somewhere unreachable.
