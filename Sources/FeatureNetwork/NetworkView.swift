@@ -69,7 +69,7 @@ struct NetworkView: View {
                 .font(.system(size: 9, weight: .semibold, design: .rounded))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .rollingDigits()
                 .animation(.snappy, value: rate)
         }
     }
@@ -78,7 +78,7 @@ struct NetworkView: View {
         Text(Formatters.megabytesPerSecond(rate))
             .foregroundStyle(theme.textColor)
             .monospacedDigit()
-            .contentTransition(.numericText())
+            .rollingDigits()
             .animation(.snappy, value: rate)
     }
 
@@ -91,7 +91,7 @@ struct NetworkView: View {
             Text(Formatters.megabytesPerSecond(rate))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .rollingDigits()
                 .animation(.snappy, value: rate)
                 .frame(width: valueWidth, alignment: .trailing)
             Text(Formatters.megabytesUnit)
@@ -177,7 +177,7 @@ struct NetworkDetailView: View {
             Text(Formatters.megabytesPerSecond(rate))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .rollingDigits()
                 .animation(.snappy, value: rate)
             Text("MB/s")
                 .font(.system(size: 8, weight: .semibold))

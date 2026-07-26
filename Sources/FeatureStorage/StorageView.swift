@@ -20,7 +20,7 @@ struct StorageDetailView: View {
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.textColor)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
+                        .rollingDigits()
                     Text("full")
                         .font(.system(size: 9))
                         .foregroundStyle(theme.subtitleColor)

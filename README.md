@@ -9,13 +9,13 @@
 **The dead space around your MacBook notch becomes a living, glanceable area** — like the iPhone's Dynamic Island, built purely for Apple Silicon. Now Playing, internet speed, battery, temperatures and AI token usage, one glance away. It reacts with smooth motion as things happen, and nothing ever leaves your Mac.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-14%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/macOS-12%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 12+">
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/Swift-SwiftUI%20%2B%20AppKit-47D67A?style=flat-square&logo=swift&logoColor=white&labelColor=0B0C10" alt="Swift">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-420%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="420 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-426%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="426 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -122,7 +122,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 420 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 426 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -149,7 +149,7 @@ All checks passed.
 
 ### Requirements
 
-- macOS 14 (Sonoma) or later
+- macOS 12 (Monterey) or later — built and verified on macOS 26
 - Apple Silicon Mac (M-series)
 
 A notch is where this belongs, and on a notched Mac the island is measured to match it exactly. On a display without one it does **not** paint a fake notch over your menu bar — it hangs just below the menu bar as a small pill of its own, and everything works the same. Either way you can nudge it by hand in **Settings → Position**, and each display remembers its own adjustment.

@@ -124,7 +124,10 @@ public final class NotchWindowController {
         // the island's intrinsic width (keeping the old origin) when the content
         // changes, which knocks the strip off-center for the 0.7s until the
         // settle corrects it (visible as a right-then-left shift on close).
-        hosting.sizingOptions = []
+        // On macOS 12 the hosting view has no such setting and does not resize
+        // its window in the first place, so there is nothing to switch off —
+        // the behaviour this guards against is the newer one.
+        if #available(macOS 13, *) { hosting.sizingOptions = [] }
         window.contentView = hosting
         window.acceptsMouseMovedEvents = true
 

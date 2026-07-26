@@ -15,7 +15,7 @@ struct TokensView: View {
             Text(Formatters.compactCount(monitor.today.total))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .rollingDigits()
             if style == .labeled {
                 Text("today")
                     .font(.system(size: 9, weight: .semibold))
@@ -100,11 +100,15 @@ struct TokensDetailView: View {
 
     private func row(_ label: String, _ value: Int64, emphasized: Bool = false) -> some View {
         NotchRow(label, emphasized: emphasized, theme: theme) {
+            // `.fontWeight` on a Text is macOS 13; setting the weight through
+            // the font itself is not, and produces the same result. The row's
+            // size is fixed by the panel, so the font is stated in full here
+            // rather than inherited.
             Text(Formatters.compactCount(value))
+                .font(.system(size: 11, weight: emphasized ? .bold : .regular, design: .rounded))
                 .foregroundStyle(theme.textColor)
                 .monospacedDigit()
-                .contentTransition(.numericText())
-                .fontWeight(emphasized ? .bold : .regular)
+                .rollingDigits()
         }
         .animation(.snappy, value: value)
     }

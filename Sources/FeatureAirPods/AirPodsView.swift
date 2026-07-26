@@ -31,7 +31,7 @@ struct AirPodsDetailView: View {
                 Text("\(percent)%")
                     .foregroundStyle(theme.textColor)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
+                    .rollingDigits()
             }
         }
         .animation(.snappy, value: percent)

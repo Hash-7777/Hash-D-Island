@@ -29,7 +29,14 @@ struct NotchIslandView: View {
     /// whether it is drawn yet. See `liveShown`.
     private var wantsLive: Bool { !state.isExpanded && presence.hasLive }
 
-    private var motionScale: Double { settings.appearance.motion.responseScale }
+    /// The user's choice of motion, then adjusted for what this macOS keeps up
+    /// with. A spring that cannot be drawn in time reads as stutter, and the
+    /// same spring given slightly longer reads as deliberate — so an older
+    /// system gets the identical animation, a little more slowly, rather than a
+    /// faster one it drops frames through.
+    private var motionScale: Double {
+        settings.appearance.motion.responseScale * SystemGeneration.current.motionScale
+    }
     private var panelRadius: CGFloat { CGFloat(settings.appearance.panelCornerRadius) }
 
     /// The panel drops as a SOLID BLACK box first, then — once this flips true
@@ -78,7 +85,7 @@ struct NotchIslandView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { liveShown = wantsLive }
-        .onChange(of: showExpanded) { _, expanded in
+        .onChange(of: showExpanded) { expanded in
             if expanded {
                 panelClosedAt = nil
                 panelRevealed = false
@@ -92,7 +99,7 @@ struct NotchIslandView: View {
             }
             updateLive(animated: true)
         }
-        .onChange(of: wantsLive) { _, _ in updateLive(animated: true) }
+        .onChange(of: wantsLive) { _ in updateLive(animated: true) }
     }
 
     /// Bring the strip in or out, never at the same moment as the panel.
@@ -182,7 +189,7 @@ struct NotchIslandView: View {
             GeometryReader { geo in
                 Color.clear
                     .onAppear { onIslandSize?(geo.size) }
-                    .onChange(of: geo.size) { _, size in onIslandSize?(size) }
+                    .onChange(of: geo.size) { size in onIslandSize?(size) }
             }
         )
         // Opening springs overshoot slightly for the water-drop wobble; closing
@@ -209,7 +216,7 @@ struct NotchIslandView: View {
             y: 1 + settle * Self.settleStretch,
             anchor: .top
         )
-        .onChange(of: showExpanded) { _, _ in
+        .onChange(of: showExpanded) { _ in
             // Kicked instantly, released on a spring: the impulse IS the
             // gesture. Animating INTO the stretch as well would round off the
             // leading edge and lose the sense of something being pulled.
@@ -293,18 +300,22 @@ struct NotchIslandView: View {
                 // Softer and closer in than it was. The old shadow was strong
                 // enough to read as a shape of its own against a light
                 // background rather than as depth under the panel.
-                .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
+                //
+                // Dropped entirely on the oldest supported system: a wide soft
+                // shadow under a live-blurred window that is resizing every
+                // frame is the most expensive thing the island asks the
+                // compositor for, and it is decoration. The panel still reads
+                // as its own surface without it — it has a fill and a hairline.
+                .shadow(
+                    color: .black.opacity(SystemGeneration.current.drawsPanelShadow ? 0.4 : 0),
+                    radius: SystemGeneration.current.panelShadowRadius,
+                    y: 8
+                )
             )
     }
 
-    private func pillShape(radius: CGFloat) -> UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 0,
-            bottomLeadingRadius: radius,
-            bottomTrailingRadius: radius,
-            topTrailingRadius: 0,
-            style: .continuous
-        )
+    private func pillShape(radius: CGFloat) -> NotchShape {
+        NotchShape(radius: radius)
     }
 
     // MARK: Live (flanks the notch)

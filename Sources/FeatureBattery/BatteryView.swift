@@ -19,7 +19,7 @@ struct BatteryView: View {
                 Text(text)
                     .foregroundStyle(theme.textColor)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
+                    .rollingDigits()
                     .animation(.snappy, value: monitor.percentage)
             }
         }
@@ -210,7 +210,7 @@ struct BatteryDetailView: View {
                         Text("\(monitor.percentage)%")
                             .foregroundStyle(monitor.isLowPowerMode ? .yellow : theme.textColor)
                             .monospacedDigit()
-                            .contentTransition(.numericText())
+                            .rollingDigits()
                     }
                 }
             }

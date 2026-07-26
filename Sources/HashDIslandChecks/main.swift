@@ -463,6 +463,41 @@ MainActor.assumeIsolated {
         NowPlayingDirect.snapshot(from: mediaInfo(artwork: nil))?.title == "Night Drive"
     )
 
+    // The app now runs on macOS 12 through 26. Which generation it thinks it is
+    // on decides how hard it works the compositor — never which features exist.
+    check(
+        "this Mac is placed in a generation",
+        [.monterey, .modern, .latest].contains(SystemGeneration.current)
+    )
+    check(
+        "every generation still animates",
+        SystemGeneration.allCasesForChecks.allSatisfy { $0.motionScale > 0 }
+    )
+    // Older systems get MORE time per animation, not less: a spring that cannot
+    // be drawn in time reads as stutter, the same spring slowed reads as
+    // deliberate.
+    check(
+        "the oldest system is given the most time to animate",
+        SystemGeneration.monterey.motionScale > SystemGeneration.latest.motionScale
+    )
+    check(
+        "the newest system is not slowed down",
+        SystemGeneration.latest.motionScale == 1.0
+    )
+    // The expensive decoration is the thing dropped, and only on the oldest.
+    check(
+        "the heaviest effect is dropped only on the oldest system",
+        SystemGeneration.monterey.drawsPanelShadow == false
+            && SystemGeneration.modern.drawsPanelShadow
+            && SystemGeneration.latest.drawsPanelShadow
+    )
+    check(
+        "a shadow that is drawn always has a radius",
+        SystemGeneration.allCasesForChecks
+            .filter(\.drawsPanelShadow)
+            .allSatisfy { $0.panelShadowRadius > 0 }
+    )
+
     // ── The position is a snapshot, not a reading ────────────────────────────
     //
     // kMRMediaRemoteNowPlayingInfoElapsedTime is where the track was at

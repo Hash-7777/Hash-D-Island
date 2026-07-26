@@ -87,7 +87,9 @@ public struct SettingsView: View {
                         // the column off the edge again.
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .scrollIndicators(.never)
+                // Hiding the scrollbar is cosmetic; on macOS 12 it simply shows
+                // in the system's usual way, which is not worth a workaround.
+                .hideScrollIndicatorsIfPossible()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -886,5 +888,19 @@ private struct SettingDivider: View {
             // A hairline with nothing either side of it does not separate
             // anything; it just draws a line through a wall of text.
             .padding(.vertical, 2)
+    }
+}
+
+private extension View {
+    /// `scrollIndicators(.never)` where it exists, and nothing where it does
+    /// not. Kept as one modifier so the call site reads as intent rather than
+    /// as a version check in the middle of a layout.
+    @ViewBuilder
+    func hideScrollIndicatorsIfPossible() -> some View {
+        if #available(macOS 13, *) {
+            self.scrollIndicators(.never)
+        } else {
+            self
+        }
     }
 }

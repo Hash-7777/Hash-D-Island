@@ -22,7 +22,7 @@ struct CPUDetailView: View {
                     Text(text)
                         .foregroundStyle(tint)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
+                        .rollingDigits()
                 }
             }
             if style != .number {

@@ -73,7 +73,7 @@ public struct MarqueeText: View {
             // runs on regardless of whether the text is scrolling, so without
             // this a title held still and then released would jump straight to
             // wherever the cycle had got to in the meantime.
-            .onChange(of: scrolls) { _, isScrolling in
+            .onChange(of: scrolls) { isScrolling in
                 if isScrolling { appeared = Date() }
             }
             .id(text) // new title → fresh measurement and loop

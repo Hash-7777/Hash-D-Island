@@ -348,7 +348,12 @@ package enum TokenUsageReader {
     /// equality test on the date part.
     package static func utcDayPrefix(of date: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        // `.gmt` is macOS 13; `TimeZone(secondsFromGMT: 0)` names the same zone
+        // and exists everywhere. This is only the fallback's fallback — the
+        // identifier lookup answers on every system.
+        calendar.timeZone = TimeZone(identifier: "UTC")
+            ?? TimeZone(secondsFromGMT: 0)
+            ?? .current
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(
             format: "%04d-%02d-%02d",

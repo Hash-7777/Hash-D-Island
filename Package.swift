@@ -15,7 +15,7 @@ import PackageDescription
 // HashDIslandKit ever needs to change.
 let package = Package(
     name: "HashDIsland",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v12)],
     products: [
         .executable(name: "HashDIsland", targets: ["HashDIsland"])
     ],

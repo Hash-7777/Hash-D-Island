@@ -124,7 +124,7 @@ struct ActivitiesTitleView: View {
                     Text(text)
                         .foregroundStyle(theme.subtitleColor)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
+                        .rollingDigits()
                         .fixedSize(horizontal: true, vertical: false)
                 }
             }

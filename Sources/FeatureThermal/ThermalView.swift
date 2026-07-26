@@ -19,7 +19,7 @@ struct ThermalView: View {
                 Text(text)
                     .foregroundStyle(theme.textColor)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
+                    .rollingDigits()
                     .animation(.snappy, value: monitor.hottestCelsius)
             }
         }
@@ -94,7 +94,7 @@ struct ThermalDetailView: View {
                                 Text(reading(sensor.celsius))
                                     .foregroundStyle(theme.textColor)
                                     .monospacedDigit()
-                                    .contentTransition(.numericText())
+                                    .rollingDigits()
                             }
                         }
                     }
