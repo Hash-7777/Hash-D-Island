@@ -39,4 +39,21 @@ public final class MediaFeature: NotchFeature {
         guard monitor.nowPlaying != nil else { return nil }
         return AnyView(MediaDetailView(monitor: monitor, theme: context.theme))
     }
+
+    /// Swipe sideways across the open panel to change track.
+    ///
+    /// Claimed only while something is actually PLAYING, not merely present. A
+    /// paused track keeps the panel by design, so it is what is showing for
+    /// most of the time the panel is open — and skipping a song somebody
+    /// deliberately stopped, because their fingers drifted sideways while they
+    /// read the battery row, is exactly the kind of thing a gesture must never
+    /// do. Left goes forward, the direction the content moves.
+    public func handleSwipe(_ direction: SwipeDirection) -> Bool {
+        guard monitor.nowPlaying?.isPlaying == true else { return false }
+        switch direction {
+        case .left: monitor.next()
+        case .right: monitor.previous()
+        }
+        return true
+    }
 }

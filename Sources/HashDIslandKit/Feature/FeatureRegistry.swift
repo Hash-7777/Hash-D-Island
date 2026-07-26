@@ -101,6 +101,20 @@ public final class FeatureRegistry {
         running.removeAll()
     }
 
+    /// Offer a sideways swipe over the open panel to the features, in
+    /// registration order, until one takes it. Returns whether any did.
+    ///
+    /// Only RUNNING features are asked. A feature the user has switched off is
+    /// not merely hidden — it is stopped, and a gesture must not be the one way
+    /// back into something that was turned off.
+    @discardableResult
+    public func handleSwipe(_ direction: SwipeDirection) -> Bool {
+        for feature in features where running.contains(feature.id) {
+            if feature.handleSwipe(direction) { return true }
+        }
+        return false
+    }
+
     /// The ids of the features currently running. Package-visible so the checks
     /// can prove that switching one off actually stops it.
     package var runningIDs: Set<String> { running }

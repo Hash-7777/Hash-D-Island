@@ -60,6 +60,9 @@ private final class CountingFeature: NotchFeature {
     let placement: FeaturePlacement = .expanded
     private(set) var isRunning = false
     private(set) var starts = 0
+    /// Whether this stub will claim a sideways swipe, and what it last saw.
+    var claimsSwipes = false
+    private(set) var swipes: [SwipeDirection] = []
 
     init(id: String) {
         self.id = id
@@ -72,6 +75,12 @@ private final class CountingFeature: NotchFeature {
     }
     func stop() { isRunning = false }
     func makeView(context: FeatureContext) -> AnyView { AnyView(EmptyView()) }
+
+    func handleSwipe(_ direction: SwipeDirection) -> Bool {
+        guard claimsSwipes else { return false }
+        swipes.append(direction)
+        return true
+    }
 }
 
 MainActor.assumeIsolated {
@@ -127,6 +136,43 @@ MainActor.assumeIsolated {
     runRegistry.syncRunning(context: runContext)
     runRegistry.syncRunning(context: runContext)
     check("syncing again does not restart a running feature", offFeature.starts == startsBefore)
+
+    // A sideways swipe over the open panel is offered to the features until one
+    // takes it. The core stays ignorant of what the gesture means — it only
+    // knows the fingers went sideways over the panel.
+    let swipeSuite = "hashdisland.checks.swipe.\(UUID().uuidString)"
+    let swipeSettings = SettingsStore(defaults: UserDefaults(suiteName: swipeSuite)!)
+    let quietFeature = CountingFeature(id: "quiet")
+    let eagerFeature = CountingFeature(id: "eager")
+    let laterFeature = CountingFeature(id: "later")
+    let swipeRegistry = FeatureRegistry()
+    swipeRegistry.register([quietFeature, eagerFeature, laterFeature])
+    swipeSettings.seed(features: swipeRegistry.features)
+    let swipeContext = FeatureContext(settings: swipeSettings)
+    swipeRegistry.syncRunning(context: swipeContext)
+
+    check("a swipe nobody wants is simply ignored", swipeRegistry.handleSwipe(.left) == false)
+
+    eagerFeature.claimsSwipes = true
+    laterFeature.claimsSwipes = true
+    check("a swipe reaches the feature that wants it", swipeRegistry.handleSwipe(.left))
+    check("the direction survives the trip", eagerFeature.swipes == [.left])
+    // Two features both willing to act would otherwise skip two tracks, or skip
+    // one and do something else, from a single flick.
+    check("only the first claimer acts on one swipe", laterFeature.swipes.isEmpty)
+    check("a feature that does not claim swipes is unaffected", quietFeature.swipes.isEmpty)
+
+    swipeRegistry.handleSwipe(.right)
+    check("the other direction arrives too", eagerFeature.swipes == [.left, .right])
+
+    // A feature the user switched off is stopped, not merely hidden. A gesture
+    // must not be a back door into something that was turned off.
+    swipeSettings.update("eager") { $0.enabled = false }
+    swipeRegistry.syncRunning(context: swipeContext)
+    let beforeOff = eagerFeature.swipes.count
+    check("a switched-off feature is never offered the swipe", swipeRegistry.handleSwipe(.left))
+    check("and it did not act", eagerFeature.swipes.count == beforeOff)
+    check("the swipe fell through to the next running feature", laterFeature.swipes == [.left])
 
     runRegistry.stopAll()
     check("stopping everything clears what is running", runRegistry.runningIDs.isEmpty)

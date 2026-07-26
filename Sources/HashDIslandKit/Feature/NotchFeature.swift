@@ -32,6 +32,12 @@ public struct FeatureOption: Identifiable, Hashable, Sendable {
     }
 }
 
+/// A sideways swipe over the open panel, in the direction the fingers moved.
+public enum SwipeDirection: String, Sendable, CaseIterable {
+    case left
+    case right
+}
+
 /// The single contract every feature implements.
 ///
 /// A feature is a self-contained unit: it owns its own data source and its own
@@ -85,6 +91,20 @@ public protocol NotchFeature: AnyObject {
     /// readable list instead of magic constants scattered across modules.
     var livePriority: Int { get }
 
+    /// Act on a sideways swipe over the open panel. Return `true` if this
+    /// feature took it, `false` (the default) to let another feature try.
+    ///
+    /// The core does not know what a swipe means any more than it knows what a
+    /// feature shows — it only knows the pointer was over the panel and the
+    /// fingers went sideways. A feature that has something to do with that says
+    /// so by returning true, and the first one to claim it wins, so two
+    /// features can never both act on one flick.
+    ///
+    /// The bar for claiming a swipe is high on purpose: an accidental sideways
+    /// nudge while reading the panel must do nothing at all. Claim it only when
+    /// there is something obviously in progress that the gesture belongs to.
+    func handleSwipe(_ direction: SwipeDirection) -> Bool
+
     /// Begin sampling / observing. Called when the HUD starts. The context gives
     /// access to shared services (e.g. `presence` for signalling live content).
     func start(context: FeatureContext)
@@ -101,6 +121,7 @@ public extension NotchFeature {
     func start(context: FeatureContext) {}
     func stop() {}
     var livePriority: Int { LivePriority.ongoing }
+    func handleSwipe(_ direction: SwipeDirection) -> Bool { false }
 }
 
 /// The order features take the live strip in, read as one list.

@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/commits-all%20signed-8FBAFF?style=flat-square&labelColor=0B0C10" alt="All commits signed">
-  <img src="https://img.shields.io/badge/checks-378%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="378 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-387%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="387 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -88,6 +88,8 @@
 
 The notch stays a clean black shape at the top of your screen. **Hover it** — or swipe down on it with two fingers — and it drops into a rounded panel showing everything above. When something is live, a slim strip appears *beside* the notch without you hovering at all. Only the notch itself opens the panel, so the strip never gets in the way of the menu-bar icons beside it.
 
+With the panel open, **swipe sideways across it to change track** — left for the next one, right for the one before. It only does this while something is actually playing, and only for a decisive sideways flick, so reading the panel can never cost you the song you were listening to.
+
 The strip shows **one thing at a time**, and the most urgent thing wins. A track will still be playing in ten seconds; a finished job, a battery warning, or something waiting on an answer matters for a few seconds and then never again. Those take the strip and hand it straight back.
 
 Everything opens *below* the menu bar, so it never covers your menus or status icons.
@@ -116,7 +118,7 @@ Three rules the code actually keeps:
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it straight back to the music.
 
-**Verified, not asserted.** 378 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 387 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks

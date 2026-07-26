@@ -580,6 +580,7 @@ public final class NotchWindowController {
     }
 
     private func handleScroll(_ event: NSEvent) {
+        if handleSidewaysSwipe(event) { return }
         guard !isPinnedOpen else { return }
         let delta = event.scrollingDeltaY
         guard abs(delta) >= 10 else { return }
@@ -600,6 +601,46 @@ public final class NotchWindowController {
             state.setExpanded(false)
         }
     }
+
+    /// A sideways flick over the open panel, offered to whichever feature wants
+    /// it — in practice, skipping the track.
+    ///
+    /// Kept separate from the up/down gesture rather than folded into it,
+    /// because the two are answering different questions and share only the
+    /// event. This one never opens or closes anything, and it is deliberately
+    /// hard to trigger by accident: the panel must already be open, the pointer
+    /// must be on the panel itself rather than the window around it, and the
+    /// movement must be decisively sideways — twice as much across as down, so
+    /// a slightly skewed vertical scroll cannot skip a song.
+    ///
+    /// Returns whether the event was consumed as a sideways swipe, so the
+    /// up/down handler does not also act on the same flick.
+    private func handleSidewaysSwipe(_ event: NSEvent) -> Bool {
+        guard state.isExpanded else { return false }
+        let across = event.scrollingDeltaX
+        let down = event.scrollingDeltaY
+        guard abs(across) >= Self.sidewaysThreshold else { return false }
+        guard abs(across) > abs(down) * 2 else { return false }
+        guard Date().timeIntervalSince(lastSwipe) > Self.sidewaysCooldown else { return false }
+        guard panelAnchor.contains(NSEvent.mouseLocation) else { return false }
+
+        // Natural scrolling flips the sign, the same as the vertical gesture, so
+        // normalise to the direction the fingers actually travelled.
+        let fingersLeft = event.isDirectionInvertedFromDevice ? across > 0 : across < 0
+        guard registry.handleSwipe(fingersLeft ? .left : .right) else { return false }
+        lastSwipe = Date()
+        return true
+    }
+
+    /// How far sideways counts as a flick rather than a wobble. Higher than the
+    /// vertical threshold: up and down over the notch is a gesture people make
+    /// on purpose, whereas sideways over an open panel is mostly made by
+    /// accident, and the cost of a false positive is a song you were listening
+    /// to disappearing.
+    private static let sidewaysThreshold: CGFloat = 18
+    /// One flick, one track. A trackpad emits a long tail of scroll events from
+    /// a single physical swipe, and without this a flick would skip several.
+    private static let sidewaysCooldown: TimeInterval = 0.6
 
     /// Collapse when a click lands anywhere that is not the panel itself.
     ///
