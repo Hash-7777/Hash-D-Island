@@ -219,12 +219,21 @@ package enum ActivitiesReader {
     /// The only folders an activity may name an app inside.
     ///
     /// Where macOS itself keeps applications, and nowhere else.
+    ///
+    /// The cryptex entry is not optional padding: on current macOS,
+    /// `/Applications/Safari.app` is a symlink into Apple's signed, read-only
+    /// cryptex volume. Since paths are resolved before they are judged (so a
+    /// link cannot point out of an allowed folder), leaving that entry out
+    /// would refuse Safari — a real app, in the folder everyone believes it is
+    /// in. The volume it resolves to is sealed by macOS, so it is if anything a
+    /// stronger place to trust than `/Applications` itself.
     package static var standardAppRoots: [String] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return [
             "/Applications",
             "/System/Applications",
             "/System/Library/CoreServices",
+            "/System/Volumes/Preboot/Cryptexes/App/System/Applications",
             home + "/Applications",
         ]
     }

@@ -533,6 +533,30 @@ MainActor.assumeIsolated {
         ActivitiesReader.standardAppRoots.contains("/Applications")
             && ActivitiesReader.standardAppRoots.contains("/System/Applications")
     )
+
+    // The rule is only worth anything if it still accepts the apps really
+    // installed on this Mac, so it is measured against them rather than against
+    // a fixture that agrees with it by construction.
+    //
+    // This is the check that catches the Safari case: /Applications/Safari.app
+    // is a SYMLINK into Apple's signed cryptex volume, so resolving the path
+    // before judging it — which is what stops a link pointing out of an allowed
+    // folder — moves Safari outside /Applications. A rule written only against
+    // temporary folders passes happily while refusing the browser.
+    var refusedRealApps: [String] = []
+    for root in ["/Applications", "/System/Applications"] {
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
+        for entry in entries where entry.hasSuffix(".app") {
+            let path = root + "/" + entry
+            if appPath(forFeed: path, roots: ActivitiesReader.standardAppRoots) == nil {
+                refusedRealApps.append(path)
+            }
+        }
+    }
+    if !refusedRealApps.isEmpty {
+        print("       refused: \(refusedRealApps.joined(separator: ", "))")
+    }
+    check("every app actually installed on this Mac is accepted", refusedRealApps.isEmpty)
     check(
         "an activity that names no app simply has none",
         ActivitiesReader.read(from: tempFile("[{\"id\":\"N\",\"title\":\"None\"}]"))
