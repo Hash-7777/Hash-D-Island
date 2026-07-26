@@ -200,35 +200,60 @@ public final class MediaMonitor: ObservableObject {
 
     public func next() {
         guard let media = nowPlaying else { return }
+        noteIfUnreachable(media.source)
         reader?.send(.next, to: media.source, pressingKeys: pressesKeys())
         skipping()
     }
 
     public func previous() {
         guard let media = nowPlaying else { return }
+        noteIfUnreachable(media.source)
         reader?.send(.previous, to: media.source, pressingKeys: pressesKeys())
         skipping()
     }
 
-    /// What a skip does to the panel before the player has answered.
+    /// Say straight away when a command cannot possibly land.
     ///
-    /// Play and pause could always flip optimistically, because the button
-    /// knows the answer. A skip does not — nobody knows the next title until
-    /// the player says so — so it used to change nothing at all for up to a
-    /// full poll, and the honest reading of a control that does nothing is that
-    /// it is broken. The bar cannot show a position in a track that is being
-    /// left, so it goes to the start immediately: that is true of whatever
-    /// comes next, and it is the one piece of feedback available at once.
+    /// Play and pause find this out by measurement, which is exact but takes
+    /// the settle window to conclude. A skip has no equivalent: nobody knows
+    /// what the next title should be, so "the title did not change" cannot tell
+    /// a refused command apart from a single video with nothing to skip to, and
+    /// guessing would put a warning under a track that is behaving perfectly.
     ///
-    /// Then it asks again quickly rather than waiting out the poll — three
-    /// times, backing off, which is over inside a second and a half and is the
-    /// difference between a skip that lands and one that seems to hang.
+    /// This case needs no guessing. Anything that is not Spotify or Music has
+    /// no scripting interface to fall back on, so the media keys are the only
+    /// channel to it — and with the switch off, or Accessibility ungranted,
+    /// those keys are never sent. The command is known to be going nowhere
+    /// before it is sent, so the panel can say so at once.
+    private func noteIfUnreachable(_ source: MediaSource) {
+        guard source == .other else { return }
+        let canPress = pressesKeys() && MediaKeys.isTrusted
+        guard !canPress else { return }
+        controlProblem = Self.controlProblem(
+            browserControlOn: pressesKeys(),
+            accessibilityGranted: MediaKeys.isTrusted
+        )
+    }
+
+    /// What a skip does to the panel before the player has answered: ask again,
+    /// quickly, and change nothing else.
+    ///
+    /// It briefly did more than that, and the extra was a mistake worth
+    /// recording. Play and pause can flip optimistically because the button
+    /// knows the answer; a skip does not, so to give the press *some* immediate
+    /// feedback the progress bar was sent to 0:00 on the reasoning that a new
+    /// track starts at the beginning. That reasoning only holds if the skip
+    /// actually happens. On a browser video — where the command cannot work at
+    /// all without Accessibility — the track carried on playing while the panel
+    /// showed a timeline reset to zero and frozen there. The control did
+    /// nothing AND the readout lied about it, which is strictly worse than the
+    /// unresponsive control it was meant to fix.
+    ///
+    /// So nothing is invented here. The three quick follow-ups are the whole
+    /// answer: the first lands inside a quarter of a second, which is fast
+    /// enough to feel like a response when the skip works, and shows nothing at
+    /// all when it does not.
     private func skipping() {
-        if let progress {
-            self.progress = MediaProgress(
-                elapsed: 0, duration: progress.duration, isPlaying: progress.isPlaying, at: Date()
-            )
-        }
         for delay in Self.skipFollowUps {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.refresh()

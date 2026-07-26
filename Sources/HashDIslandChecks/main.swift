@@ -2070,6 +2070,57 @@ MainActor.assumeIsolated {
     }
 }
 
+// ── Leave nothing behind ─────────────────────────────────────────────────────
+//
+// Several checks need a settings store of their own, so they make one in a
+// throwaway preference domain named with a fresh UUID. Most tidied up after
+// themselves; three did not, and since the name is unique per RUN, every run
+// left more behind. On the machine this was found on there were **1201** of
+// them — real files under ~/Library/Preferences, put there by a project whose
+// README promises `defaults delete com.hashdisland.app` is the whole cleanup.
+//
+// Cleaning each one where it is created was the obvious fix and the wrong one:
+// it is exactly the step the next person to add a suite will forget, and the
+// leak is invisible until somebody counts. So the sweep is by PREFIX, at the
+// end, covering every suite that exists now or is added later — and then it
+// checks that the sweep worked, which is the part that makes it stay true.
+let checkDomainPrefix = "hashdisland.checks."
+
+/// The throwaway domains still on disk. `CFPreferencesCopyApplicationList` is
+/// unavailable to Swift, so this reads where the domains actually live — one
+/// plist per domain, which is the same thing `defaults domains` enumerates.
+func strayCheckDomains() -> [String] {
+    let preferences = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Preferences")
+    let entries = (try? FileManager.default.contentsOfDirectory(atPath: preferences.path)) ?? []
+    return entries
+        .filter { $0.hasPrefix(checkDomainPrefix) && $0.hasSuffix(".plist") }
+        .map { String($0.dropLast(".plist".count)) }
+}
+
+// Both steps are needed, and finding that out took measuring. Removing the
+// persistent domain empties it as far as the defaults system is concerned —
+// afterwards `defaults delete` reports "Domain not found" — but it leaves the
+// plist sitting in ~/Library/Preferences. Only deleting the file removes the
+// file. Doing just the first is what makes this leak invisible: every tool that
+// asks the defaults system says the domain is gone while the clutter builds up
+// on disk.
+let preferencesDirectory = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Library/Preferences")
+let swept = strayCheckDomains()
+for name in swept {
+    UserDefaults.standard.removePersistentDomain(forName: name)
+    try? FileManager.default.removeItem(
+        at: preferencesDirectory.appendingPathComponent("\(name).plist")
+    )
+}
+UserDefaults.standard.synchronize()
+
+if !swept.isEmpty {
+    print("       swept \(swept.count) throwaway preference domain(s)")
+}
+check("the checks leave no preference domains behind", strayCheckDomains().isEmpty)
+
 if failures == 0 {
     print("All checks passed.")
     exit(0)
