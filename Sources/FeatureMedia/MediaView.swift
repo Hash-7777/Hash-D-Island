@@ -77,6 +77,18 @@ struct MediaDetailView: View {
     /// Where the finger is during a drag of the progress bar, in seconds. Nil
     /// when nobody is dragging, which is when the clock owns the bar again.
     @State private var scrubbing: Double?
+    /// Whether the pointer is over the bar, so it can thicken to be grabbed
+    /// without being thick the rest of the time.
+    @State private var hoveringBar = false
+
+    /// A hairline at rest. The bar's job is to be read at a glance from across
+    /// a desk, and a thin line with a bright played portion reads better than a
+    /// thick one — thickness adds weight without adding information.
+    private static let barThickness: CGFloat = 3
+    /// Thicker only while it is being aimed at or dragged, so there is
+    /// something to hold on to at the moment it is wanted.
+    private static let barThicknessActive: CGFloat = 5
+    private static let handleSize: CGFloat = 9
 
     var body: some View {
         if let media = monitor.nowPlaying {
@@ -246,25 +258,42 @@ struct MediaDetailView: View {
         let current = scrubbing ?? progress.current(now: now)
         let fraction = progress.duration > 0 ? current / progress.duration : 0
         let seekable = monitor.canSeek && progress.duration > 0
+        // "In use" — being dragged, or about to be.
+        let active = seekable && (scrubbing != nil || hoveringBar)
         return VStack(spacing: 4) {
             GeometryReader { geo in
+                // The bar is drawn at its own slim height, centred inside a
+                // taller invisible row. The first version made the whole row
+                // the bar, so adding the ability to drag made the line four
+                // times thicker and stuck a dot on the end of it — the control
+                // grew to advertise itself, which is the opposite of premium.
+                // The touch target is what needs the height; the bar does not.
+                let track = active ? Self.barThicknessActive : Self.barThickness
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.16))
+                    Capsule()
+                        .fill(Color.white.opacity(0.14))
+                        .frame(height: track)
                     Capsule()
                         .fill(theme.textColor)
-                        .frame(width: max(3, geo.size.width * CGFloat(fraction)))
-                    // A grab handle, but only when there is something to grab.
-                    // A bar that cannot be moved should not look like it can.
-                    if seekable {
+                        .frame(width: max(track, geo.size.width * CGFloat(fraction)), height: track)
+                    // The handle exists only while the bar is being used. At
+                    // rest the played edge IS the position, which is how every
+                    // player worth copying draws it.
+                    if seekable, active {
                         Circle()
                             .fill(theme.textColor)
-                            .frame(width: scrubbing == nil ? 7 : 10)
-                            .offset(x: geo.size.width * CGFloat(fraction) - (scrubbing == nil ? 3.5 : 5))
-                            .animation(.easeOut(duration: 0.12), value: scrubbing == nil)
+                            .frame(width: Self.handleSize, height: Self.handleSize)
+                            .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+                            .offset(x: min(
+                                max(0, geo.size.width * CGFloat(fraction) - Self.handleSize / 2),
+                                geo.size.width - Self.handleSize
+                            ))
                     }
                 }
-                // The hit area is the full row rather than the 3pt bar: a line
-                // that thin is not something anyone can reliably catch.
+                .frame(height: geo.size.height, alignment: .center)
+                .animation(.easeOut(duration: 0.14), value: active)
+                // The hit area is the full row rather than the hairline: a line
+                // this thin is not something anyone can reliably catch.
                 .contentShape(Rectangle())
                 .gesture(
                     seekable
@@ -280,8 +309,9 @@ struct MediaDetailView: View {
                             }
                         : nil
                 )
+                .onHover { hoveringBar = $0 }
             }
-            .frame(height: seekable ? 12 : 3)
+            .frame(height: seekable ? 10 : Self.barThickness)
             HStack {
                 Text(timeText(current))
                 Spacer()

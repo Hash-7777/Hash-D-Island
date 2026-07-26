@@ -124,7 +124,7 @@ package final class NowPlayingDirect {
     /// Package-visible and pure so the checks can pin the parsing — including
     /// the cases that matter and cannot be staged on demand: a dictionary with
     /// no title, an oversized cover, a negative duration.
-    package static func snapshot(from info: [String: Any]) -> Snapshot? {
+    package static func snapshot(from info: [String: Any], now: Date = Date()) -> Snapshot? {
         func string(_ key: String) -> String? {
             (info["kMRMediaRemoteNowPlayingInfo" + key] as? String)
                 .flatMap { $0.isEmpty ? nil : $0 }
@@ -143,12 +143,33 @@ package final class NowPlayingDirect {
         // progress bar by it produces either a crash or a full bar. Treated as
         // "no duration", which the panel already knows how to draw.
         let duration = number("Duration").flatMap { $0 > 0 ? $0 : nil }
-        let elapsed = number("ElapsedTime").map { max(0, $0) }
+        let isPlaying = (number("PlaybackRate") ?? 0) > 0
+
+        // ElapsedTime is NOT the position now. It is where the track was at
+        // `Timestamp`, and macOS only refreshes the pair when something
+        // happens — a pause, a seek, a track change — not while a track simply
+        // plays. Reading the number and ignoring the timestamp beside it is
+        // therefore wrong by however long the track has been left alone:
+        // measured at 217 seconds out on a track playing undisturbed, and the
+        // longer nobody touches it the further behind it falls.
+        //
+        // While playing, the position is that snapshot plus the wall time since
+        // it was taken. While paused it is the snapshot, because nothing has
+        // moved. Clamped to the track's length so a stale pair cannot report a
+        // position past the end.
+        let elapsed = number("ElapsedTime").map { reported -> Double in
+            let base = max(0, reported)
+            guard isPlaying, let stamp = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date
+            else { return base }
+            let since = max(0, now.timeIntervalSince(stamp))
+            let position = base + since
+            return duration.map { min(position, $0) } ?? position
+        }
 
         return Snapshot(
             title: title,
             artist: string("Artist"),
-            isPlaying: (number("PlaybackRate") ?? 0) > 0,
+            isPlaying: isPlaying,
             elapsed: elapsed,
             duration: duration,
             artwork: artwork,

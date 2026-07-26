@@ -463,6 +463,72 @@ MainActor.assumeIsolated {
         NowPlayingDirect.snapshot(from: mediaInfo(artwork: nil))?.title == "Night Drive"
     )
 
+    // ── The position is a snapshot, not a reading ────────────────────────────
+    //
+    // kMRMediaRemoteNowPlayingInfoElapsedTime is where the track was at
+    // kMRMediaRemoteNowPlayingInfoTimestamp, and macOS refreshes the pair only
+    // when something HAPPENS — a pause, a seek, a track change — not while a
+    // track simply plays. Taking the number at face value is therefore wrong by
+    // however long the track has been left alone. Measured on an undisturbed
+    // track: reported 31:45, actually 35:22, out by 217 seconds and growing.
+    let stamped = Date(timeIntervalSince1970: 1_000_000)
+    func timed(rate: Double, elapsed: Double, duration: Double? = 240) -> [String: Any] {
+        var info = mediaInfo(rate: rate, elapsed: elapsed, duration: duration)
+        info["kMRMediaRemoteNowPlayingInfoTimestamp"] = stamped
+        return info
+    }
+    check(
+        "a playing track advances by the age of the reading",
+        NowPlayingDirect.snapshot(
+            from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(60)
+        )?.elapsed == 90
+    )
+    // A paused track has not moved, so adding wall time to it would have it
+    // creep forward while visibly stopped.
+    check(
+        "a paused track stays exactly where it stopped",
+        NowPlayingDirect.snapshot(
+            from: timed(rate: 0, elapsed: 30), now: stamped.addingTimeInterval(600)
+        )?.elapsed == 30
+    )
+    check(
+        "a reading taken this instant is used as-is",
+        NowPlayingDirect.snapshot(from: timed(rate: 1, elapsed: 30), now: stamped)?.elapsed == 30
+    )
+    // A stale pair plus a long silence must not report a position past the end,
+    // which would drive the progress bar past full and the remaining time
+    // negative.
+    check(
+        "a stale reading cannot run past the end of the track",
+        NowPlayingDirect.snapshot(
+            from: timed(rate: 1, elapsed: 200, duration: 240),
+            now: stamped.addingTimeInterval(10_000)
+        )?.elapsed == 240
+    )
+    // A stream has no end to clamp against, so it simply keeps counting.
+    check(
+        "a stream with no length still counts up",
+        NowPlayingDirect.snapshot(
+            from: timed(rate: 1, elapsed: 10, duration: nil), now: stamped.addingTimeInterval(50)
+        )?.elapsed == 60
+    )
+    // Older macOS may not send the timestamp at all. Without it there is
+    // nothing to correct by, and the raw figure is the best available.
+    check(
+        "with no timestamp the reading is taken as it comes",
+        NowPlayingDirect.snapshot(
+            from: mediaInfo(rate: 1, elapsed: 30), now: Date()
+        )?.elapsed == 30
+    )
+    // Clocks can disagree; a timestamp in the future must not run the position
+    // backwards.
+    check(
+        "a reading stamped in the future does not rewind the track",
+        NowPlayingDirect.snapshot(
+            from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(-90)
+        )?.elapsed == 30
+    )
+
     // The bundle id picks a CONTROL channel and nothing else. An app nobody
     // listed is not unsupported — it is shown, given artwork and read exactly
     // like any other, and simply takes the route that suits it.
