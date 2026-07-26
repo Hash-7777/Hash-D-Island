@@ -33,6 +33,27 @@ public final class MediaMonitor: ObservableObject {
     /// System output volume 0–100, shown as the panel's slider.
     @Published public private(set) var systemVolume: Int?
 
+    /// Why the controls could not reach what is playing — set only once a
+    /// command has demonstrably failed, and cleared the moment one works.
+    @Published public private(set) var controlProblem: ControlProblem?
+
+    /// The reason a playback command did not take effect.
+    ///
+    /// Deliberately discovered by MEASUREMENT rather than by recognising the
+    /// app that is playing. The alternative was a list of browser bundle ids to
+    /// check against, which would be wrong for every browser not on it and
+    /// would need editing forever; asking whether the player actually obeyed
+    /// works for anything, including apps that did not exist when this was
+    /// written.
+    public enum ControlProblem: Equatable, Sendable {
+        /// Browser control is switched off, so the only channel that reaches a
+        /// browser was never tried.
+        case browserControlOff
+        /// It is switched on, but macOS has not granted Accessibility, so the
+        /// media keys are dropped before they leave the app.
+        case accessibilityMissing
+    }
+
     private let reader = MediaRemoteReader()
     private var sampler: PollingSampler?
     private weak var presence: LivePresence?
@@ -51,6 +72,9 @@ public final class MediaMonitor: ObservableObject {
     /// Consecutive looks that found no track while audio was running. Bounds
     /// the chase after a sound that has no now-playing session behind it.
     private var fruitlessLooks = 0
+    /// The play state most recently asked for, and when. Once the settle window
+    /// has passed, a player still disagreeing with this did not obey.
+    private var pendingRequest: (wanted: Bool, at: Date)?
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
@@ -166,6 +190,10 @@ public final class MediaMonitor: ObservableObject {
         // rather than asked to guess.
         setPlaying(wantsToPlay)
         lastCommand = Date()
+        // Remember what was asked for, so a poll after the settle window can
+        // tell the difference between a player that is slow and one that never
+        // obeyed at all.
+        pendingRequest = (wanted: wantsToPlay, at: Date())
         reader?.send(wantsToPlay ? .play : .pause, to: media.source, pressingKeys: pressesKeys())
         scheduleRefresh()
     }
@@ -333,6 +361,25 @@ public final class MediaMonitor: ObservableObject {
             systemVolume = volume
         }
 
+        // Did the last command actually take? Outside the settle window the
+        // player has had its chance, so a state still disagreeing with what was
+        // asked for means the command went nowhere. The system's media channel
+        // reports success either way — measured, on a live browser video: pause
+        // returned true and the playback rate stayed at 1 — so believing its
+        // answer is exactly how a button comes to look broken.
+        if let pending = pendingRequest,
+           Date().timeIntervalSince(pending.at) > Self.commandSettleWindow {
+            if let shown, shown.isPlaying != pending.wanted {
+                controlProblem = Self.controlProblem(
+                    browserControlOn: pressesKeys(),
+                    accessibilityGranted: MediaKeys.isTrusted
+                )
+            } else {
+                controlProblem = nil
+            }
+            pendingRequest = nil
+        }
+
         presence?.setActive("media", shown != nil)
 
         // Count the looks that found nothing while the speakers were busy, so
@@ -392,6 +439,23 @@ public final class MediaMonitor: ObservableObject {
         // Paused, but the speakers are busy: whatever is making that sound is
         // what should be on the notch, so look again shortly.
         return audioElsewhere ? contendedInterval : pausedInterval
+    }
+
+    /// What to tell the user when a command demonstrably did not take.
+    ///
+    /// Only the two causes worth acting on are named. If browser control is on
+    /// AND Accessibility is granted, the keys really were pressed and something
+    /// else refused them — there is nothing the user could usefully do about
+    /// that, and a message they cannot act on is worse than silence. Pure and
+    /// package-visible so the checks can pin it without a player or a
+    /// permission.
+    package nonisolated static func controlProblem(
+        browserControlOn: Bool,
+        accessibilityGranted: Bool
+    ) -> ControlProblem? {
+        guard browserControlOn else { return .browserControlOff }
+        guard accessibilityGranted else { return .accessibilityMissing }
+        return nil
     }
 
     /// Whether a polled play state should be trusted, or the state the button

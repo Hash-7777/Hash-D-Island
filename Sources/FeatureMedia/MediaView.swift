@@ -125,6 +125,10 @@ struct MediaDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
 
+                if let problem = monitor.controlProblem {
+                    controlNotice(problem)
+                }
+
                 if let volume = monitor.systemVolume {
                     HStack(spacing: 9) {
                         Image(systemName: "speaker.fill")
@@ -138,6 +142,47 @@ struct MediaDetailView: View {
                 }
             }
             .frame(width: Panel.rowWidth, alignment: .leading)
+        }
+    }
+
+    /// Shown only after a command has actually failed, never as a warning in
+    /// advance.
+    ///
+    /// A button that quietly does nothing is the worst version of this: the
+    /// system's media channel reports success for a browser and ignores the
+    /// command, so without this the panel had every reason to believe it had
+    /// worked and the user had every reason to believe the app was broken. It
+    /// says what stopped it and offers the one action that fixes it.
+    @ViewBuilder
+    private func controlNotice(_ problem: MediaMonitor.ControlProblem) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(theme.subtitleColor)
+            Text(noticeText(problem))
+                .font(.system(size: 9))
+                .foregroundStyle(theme.subtitleColor)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            if problem == .accessibilityMissing {
+                Button("Allow…") { MediaKeys.requestTrust() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+        }
+        .frame(width: Panel.rowWidth, alignment: .leading)
+        .transition(.opacity)
+    }
+
+    private func noticeText(_ problem: MediaMonitor.ControlProblem) -> String {
+        switch problem {
+        case .browserControlOff:
+            // Named for what the user would look for, not for the mechanism:
+            // the setting is called "Control video in your browser".
+            return "A browser only listens to the media keys. Turn on \"Control video in your browser\" in Settings."
+        case .accessibilityMissing:
+            return "macOS needs to allow this app to press the media keys."
         }
     }
 

@@ -370,6 +370,34 @@ MainActor.assumeIsolated {
     check("the player wins once the window has passed", settles(2.0, false, true) == false)
     check("the window is exclusive at its edge", settles(1.5, false, true) == false)
 
+    // A command that did not take is discovered by MEASUREMENT — by asking
+    // whether the player actually obeyed — not by recognising the app that is
+    // playing. The system's media channel reports success for a browser and
+    // does nothing (measured live: pause returned true, the playback rate
+    // stayed at 1), so believing its answer is how a button comes to look
+    // broken. Recognising browsers by bundle id instead would be wrong for
+    // every browser not on the list and would need editing forever.
+    check(
+        "with browser control off, that is what the panel says",
+        MediaMonitor.controlProblem(browserControlOn: false, accessibilityGranted: true)
+            == .browserControlOff
+    )
+    check(
+        "the switch being off is named before the permission",
+        MediaMonitor.controlProblem(browserControlOn: false, accessibilityGranted: false)
+            == .browserControlOff
+    )
+    check(
+        "switched on but not permitted names the permission",
+        MediaMonitor.controlProblem(browserControlOn: true, accessibilityGranted: false)
+            == .accessibilityMissing
+    )
+    // Nothing the user could do about it is worse than saying nothing at all.
+    check(
+        "a failure with nothing to fix says nothing",
+        MediaMonitor.controlProblem(browserControlOn: true, accessibilityGranted: true) == nil
+    )
+
     // A cover is fetched off the polling queue so a track can appear without
     // waiting on an HTTP request — which means it can land after the user has
     // already skipped past the song it belongs to. The wrong album beside the
