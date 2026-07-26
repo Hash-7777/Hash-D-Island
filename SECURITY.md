@@ -38,8 +38,19 @@ The one folder that carries Hash D Island's name, `~/.hashdisland`, is written b
 *you* — by the optional helper scripts in `scripts/`, or by anything else you
 choose to post activities with. The app only ever reads it.
 
-Removing Hash D Island is correspondingly short, and the README's
-[Remove it](README.md#remove-it) section lists every trace.
+## Removing it
+
+Correspondingly short, and this is every trace:
+
+1. Settings → turn **Open at Login** off, then **Quit Hash D Island**.
+2. Drag the app from Applications to the Trash.
+3. Delete `~/.hashdisland`.
+4. `defaults delete com.hashdisland.app`
+
+If you ran the Claude hook installer, also remove the two entries mentioning
+`claude-code-hook.sh` from `~/.claude/settings.json` — a backup sits next to it.
+
+No launch agents, no caches, no receipts. That is the complete list.
 
 ## What it reads, and why
 

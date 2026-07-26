@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" role="img" aria-label="The notch at rest, then a slim live strip beside it showing a track, then the full panel dropped below it.">
+  <title>Three states of Hash D Island</title>
+  <style>
+    .bg      { fill: #0B0C10; }
+    .lid     { fill: #16181F; }
+    .screen  { fill: #05060A; }
+    .notch   { fill: #000; }
+    .label   { fill: #8FBAFF; font: 600 12px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; letter-spacing: .08em; }
+    .cap     { fill: #6C7689; font: 400 11px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
+    .txt     { fill: #E8EBF2; font: 500 9px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
+    .dim     { fill: #7E879B; font: 400 8px ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
+    .accent  { fill: #E5A34B; }
+    .green   { fill: #47D67A; }
+
+    /* Each panel breathes in turn, so the eye is walked left to right. */
+    .step    { opacity: .55; transform-origin: center; animation: wake 6s ease-in-out infinite; }
+    .s2      { animation-delay: 2s; }
+    .s3      { animation-delay: 4s; }
+    @keyframes wake {
+      0%, 8%    { opacity: .55; }
+      14%, 30%  { opacity: 1; }
+      38%, 100% { opacity: .55; }
+    }
+
+    /* The bars beside the track title, as if sound were moving them. */
+    .bar { animation: dance 1.1s ease-in-out infinite; transform-origin: bottom; }
+    .b2  { animation-delay: .18s; }
+    .b3  { animation-delay: .36s; }
+    .b4  { animation-delay: .54s; }
+    @keyframes dance {
+      0%, 100% { transform: scaleY(.35); }
+      50%      { transform: scaleY(1); }
+    }
+
+    /* The panel's progress line filling. */
+    .fill { animation: grow 6s ease-in-out infinite; transform-origin: left; }
+    @keyframes grow {
+      0%   { transform: scaleX(.06); }
+      70%  { transform: scaleX(.62); }
+      100% { transform: scaleX(.62); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .step, .bar, .fill { animation: none; opacity: 1; }
+    }
+  </style>
+
+  <rect class="bg" width="760" height="300" rx="14"/>
+
+  <!-- ─────────── 1. at rest ─────────── -->
+  <g class="step">
+    <text class="label" x="40" y="34">AT REST</text>
+    <text class="cap"   x="40" y="52">it is just the notch</text>
+    <rect class="lid"    x="40"  y="70" width="200" height="118" rx="10"/>
+    <rect class="screen" x="46"  y="76" width="188" height="106" rx="7"/>
+    <path class="notch" d="M112 76 h56 a8 8 0 0 1 0 0 v14 a7 7 0 0 1-7 7 h-42 a7 7 0 0 1-7-7 z"/>
+    <text class="dim" x="140" y="230" text-anchor="middle">invisible until it</text>
+    <text class="dim" x="140" y="243" text-anchor="middle">has something to say</text>
+  </g>
+
+  <!-- ─────────── 2. live strip ─────────── -->
+  <g class="step s2">
+    <text class="label" x="280" y="34">SOMETHING LIVE</text>
+    <text class="cap"   x="280" y="52">a strip, no hover needed</text>
+    <rect class="lid"    x="280" y="70" width="200" height="118" rx="10"/>
+    <rect class="screen" x="286" y="76" width="188" height="106" rx="7"/>
+    <!-- strip flanking the notch -->
+    <path class="notch" d="M300 76 h160 a6 6 0 0 1 0 0 v15 a7 7 0 0 1-7 7 H307 a7 7 0 0 1-7-7 z"/>
+    <rect class="accent" x="306" y="80" width="9" height="9" rx="2"/>
+    <text class="txt" x="404" y="88">Night Drive</text>
+    <g class="accent">
+      <rect class="bar"     x="446" y="80" width="2" height="9" rx="1"/>
+      <rect class="bar b2"  x="450" y="80" width="2" height="9" rx="1"/>
+      <rect class="bar b3"  x="454" y="80" width="2" height="9" rx="1"/>
+      <rect class="bar b4"  x="458" y="80" width="2" height="9" rx="1"/>
+    </g>
+    <text class="dim" x="380" y="230" text-anchor="middle">one thing at a time,</text>
+    <text class="dim" x="380" y="243" text-anchor="middle">the most urgent wins</text>
+  </g>
+
+  <!-- ─────────── 3. the panel ─────────── -->
+  <g class="step s3">
+    <text class="label" x="520" y="34">HOVER THE NOTCH</text>
+    <text class="cap"   x="520" y="52">everything, below the menu bar</text>
+    <rect class="lid"    x="520" y="70" width="200" height="118" rx="10"/>
+    <rect class="screen" x="526" y="76" width="188" height="106" rx="7"/>
+    <path class="notch" d="M592 76 h56 v10 a6 6 0 0 1-6 6 h-44 a6 6 0 0 1-6-6 z"/>
+    <!-- the dropped panel: square top, rounded bottom, like the real one -->
+    <path d="M566 76 h108 v78 a12 12 0 0 1-12 12 H578 a12 12 0 0 1-12-12 z" fill="#0E1016" stroke="#262A35" stroke-width="1"/>
+    <rect class="accent" x="574" y="92" width="16" height="16" rx="3"/>
+    <text class="txt" x="596" y="100">Night Drive</text>
+    <text class="dim" x="596" y="110">HASH</text>
+    <rect x="574" y="118" width="92" height="3" rx="1.5" fill="#252A36"/>
+    <rect class="fill accent" x="574" y="118" width="92" height="3" rx="1.5"/>
+    <text class="dim"   x="574" y="136">Internet</text>
+    <text class="green" x="666" y="136" text-anchor="end" style="font:500 8px ui-sans-serif,system-ui">4.2 MB/s</text>
+    <text class="dim"   x="574" y="150">Storage</text>
+    <text class="txt"   x="666" y="150" text-anchor="end">74% full</text>
+    <text class="dim" x="620" y="230" text-anchor="middle">never covers your menus</text>
+    <text class="dim" x="620" y="243" text-anchor="middle">or status icons</text>
+  </g>
+</svg>

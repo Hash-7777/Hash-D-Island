@@ -100,4 +100,4 @@ moment something is.
 - Because it reads system-wide Now Playing and the real temperature sensors, it
   uses Apple APIs the Mac App Store does not allow, so it is distributed
   directly and macOS asks you to confirm the first launch. See
-  [Download & install](README.md#download--install).
+  [Install](README.md#-install).
