@@ -71,6 +71,9 @@ struct MediaTitleView: View {
 struct MediaDetailView: View {
     @ObservedObject var monitor: MediaMonitor
     let theme: Theme
+    /// Shuts the panel, for the one case that needs it: raising a system
+    /// permission dialog the panel would otherwise cover.
+    var onClose: () -> Void = {}
 
     var body: some View {
         if let media = monitor.nowPlaying {
@@ -165,14 +168,26 @@ struct MediaDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             if problem == .accessibilityMissing {
-                Button("Allow…") { MediaKeys.requestTrust() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(theme.accent)
+                Button("Allow…") {
+                    // Get out of the way first. The panel hangs from the top of
+                    // the screen and macOS puts its permission dialog in the
+                    // middle, but the panel is the frontmost thing the user was
+                    // just touching — leaving it up over the answer to the
+                    // question it asked is a poor way to ask for permission.
+                    onClose()
+                    MediaKeys.requestTrust()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(theme.accent)
             }
         }
         .frame(width: Panel.rowWidth, alignment: .leading)
         .transition(.opacity)
+        // Granting the permission happens outside this app and reports nothing
+        // back, so the notice asks again whenever it is shown rather than
+        // waiting for the next poll to notice it is obsolete.
+        .onAppear { monitor.recheckControl() }
     }
 
     private func noticeText(_ problem: MediaMonitor.ControlProblem) -> String {

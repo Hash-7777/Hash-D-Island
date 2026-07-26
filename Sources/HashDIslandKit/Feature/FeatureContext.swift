@@ -23,6 +23,16 @@ public final class FeatureContext {
     /// island's gear button calls it (there is no menu-bar item).
     public var openSettings: () -> Void = {}
 
+    /// Shuts the panel. For the case where a feature is about to hand the user
+    /// over to something else — a system permission dialog, say — and the panel
+    /// would otherwise sit on top of the thing it just asked them to look at.
+    ///
+    /// A closure, like `openSettings`, rather than a method on
+    /// `PanelVisibility`: that type reports whether anyone is looking, and a
+    /// feature reaching in to change it would make an observation into a
+    /// control that the island does not know was used.
+    public var closePanel: () -> Void = {}
+
     public init(
         theme: Theme = .default,
         settings: SettingsStore,

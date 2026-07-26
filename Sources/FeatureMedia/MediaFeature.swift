@@ -37,7 +37,11 @@ public final class MediaFeature: NotchFeature {
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
         guard monitor.nowPlaying != nil else { return nil }
-        return AnyView(MediaDetailView(monitor: monitor, theme: context.theme))
+        return AnyView(MediaDetailView(
+            monitor: monitor,
+            theme: context.theme,
+            onClose: context.closePanel
+        ))
     }
 
     /// Swipe sideways across the open panel to change track.

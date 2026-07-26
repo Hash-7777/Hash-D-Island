@@ -151,6 +151,33 @@ MainActor.assumeIsolated {
     let swipeContext = FeatureContext(settings: swipeSettings)
     swipeRegistry.syncRunning(context: swipeContext)
 
+    // Which way the fingers went. Wrong first time, and nothing could have
+    // caught it: the gesture fired and the panel responded, it just skipped the
+    // opposite way. The vertical rule is `inverted ? delta > 0 : delta < 0` for
+    // fingers-down and the axes do not mirror — with natural scrolling the
+    // content follows the fingers, so fingers-down is a POSITIVE deltaY while
+    // fingers-left is a NEGATIVE deltaX.
+    check(
+        "with natural scrolling, fingers left is a leftward swipe",
+        NotchWindowController.swipeDirection(acrossDelta: -30, naturalScrolling: true) == .left
+    )
+    check(
+        "with natural scrolling, fingers right is a rightward swipe",
+        NotchWindowController.swipeDirection(acrossDelta: 30, naturalScrolling: true) == .right
+    )
+    check(
+        "with natural scrolling off, the sign is the other way round",
+        NotchWindowController.swipeDirection(acrossDelta: 30, naturalScrolling: false) == .left
+            && NotchWindowController.swipeDirection(acrossDelta: -30, naturalScrolling: false) == .right
+    )
+    // The two settings must never agree about the same physical movement, or
+    // one of them is reading the trackpad backwards.
+    check(
+        "the two scrolling settings never read a movement the same way",
+        NotchWindowController.swipeDirection(acrossDelta: 30, naturalScrolling: true)
+            != NotchWindowController.swipeDirection(acrossDelta: 30, naturalScrolling: false)
+    )
+
     check("a swipe nobody wants is simply ignored", swipeRegistry.handleSwipe(.left) == false)
 
     eagerFeature.claimsSwipes = true

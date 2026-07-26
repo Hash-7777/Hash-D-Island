@@ -230,6 +230,21 @@ public final class MediaMonitor: ObservableObject {
         skipping()
     }
 
+    /// Re-test whether the controls can reach anything, and drop the notice if
+    /// they now can.
+    ///
+    /// Called when the panel shows the notice again. Granting Accessibility
+    /// happens entirely outside this app and tells it nothing, so the only way
+    /// to find out is to ask — and the moment somebody is looking at the
+    /// warning is exactly when it must be current.
+    public func recheckControl() {
+        guard controlProblem != nil else { return }
+        controlProblem = Self.controlProblem(
+            browserControlOn: pressesKeys(),
+            accessibilityGranted: MediaKeys.isTrusted
+        )
+    }
+
     /// Say straight away when a command cannot possibly land.
     ///
     /// Play and pause find this out by measurement, which is exact but takes
@@ -402,6 +417,22 @@ public final class MediaMonitor: ObservableObject {
            let volume = SystemVolume.read(),
            volume != systemVolume {
             systemVolume = volume
+        }
+
+        // Drop the notice the moment its cause is gone, without waiting for the
+        // user to press anything.
+        //
+        // It used to clear only when a command succeeded, so after granting the
+        // permission the warning sat there until something was played — which
+        // reads as the app not having noticed, on the very screen that just
+        // told them to go and fix it. Granting Accessibility does not come back
+        // through the app in any other way, so the poll is where it is seen.
+        if controlProblem != nil,
+           Self.controlProblem(
+               browserControlOn: pressesKeys(),
+               accessibilityGranted: MediaKeys.isTrusted
+           ) == nil {
+            controlProblem = nil
         }
 
         // Did the last command actually take? Outside the settle window the

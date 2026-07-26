@@ -285,6 +285,17 @@ public final class NotchWindowController {
     }
     package var keepOpenZone: CGRect { expandedHoverRect.union(collapsedHoverRect) }
 
+    /// Shut the panel from outside the hover logic.
+    ///
+    /// For a feature that is about to hand the user to something else — a
+    /// system permission dialog — where leaving the panel up would cover the
+    /// very thing it just asked them to look at. Hover cannot do this: the
+    /// pointer is still over the panel, which is how it was clicked.
+    public func collapse() {
+        guard !isPinnedOpen else { return }
+        state.setExpanded(false)
+    }
+
     /// Re-measure the current screen, apply the user's correction for it, and
     /// reshape everything in place.
     ///
@@ -624,10 +635,11 @@ public final class NotchWindowController {
         guard Date().timeIntervalSince(lastSwipe) > Self.sidewaysCooldown else { return false }
         guard panelAnchor.contains(NSEvent.mouseLocation) else { return false }
 
-        // Natural scrolling flips the sign, the same as the vertical gesture, so
-        // normalise to the direction the fingers actually travelled.
-        let fingersLeft = event.isDirectionInvertedFromDevice ? across > 0 : across < 0
-        guard registry.handleSwipe(fingersLeft ? .left : .right) else { return false }
+        let direction = Self.swipeDirection(
+            acrossDelta: across,
+            naturalScrolling: event.isDirectionInvertedFromDevice
+        )
+        guard registry.handleSwipe(direction) else { return false }
         lastSwipe = Date()
         return true
     }
@@ -637,6 +649,25 @@ public final class NotchWindowController {
     /// on purpose, whereas sideways over an open panel is mostly made by
     /// accident, and the cost of a false positive is a song you were listening
     /// to disappearing.
+    /// Which way the fingers actually travelled, from the raw horizontal delta.
+    ///
+    /// Pure and package-visible because it was wrong first time and nothing
+    /// could have caught it: the gesture fired, the panel responded, and it
+    /// simply skipped the opposite way. The vertical rule reads
+    /// `inverted ? delta > 0 : delta < 0` for fingers-DOWN and it is tempting to
+    /// copy its shape, but the axes do not mirror. With natural scrolling a
+    /// positive delta means the content followed the fingers, so fingers-DOWN
+    /// gives a positive deltaY while fingers-LEFT gives a NEGATIVE deltaX —
+    /// copying the vertical line verbatim inverts the horizontal one, which is
+    /// exactly what happened.
+    package nonisolated static func swipeDirection(
+        acrossDelta: CGFloat,
+        naturalScrolling: Bool
+    ) -> SwipeDirection {
+        let fingersLeft = naturalScrolling ? acrossDelta < 0 : acrossDelta > 0
+        return fingersLeft ? .left : .right
+    }
+
     private static let sidewaysThreshold: CGFloat = 18
     /// One flick, one track. A trackpad emits a long tail of scroll events from
     /// a single physical swipe, and without this a flick would skip several.

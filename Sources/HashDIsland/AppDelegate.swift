@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let controller = NotchWindowController(registry: registry, context: context)
         controller.show()
+        // So a feature can get out of the way of a system dialog it just
+        // raised. Wired here, like openSettings, because the controller does
+        // not exist until now.
+        context.closePanel = { [weak controller] in controller?.collapse() }
 
         let power = PowerCoordinator(registry: registry, context: context)
         power.begin()
