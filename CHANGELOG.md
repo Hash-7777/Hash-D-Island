@@ -25,10 +25,14 @@ moment something is.
 
 ### What it shows
 
-- **Now Playing** — artwork, a scrolling title, audio bars, a live progress
-  bar, play/pause/skip, and a system volume slider. Works with Spotify, Apple
-  Music, and anything else through the system media channel, including video in
-  your browser (with the video's thumbnail as artwork).
+- **Now Playing** — works with anything that plays: Spotify, Apple Music, TV,
+  Podcasts, Anghami, VLC, a video in your browser, or an app nobody has written
+  support for. macOS is asked directly for what is playing, so real artwork
+  arrives for all of it without asking any app for anything. A scrolling title,
+  audio bars, a progress bar you can **drag to move through the track**,
+  play/pause/skip, and a system volume slider.
+- **Swipe sideways across the open panel** to change track — left for the next,
+  right for the previous, and only while something is actually playing.
 - **Internet speed** — live upload and download.
 - **Battery** — level, time remaining, and time to charge, with the adapter's
   wattage and whether that is a slow or fast charge. A Mac limited to 80%
@@ -62,6 +66,11 @@ moment something is.
 ### Built for the machine it runs on
 
 - Native Swift (SwiftUI + AppKit), tuned for 120Hz ProMotion.
+- Runs on **macOS 12 Monterey through macOS 26 Tahoe**, and asks each one for
+  what it can comfortably give: the newest systems get the full treatment, and
+  older ones get the same design with less to composite and a little longer to
+  animate. Every version runs every feature, with one exception stated plainly
+  where it appears — Open at Login needs macOS 13, and says so.
 - Sampling stops entirely while the screen is asleep; timers are coalesced and
   monitors publish only when a displayed value actually changes.
 - With the panel shut it costs nothing measurable: 0% processor and no idle
@@ -78,9 +87,14 @@ moment something is.
   now also hold the last token totals so the panel can open on a number.
 - Switching an indicator off stops it reading, not just showing — a feature
   that is off is never started at all.
-- One kind of network request exists at all — fetching album or video artwork —
-  restricted to Spotify's and YouTube's image hosts over HTTPS, size-capped,
-  and refused if a redirect would leave those hosts.
+- **No network requests at all.** The artwork comes from macOS along with the
+  title, so there is nothing to download. A download path remains for older
+  macOS versions that do not answer that call — HTTPS-only, restricted to the
+  image hosts, size-capped, and refused if a redirect would leave them.
+- Reading what is playing sends no Apple Events, so it cannot raise an
+  Automation prompt or stall behind one. Spotify and Music are asked only when
+  you press a button on them, because once paused they release the system's
+  media session and only their own scripting can resume them.
 - The activity feed is treated as untrusted throughout, including the app a row
   may name: clicking one can only ever reach a real `.app` bundle installed
   where macOS keeps applications, with symlinks followed before the path is
