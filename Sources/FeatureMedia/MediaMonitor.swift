@@ -95,9 +95,10 @@ public final class MediaMonitor: ObservableObject {
         if pressesKeys(), !MediaKeys.isTrusted {
             FileHandle.standardError.write(Data("""
             Hash D Island: browser control is switched on, but macOS is not \
-            allowing this app to press the media keys. If the Accessibility \
-            switch already looks on, turn it off and on again — a new build \
-            has to be approved afresh.
+            allowing this app to press the media keys. The Accessibility \
+            switch may still look on — a new build has to be approved afresh. \
+            Switching it off and on does NOT clear the stale entry; remove \
+            Hash D Island with the minus button and let it add itself back.
 
             """.utf8))
         }

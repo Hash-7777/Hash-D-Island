@@ -202,7 +202,15 @@ struct MediaDetailView: View {
             // is the message rather than a footnote to it. Telling someone to
             // grant a permission they can see is already granted reads as the
             // app being broken.
-            return "macOS is not allowing the media keys. If Accessibility already looks on, switch it off and on — a new version has to be approved again."
+            //
+            // And the remedy is the one that WORKS. This first said to switch
+            // it off and on again, which is the obvious advice and was tried
+            // and did not help: macOS keeps the stale entry either way. What
+            // fixed it was removing the entry outright with the minus button so
+            // there is nothing left to be stale, and letting the app add itself
+            // back. Advice that does not work is worse than none — it costs the
+            // reader the time AND their belief in the next thing the app says.
+            return "macOS is not allowing the media keys. In Accessibility, select Hash D Island, remove it with the − button, then press Allow here to add it back."
         }
     }
 
