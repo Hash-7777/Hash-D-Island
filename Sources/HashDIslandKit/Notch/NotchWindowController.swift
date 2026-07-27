@@ -811,18 +811,26 @@ public final class NotchWindowController {
         // contain every open trigger, or hovering a spot inside one and
         // outside the other flaps open/closed on every mouse move (the live
         // strip is wider than the panel, so its far edges did exactly that).
-        // Pinned beats everything: while settings is open beside the panel,
+        // Something closed the panel on purpose and the pointer has not moved
+        // off it yet. Without this the next mouse-moved event puts it straight
+        // back, and a deliberate close looks like a button that does nothing.
+        //
+        // This is asked FIRST, ahead of the hold below, and the order is the
+        // whole point. Asking to close settings starts a 0.18s fade, and the
+        // window reports itself visible for every one of those milliseconds —
+        // so a click away would collapse the panel and then the next twitch of
+        // the hand would find the panel still "held open" by a window that is
+        // visibly gone, and put it straight back. A deliberate close has to
+        // outrank the hold, or one click looks like none.
+        if let until = hoverSuppressedUntil {
+            guard Date() >= until else { return }
+            hoverSuppressedUntil = nil
+        }
+        // Held open beats hover: while settings is open beside the panel,
         // the cursor is expected to be away from the island.
         guard !holdsPanelOpen else {
             state.setExpanded(true)
             return
-        }
-        // Something closed the panel on purpose and the pointer has not moved
-        // off it yet. Without this the next mouse-moved event puts it straight
-        // back, and a deliberate close looks like a button that does nothing.
-        if let until = hoverSuppressedUntil {
-            guard Date() >= until else { return }
-            hoverSuppressedUntil = nil
         }
         let location = NSEvent.mouseLocation
         let inside: Bool

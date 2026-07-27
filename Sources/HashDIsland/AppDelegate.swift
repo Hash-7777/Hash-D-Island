@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // So a feature can get out of the way of a system dialog it just
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
-        wire(controller, context: context)
+        wire(controller, context: context, settingsWindow: settingsWindow)
 
         let power = PowerCoordinator(registry: registry, context: context)
         // A locked Mac is exactly when the notch's summary of your afternoon
@@ -265,7 +265,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// looked like a click on empty space and shut the panel — the bug this
     /// went looking for, still live in a second form after the first was
     /// fixed. Adding a closure here now reaches both paths by construction.
-    private func wire(_ controller: NotchWindowController, context: FeatureContext) {
+    ///
+    /// Everything this needs is a PARAMETER, and that is the whole point.
+    /// These closures used to capture `self.settingsWindow`, and a capture
+    /// list reads the property once, at the moment the closure is made — which
+    /// at launch is before that property has been assigned. All three captured
+    /// nil and stayed nil for the life of the app: the overlay could not see
+    /// the settings window's frame, could not recognise a click inside it, and
+    /// could not close it. That is why a click away shut the panel and left
+    /// settings sitting there needing a second click, and why clicking inside
+    /// settings dismissed the panel behind it. Taking the window as an argument
+    /// makes the mistake unsayable — there is nothing to read too early.
+    private func wire(
+        _ controller: NotchWindowController,
+        context: FeatureContext,
+        settingsWindow: SettingsWindowController
+    ) {
         // So a feature can get out of the way of a system dialog it just
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
@@ -281,16 +296,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func rebuildOverlay() {
-        guard let registry, let context else { return }
+        guard let registry, let context, let settingsWindow else { return }
         controller?.hide()
         let fresh = NotchWindowController(registry: registry, context: context)
-        wire(fresh, context: context)
+        wire(fresh, context: context, settingsWindow: settingsWindow)
         fresh.show()
         controller = fresh
         // A display change builds a new overlay, and the new one knows nothing
         // about the settings still open beside it. Without this the panel it is
         // attached to would quietly collapse behind it.
-        if settingsWindow?.isVisible == true { fresh.setPinnedOpen(true) }
+        if settingsWindow.isVisible { fresh.setPinnedOpen(true) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
