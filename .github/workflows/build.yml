@@ -4,9 +4,13 @@ name: Build and check
 # is not the developer's. That is the whole point: everything here has always
 # been runnable locally, and something that only ever runs locally is a habit
 # rather than a gate.
+# Pull requests and manual runs only — deliberately NOT every push to main.
+# This repository is private, where GitHub bills macOS runners at ten times the
+# rate of Linux ones, and the developer already runs both commands locally
+# before every push. Paying that multiplier a second time for a result he has
+# just seen buys nothing. Run it by hand from the Actions tab when it matters —
+# before cutting a release, or after a change too large to trust to one machine.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
