@@ -65,6 +65,16 @@ version_of() { [ -f "$1" ] && sed -n 's/^HOOK_VERSION=\([0-9][0-9]*\).*/\1/p' "$
 OLD_VERSION="$(version_of "$HOOK_DST" || true)"
 NEW_VERSION="$(version_of "$HOOK_SRC" || true)"
 
+# Whether the two files actually differ, asked of the bytes rather than of the
+# stamp. The version is written by hand and can therefore be forgotten: a hook
+# was once changed without its number moving, so the installed copy and the new
+# one both claimed to be v4 while behaving differently. The copy below is
+# unconditional and always did the right thing — but the MESSAGE said "already
+# current", which is the one sentence that stops somebody re-running this when
+# they should.
+DIFFERS=0
+if [ -f "$HOOK_DST" ] && ! cmp -s "$HOOK_SRC" "$HOOK_DST"; then DIFFERS=1; fi
+
 cp "$HOOK_SRC" "$HOOK_DST"
 chmod +x "$HOOK_DST"
 
@@ -72,6 +82,8 @@ if [ -z "${OLD_VERSION:-}" ]; then
   echo "Installed the notch hook (v${NEW_VERSION:-?})."
 elif [ "$OLD_VERSION" != "${NEW_VERSION:-}" ]; then
   echo "Updated the notch hook: v$OLD_VERSION to v${NEW_VERSION:-?}."
+elif [ "$DIFFERS" -eq 1 ]; then
+  echo "Refreshed the notch hook (v${NEW_VERSION:-?} — the copy on disk had drifted)."
 else
   echo "The notch hook was already current (v${NEW_VERSION:-?})."
 fi

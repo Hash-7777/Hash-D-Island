@@ -17,7 +17,7 @@ set -euo pipefail
 # is what lets the installer say "updated v1 to v2" rather than replacing the
 # file in silence, which is how a fixed alert can go on looking broken for
 # months. Read with: grep HOOK_VERSION= ~/.hashdisland/claude-code-hook.sh
-HOOK_VERSION=4
+HOOK_VERSION=5
 
 EVENT="${1:-stop}"
 # A logo to show instead of the symbol, if one has been placed here. Claude's
