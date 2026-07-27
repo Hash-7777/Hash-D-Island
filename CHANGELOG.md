@@ -83,12 +83,14 @@ moment something is.
   where it appears — Open at Login needs macOS 13, and says so.
 - Sampling stops entirely while the screen is asleep; timers are coalesced and
   monitors publish only when a displayed value actually changes.
-- With the panel shut it costs nothing measurable: **0.13% of one core and no
-  idle wake-ups at all**, measured over a minute against the packaged app with a
-  track held on the strip. Every reading that only appears inside the panel is
-  taken only while the panel is open, anything slow — the sensors, the AirPods
-  report, the token count — runs off the thread that draws it, and a feature
-  switched off is never started at all.
+- With the panel shut it costs very little: **0.13–0.19% of one core, and about
+  two idle wake-ups a minute**, measured over two- and four-minute windows
+  against the packaged app sitting idle with nothing live on the strip. It is
+  small rather than nothing, and it rises while something is actually happening
+  — a feed being written to drove it to a few percent. Every reading that only
+  appears inside the panel is taken only while the panel is open, anything slow
+  — the sensors, the AirPods report, the token count — runs off the thread that
+  draws it, and a feature switched off is never started at all.
 - Every capability is a self-contained module — adding or removing one touches
   a single manifest line and never the core.
 
