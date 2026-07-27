@@ -77,6 +77,30 @@ struct NotchIslandView: View {
     @State private var liveShown = false
     @State private var liveHandoff: DispatchWorkItem?
 
+    /// Whether the strip is actually put on screen.
+    ///
+    /// `liveShown` alone was the condition, and it is a SECOND source of truth
+    /// for something `wantsLive` already decides — so keeping the two in step
+    /// was left to every path that touches either: the exit animation, the
+    /// delayed hand-off, `onAppear`, and two separate `onChange` handlers. One
+    /// path not keeping up drew the strip beside the open panel, which is the
+    /// one arrangement the app promises never to show ("three states, and it is
+    /// only ever in one of them").
+    ///
+    /// It was reported against the panel held open by the settings window, and
+    /// reproduced by posting an activity while the panel opened: the strip was
+    /// still shown at the moment the panel arrived, and stayed for as long as
+    /// the panel was held open. The strip is wider than the panel, so it does
+    /// not even hide behind it — the artwork juts out one side and the title
+    /// the other.
+    ///
+    /// So the rule is enforced where it is DRAWN rather than maintained at
+    /// every site that could break it. `liveShown` keeps its job of sequencing
+    /// the hand-off; it just no longer gets the last word on visibility.
+    private var liveVisible: Bool {
+        IslandLayers.stripIsVisible(liveShown: liveShown, panelExpanded: showExpanded)
+    }
+
     /// How long the strip waits after the panel starts closing. Slightly longer
     /// than the closing spring, so the hand-off happens on an empty notch.
     private var handoffDelay: TimeInterval { 0.30 * motionScale }
@@ -111,7 +135,24 @@ struct NotchIslandView: View {
     /// opening. Coming back waits for the panel to finish retracting — but only
     /// when a panel was actually open, so a track starting on an idle notch
     /// still appears at once.
+    /// Development aid, inert unless `HASHDISLAND_DEBUG=island`. The strip
+    /// appearing beside an open panel is invisible to reading — both flags are
+    /// spread across a view struct, an observable, and a delayed work item —
+    /// and obvious in one line of trace.
+    private static var tracesIsland: Bool {
+        (ProcessInfo.processInfo.environment["HASHDISLAND_DEBUG"] ?? "").contains("island")
+    }
+
+    private func trace(_ label: String) {
+        guard Self.tracesIsland else { return }
+        let since = panelClosedAt.map { String(format: "%.2fs ago", Date().timeIntervalSince($0)) } ?? "nil"
+        let line = "[island] \(label) liveShown=\(liveShown) wantsLive=\(wantsLive) "
+            + "expanded=\(state.isExpanded) hasLive=\(presence.hasLive) panelClosedAt=\(since)\n"
+        FileHandle.standardError.write(Data(line.utf8))
+    }
+
     private func updateLive(animated: Bool) {
+        trace("updateLive enter")
         liveHandoff?.cancel()
         liveHandoff = nil
 
@@ -130,6 +171,7 @@ struct NotchIslandView: View {
         }
 
         let work = DispatchWorkItem {
+            trace("handoff fires")
             guard wantsLive else { return }
             withAnimation(.spring(response: 0.45 * motionScale, dampingFraction: 0.82)) {
                 liveShown = true
@@ -151,9 +193,17 @@ struct NotchIslandView: View {
     /// the physical notch like a water drop, and returns into it on close.
     private var island: some View {
         ZStack(alignment: .top) {
+            if liveShown && showExpanded {
+                // The state the bug report describes, kept as a trace rather
+                // than deleted: `liveVisible` now makes it unreachable on
+                // screen, and this says so out loud if that ever stops being
+                // true. Gated behind HASHDISLAND_DEBUG=island, so it costs a
+                // string comparison and nothing else.
+                let _ = trace("strip suppressed while the panel is open")
+            }
             collapsedIsland
 
-            if liveShown {
+            if liveVisible {
                 liveIsland
                     // Aligns the strip's internal gap with the PHYSICAL notch
                     // (the sides are unequal, so a centered strip would sit
@@ -215,11 +265,15 @@ struct NotchIslandView: View {
                 : .spring(response: 0.42 * motionScale, dampingFraction: 0.98),
             value: showExpanded
         )
+        // Tracks what is DRAWN, not the intent behind it. Animating on
+        // `liveShown` while the layer keyed off `liveVisible` meant the two
+        // could disagree, and a spring driven by the wrong value is how a
+        // removal ends up with no animation attached to it at all.
         .animation(
-            liveShown
+            liveVisible
                 ? .spring(response: 0.45 * motionScale, dampingFraction: 0.82)
                 : .spring(response: 0.30 * motionScale, dampingFraction: 1.0),
-            value: liveShown
+            value: liveVisible
         )
         // Handing the strip from one feature to another.
         //

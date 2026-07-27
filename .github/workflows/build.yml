@@ -56,7 +56,7 @@ jobs:
       - name: Run the checks
         run: swift run HashDIslandChecks
 
-      # The README carries a "467 checks passing" badge. A badge is a claim, so
+      # The README carries a "checks passing" badge. A badge is a claim, so
       # it has to be true — and it is the kind of claim that rots silently,
       # because adding a check is exactly when nobody thinks about the README.
       - name: The badge must match the checks

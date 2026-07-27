@@ -2574,6 +2574,47 @@ MainActor.assumeIsolated {
     }
 }
 
+// ── Only one island layer at a time ──────────────────────────────────────────
+//
+// "Three states, and it is only ever in one of them" is the app's central
+// promise about how it looks, and it was broken: an activity arriving while the
+// panel opened left the strip on screen beside it. Because the strip is WIDER
+// than the panel it did not even hide behind it — the artwork stuck out one
+// side and the title the other — and it stayed for as long as the panel was
+// held open by the settings window.
+//
+// Reproduced by driving the panel open and shut while posting activities, which
+// caught the two flags disagreeing eight times in forty seconds. That is why
+// this is checked rather than reasoned about: the window is a fraction of a
+// second wide, and nobody can stage it by hand.
+do {
+    check(
+        "the strip shows when it is wanted and the panel is shut",
+        IslandLayers.stripIsVisible(liveShown: true, panelExpanded: false)
+    )
+    check(
+        "an open panel hides the strip, whatever the strip thinks",
+        !IslandLayers.stripIsVisible(liveShown: true, panelExpanded: true)
+    )
+    check(
+        "nothing is shown when there is nothing live",
+        !IslandLayers.stripIsVisible(liveShown: false, panelExpanded: false)
+    )
+    // The promise stated directly: no combination of the two flags puts the
+    // strip and the panel on screen together.
+    var bothEverShown = false
+    for liveShown in [true, false] {
+        for panelExpanded in [true, false] {
+            if IslandLayers.showsBothStripAndPanel(
+                liveShown: liveShown, panelExpanded: panelExpanded
+            ) {
+                bothEverShown = true
+            }
+        }
+    }
+    check("the strip and the panel are never on screen together", !bothEverShown)
+}
+
 // ── Leave nothing behind ─────────────────────────────────────────────────────
 //
 // Several checks need a settings store of their own, so they make one in a
