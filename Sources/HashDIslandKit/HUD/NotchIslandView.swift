@@ -253,9 +253,18 @@ struct NotchIslandView: View {
         // fit.
         liveContent
             .background(
-                Color.black
-                    .clipShape(pillShape(radius: 14))
-                    .shadow(color: .black.opacity(0.35), radius: 9, y: 5)
+                // No shadow. The strip is pretending to BE the notch — the same
+                // piece of black glass, just wider — and a shadow underneath
+                // says the opposite: that this is a panel floating above the
+                // screen. On a light background it drew a visible grey band
+                // under the menu bar that appeared and vanished every time
+                // something became live, which is both wrong and distracting.
+                //
+                // The physical notch casts no shadow, so neither does this. The
+                // dropped panel keeps its own, because that one genuinely IS a
+                // surface hanging below the bar and reads as depth rather than
+                // as a mistake.
+                Color.black.clipShape(pillShape(radius: 14))
             )
             .frame(width: state.liveWidth, height: state.liveHeight, alignment: .leading)
     }
