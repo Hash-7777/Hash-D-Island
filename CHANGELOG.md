@@ -27,12 +27,21 @@ moment something is.
 
 - **Now Playing** — works with anything that plays: Spotify, Apple Music, TV,
   Podcasts, Anghami, VLC, a video in your browser, or an app nobody has written
-  support for. macOS is asked directly for what is playing, so real artwork
-  arrives for all of it without asking any app for anything. A scrolling title,
-  audio bars, a progress bar you can **drag to move through the track**,
+  support for. macOS itself is asked what is playing, so the title, artist and
+  position appear for all of it with no per-app support written for any of them.
+  Album art comes from Spotify and Apple Music, and a video's thumbnail from
+  your browser; anything else shows a placeholder tile. A scrolling title, audio
+  bars, a progress bar you can **drag to move through the track**,
   play/pause/skip, and a system volume slider.
 - **Swipe sideways across the open panel** to change track — left for the next,
   right for the previous, and only while something is actually playing.
+- **Microphone** — the moment any app opens your microphone, a live dot and a
+  running timer appear beside the notch with that app's own icon: FaceTime,
+  Zoom, Teams, a browser call, a voice memo. macOS is asked one yes-or-no
+  question — does this app have an input stream open — and the app **never
+  listens, records or transcribes**. It holds no microphone permission of its
+  own, and could not use one. Needs macOS 14.4 or later, where the per-process
+  list exists; below that the readout is simply unavailable.
 - **Internet speed** — live upload and download.
 - **Battery** — level, time remaining, and time to charge, with the adapter's
   wattage and whether that is a slow or fast charge. A Mac limited to 80%
@@ -73,10 +82,11 @@ moment something is.
   where it appears — Open at Login needs macOS 13, and says so.
 - Sampling stops entirely while the screen is asleep; timers are coalesced and
   monitors publish only when a displayed value actually changes.
-- With the panel shut it costs nothing measurable: 0% processor and no idle
-  wake-ups at all. Every reading that only appears inside the panel is taken
-  only while the panel is open, and anything slow — the sensors, the AirPods
-  report, the token count — runs off the thread that draws it.
+- Nothing is read that is not being looked at. Every reading that only appears
+  inside the panel is taken only while the panel is open, anything slow — the
+  sensors, the AirPods report, the token count — runs off the thread that draws
+  it, and a feature switched off is never started at all. With the panel shut
+  and nothing live, the app is idle.
 - Every capability is a self-contained module — adding or removing one touches
   a single manifest line and never the core.
 
@@ -87,14 +97,22 @@ moment something is.
   now also hold the last token totals so the panel can open on a number.
 - Switching an indicator off stops it reading, not just showing — a feature
   that is off is never started at all.
-- **No network requests at all.** The artwork comes from macOS along with the
-  title, so there is nothing to download. A download path remains for older
-  macOS versions that do not answer that call — HTTPS-only, restricted to the
-  image hosts, size-capped, and refused if a redirect would leave them.
-- Reading what is playing sends no Apple Events, so it cannot raise an
-  Automation prompt or stall behind one. Spotify and Music are asked only when
-  you press a button on them, because once paused they release the system's
-  media session and only their own scripting can resume them.
+- **One kind of network request, and only that one:** fetching a cover. HTTPS
+  only, restricted to Spotify's and YouTube's image hosts, size-capped, and
+  refused if a redirect would leave those hosts. It is fetched through an
+  ephemeral session, so no artwork is written to disk. Nothing else in the app
+  touches the network, and nothing about you is ever sent anywhere.
+- Reading what is playing sends Apple Events, as the table in
+  [SECURITY.md](SECURITY.md) sets out. Spotify and Music are asked for the
+  track and its position; your browser is asked for the playing tab's address
+  only when a web video needs a thumbnail, once per video rather than once per
+  poll, and the tab list never leaves the helper subprocess. Deny any of it and
+  everything else keeps working.
+- **Nothing at all while your Mac is locked.** The island leaves the screen the
+  moment you lock it and every indicator stops with it — not dimmed, not
+  covered, gone, and reading nothing. What the notch shows is a summary of your
+  afternoon, and a locked Mac is exactly when somebody who is not you might be
+  standing in front of it.
 - The activity feed is treated as untrusted throughout, including the app a row
   may name: clicking one can only ever reach a real `.app` bundle installed
   where macOS keeps applications, with symlinks followed before the path is
@@ -105,13 +123,21 @@ moment something is.
 
 ### Known limitations
 
-- Hash D Island is built for Macs with a notch, where the island is measured to
-  match the hardware exactly. A display without one — an external monitor, an
-  iMac, an older Air — gets a small pill hanging just below the menu bar
-  instead; everything works, but it is not the shape the app was drawn for.
-  Either way you can nudge its position and size per display in
-  **Settings → Position**.
+- Hash D Island is measured to match a physical notch exactly. On a display
+  without one — an external monitor, an iMac, an older Air — it is drawn against
+  the top bezel and made exactly as tall as your menu bar, filling the band
+  macOS never uses between the app menus and the status icons. Either way you
+  can nudge its position and size per display in **Settings → Position**.
+- Built for Apple Silicon (M1 and later). The temperature readout in particular
+  is the real on-die sensors, which are an Apple Silicon interface.
 - Because it reads system-wide Now Playing and the real temperature sensors, it
   uses Apple APIs the Mac App Store does not allow, so it is distributed
   directly and macOS asks you to confirm the first launch. See
   [Install](README.md#-install).
+- The app is signed ad-hoc rather than with a Developer ID, and is not
+  notarized, which is why that first launch takes the extra step.
+
+### Licence
+
+Released under the **[GNU General Public License v3](LICENSE)**. Free to use,
+read, change and share; anything you distribute built on it stays free too.

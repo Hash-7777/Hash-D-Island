@@ -20,9 +20,13 @@ FeatureTokens
 FeatureNetwork
 FeatureBattery
 FeatureAirPods
+FeatureCall
 FeatureThermal
+FeatureCPU
+FeatureMemory
+FeatureStorage
 
-Hash D Island         The executable. The only place features are wired together.
+HashDIsland       The executable. The only place features are wired together.
                   Depends on the core + every feature it enables.
 
 HashDIslandChecks   Framework-free checks for the core and the parsers, runnable
@@ -36,7 +40,7 @@ FeatureMedia ────┐
 FeatureBattery ──┼─▶ HashDIslandKit
 … every other ───┘
        ▲
-Hash D Island ───────┘   (also depends on each feature, to register them)
+HashDIsland ─────┘   (also depends on each feature, to register them)
 ```
 
 ## The feature contract
@@ -79,8 +83,10 @@ closure that opens the settings window.
 
 - **Collapsed** — a black shape matching the physical notch exactly, so at rest
   the app is invisible. On a display with no notch there is nothing to hide
-  behind, so `NotchGeometry` hangs the island *below* the menu bar as a small
-  pill instead of painting black over it.
+  behind, so `NotchGeometry` hangs the island from the top of the screen exactly
+  as the hardware notch does and makes it exactly as tall as the menu bar,
+  filling the band between the app menus and the status icons rather than
+  floating below the bar attached to nothing.
 - **Live** — a slim strip that appears *beside* the notch, at menu-bar height,
   whenever any feature signals `LivePresence`: artwork and title to one side,
   a countdown to the other. No hover needed.
@@ -148,9 +154,9 @@ is quit.
    - a SwiftUI `View`,
    - a type conforming to `NotchFeature` that ties them together.
 2. In `Package.swift`, add a `.target(name: "Feature<Name>", dependencies:
-   ["HashDIslandKit"])` and add `"Feature<Name>"` to the `Hash D Island` target's
+   ["HashDIslandKit"])` and add `"Feature<Name>"` to the `HashDIsland` target's
    dependencies.
-3. In `Sources/Hash D Island/FeatureManifest.swift`, `import Feature<Name>` and add
+3. In `Sources/HashDIsland/FeatureManifest.swift`, `import Feature<Name>` and add
    one line to the returned array.
 
 The core (`HashDIslandKit`) does not change.

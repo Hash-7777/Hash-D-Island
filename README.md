@@ -165,7 +165,7 @@ flowchart LR
         M["Media"]
         N["Network"]
         B["Battery"]
-        E["…nine more"]
+        E["…ten more"]
     end
     core --> P --> feat
 ```
@@ -173,12 +173,13 @@ flowchart LR
 ```swift
 // Sources/HashDIsland/FeatureManifest.swift — the only place features meet
 static func enabledFeatures() -> [NotchFeature] {
-    [
+    FeatureRegistry.inDefaultOrder([
         MediaFeature(), ActivitiesFeature(), DownloadsFeature(),
         TimerFeature(), TokensFeature(), NetworkFeature(),
-        BatteryFeature(), AirPodsFeature(), ThermalFeature(),
-        CPUFeature(), MemoryFeature(), StorageFeature(),
-    ]
+        BatteryFeature(), AirPodsFeature(), CallFeature(),
+        ThermalFeature(), CPUFeature(), MemoryFeature(),
+        StorageFeature(),
+    ])
 }
 ```
 
