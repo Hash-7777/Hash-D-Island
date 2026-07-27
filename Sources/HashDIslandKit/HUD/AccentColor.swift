@@ -21,7 +21,16 @@ public struct AccentColor: Identifiable, Equatable, Sendable {
         AccentColor(id: "white", name: "White", color: Color.white),
     ]
 
-    public static let `default` = all[0]
+    /// Orange, not the first in the list.
+    ///
+    /// Named rather than indexed so the swatch order and the default are
+    /// separate decisions — reordering the palette should not silently change
+    /// what everybody sees on a fresh install. Orange because the island is
+    /// black and sits against whatever wallpaper somebody has: a warm accent
+    /// holds against both a bright photograph and a dark one, where blue drops
+    /// into the dark and disappears on half of them. Falls back to the first
+    /// swatch if the id ever stops existing, so this cannot become nil.
+    public static let `default` = all.first { $0.id == "orange" } ?? all[0]
 
     /// The accent for a stored id, falling back to the default so an id from a
     /// newer build never leaves the island untinted.

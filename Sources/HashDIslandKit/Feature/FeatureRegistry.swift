@@ -15,6 +15,43 @@ public final class FeatureRegistry {
 
     public init() {}
 
+    /// The order a fresh install shows the indicators in.
+    ///
+    /// Lives here, in the core, rather than being implied by the order somebody
+    /// happened to type the manifest in — the manifest sorts itself by this, so
+    /// the two cannot drift and a feature added to the manifest cannot silently
+    /// rearrange everybody's panel. Anything not named here goes to the end,
+    /// which is what a newly added feature should do.
+    ///
+    /// The arrangement: what you are doing, then what the machine is doing,
+    /// then what you asked it to do. Now playing and activities first because
+    /// they change constantly and are why the panel gets opened; downloads next
+    /// as the other thing that arrives on its own. Then the machine's vital
+    /// signs — connection, battery, what is in your ears. Then the figures you
+    /// read rather than watch: tokens, temperatures, memory, processor. Timer
+    /// and disk last, because a timer is set and forgotten and a disk changes
+    /// over weeks.
+    ///
+    /// Only a starting point — every one of them can be dragged anywhere.
+    public static let defaultOrder: [String] = [
+        "media", "activities", "downloads",
+        "network", "battery", "airpods",
+        "tokens", "thermal", "memory", "cpu",
+        "timer", "storage",
+    ]
+
+    /// `features` arranged into `defaultOrder`, with anything unlisted kept in
+    /// the caller's order at the end.
+    public static func inDefaultOrder(_ features: [NotchFeature]) -> [NotchFeature] {
+        features.enumerated()
+            .sorted { lhs, rhs in
+                let l = defaultOrder.firstIndex(of: lhs.element.id) ?? defaultOrder.count + lhs.offset
+                let r = defaultOrder.firstIndex(of: rhs.element.id) ?? defaultOrder.count + rhs.offset
+                return l < r
+            }
+            .map(\.element)
+    }
+
     public func register(_ feature: NotchFeature) {
         features.append(feature)
         orderedCache = nil

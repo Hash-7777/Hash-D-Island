@@ -25,9 +25,14 @@ import FeatureMemory
 ///
 /// The core (HashDIslandKit) never changes for either.
 enum FeatureManifest {
+    /// Which features exist. The ORDER they appear in on a fresh install is
+    /// `FeatureRegistry.defaultOrder`, applied below — so this list can stay
+    /// whatever reads most clearly, and adding a line here can never silently
+    /// rearrange everybody's panel. A feature not named in that order simply
+    /// goes to the end, which is what a new one should do.
     @MainActor
     static func enabledFeatures() -> [NotchFeature] {
-        [
+        FeatureRegistry.inDefaultOrder([
             MediaFeature(),
             ActivitiesFeature(),
             DownloadsFeature(),
@@ -40,6 +45,6 @@ enum FeatureManifest {
             CPUFeature(),
             MemoryFeature(),
             StorageFeature(),
-        ]
+        ])
     }
 }

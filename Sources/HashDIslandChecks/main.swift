@@ -1325,12 +1325,80 @@ MainActor.assumeIsolated {
     check(
         "and never drawn thick enough to become a row of their own",
         AppearanceSettings.separatorThicknessRange.upperBound <= 4
-            && AppearanceSettings.separatorOpacityRange.upperBound <= 0.35
+            && AppearanceSettings.separatorOpacityRange.upperBound <= 0.5
     )
     check(
         "the shipped default is a visible hairline",
         AppearanceSettings().separatorThickness > 0
             && AppearanceSettings().separatorOpacity > 0
+    )
+    // A default sitting at the end of its own slider can only be moved one way,
+    // which makes the control look broken to anyone who tries the wrong
+    // direction first.
+    check(
+        "the shipped lines can be made both fainter and stronger",
+        AppearanceSettings.separatorOpacityRange.contains(AppearanceSettings().separatorOpacity)
+            && AppearanceSettings().separatorOpacity > AppearanceSettings.separatorOpacityRange.lowerBound
+            && AppearanceSettings().separatorOpacity < AppearanceSettings.separatorOpacityRange.upperBound
+    )
+    check(
+        "and both thinner and thicker",
+        AppearanceSettings().separatorThickness > AppearanceSettings.separatorThicknessRange.lowerBound
+            && AppearanceSettings().separatorThickness < AppearanceSettings.separatorThicknessRange.upperBound
+    )
+
+    // The shipped defaults are the arrangement the app was actually tuned on,
+    // not whatever fell out of the order things were written in.
+    check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
+    // The default order is a value in the core, and the manifest sorts itself
+    // by it — so adding a feature to the manifest cannot silently rearrange
+    // everybody's panel, and this pins the arrangement itself.
+    check(
+        "a fresh install shows the indicators in the arranged order",
+        FeatureRegistry.defaultOrder == [
+            "media", "activities", "downloads",
+            "network", "battery", "airpods",
+            "tokens", "thermal", "memory", "cpu",
+            "timer", "storage",
+        ]
+    )
+    // Applying it is what makes the manifest's own order irrelevant. Fed
+    // deliberately backwards.
+    check(
+        "features are arranged whatever order they are registered in", {
+            let shuffled: [NotchFeature] = [
+                StubFeature(id: "storage", placement: .expanded),
+                StubFeature(id: "media", placement: .leading),
+                StubFeature(id: "battery", placement: .trailing),
+            ]
+            return FeatureRegistry.inDefaultOrder(shuffled).map(\.id) == ["media", "battery", "storage"]
+        }()
+    )
+    // A feature nobody has placed yet goes to the end rather than to the front,
+    // so adding one never displaces what people are used to.
+    check(
+        "an unlisted feature goes to the end", {
+            let withNew: [NotchFeature] = [
+                StubFeature(id: "brandnew", placement: .expanded),
+                StubFeature(id: "media", placement: .leading),
+            ]
+            return FeatureRegistry.inDefaultOrder(withNew).map(\.id) == ["media", "brandnew"]
+        }()
+    )
+    // Each feature's FIRST style is what a fresh install gets, so the options
+    // are listed with the intended default at the front rather than sorted.
+    check(
+        "each indicator starts on its intended style",
+        NetworkFeature().displayOptions.first?.id == "graph"
+            && BatteryFeature().displayOptions.first?.id == "iconAndPercent"
+            && TokensFeature().displayOptions.first?.id == "number"
+            && ThermalFeature().displayOptions.first?.id == "symbolAndNumber"
+            && MemoryFeature().displayOptions.first?.id == "numberAndGraph"
+            && CPUFeature().displayOptions.first?.id == "numberAndGraph"
+    )
+    check(
+        "the token count starts on a half-hourly rhythm",
+        SettingsStore.defaultTokenScanInterval == .thirtyMinutes
     )
 
     // Plugging in a USB-C charger is not one clean transition: while the

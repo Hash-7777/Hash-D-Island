@@ -71,12 +71,19 @@ public struct AppearanceSettings: Codable, Equatable {
     /// falls differs between somebody on a bright external display and somebody
     /// glancing at a laptop in the dark. Zero turns them off entirely, which is
     /// a legitimate preference rather than a broken state.
-    public var separatorThickness: Double = 1.5
+    ///
+    /// The default is a half-point line at a third strength — thin and
+    /// relatively bright, rather than thick and faint. Both group the rows, but
+    /// a hairline reads as a rule between sections while a thicker band starts
+    /// reading as a row of its own. Settled by looking at it on real hardware.
+    public var separatorThickness: Double = 0.5
     /// How bright that line is, 0 to 1.
-    public var separatorOpacity: Double = 0.10
+    public var separatorOpacity: Double = 0.35
 
     public static let separatorThicknessRange: ClosedRange<Double> = 0...4
-    public static let separatorOpacityRange: ClosedRange<Double> = 0...0.35
+    /// Ranges above the default in both directions, so the shipped setting is
+    /// somewhere to move away from rather than a limit already reached.
+    public static let separatorOpacityRange: ClosedRange<Double> = 0...0.5
 
     public init() {}
 }
@@ -163,6 +170,19 @@ public final class SettingsStore: ObservableObject {
         didSet { featuresGeneration &+= 1 }
     }
 
+    /// How often a fresh install counts AI tokens.
+    ///
+    /// Half-hourly rather than every five minutes. The count is cheap — only
+    /// what the tools have appended since last time is read — but it is a
+    /// figure that moves over a working session, not second to second, and a
+    /// number that visibly changes while nothing is happening invites attention
+    /// it does not deserve. Anyone who wants it livelier has the choice, down
+    /// to every minute.
+    ///
+    /// Named once so the value and its fallback cannot drift apart, and so the
+    /// checks can pin it.
+    public static let defaultTokenScanInterval: TokenScanInterval = .thirtyMinutes
+
     /// Bumped whenever the stored feature configuration changes.
     ///
     /// Exists so anything derived from `features` — the island's draw order,
@@ -201,7 +221,7 @@ public final class SettingsStore: ObservableObject {
     @Published public var appearance = AppearanceSettings()
     @Published public var alerts = AlertSettings()
     /// How often the AI token count is brought up to date.
-    @Published public var tokenScanInterval: TokenScanInterval = .fiveMinutes
+    @Published public var tokenScanInterval: TokenScanInterval = SettingsStore.defaultTokenScanInterval
     /// Position corrections per display. A display with no entry is automatic.
     @Published public var adjustments: [String: IslandAdjustment] = [:]
 
@@ -259,7 +279,7 @@ public final class SettingsStore: ObservableObject {
             self.canPressMediaKeys = document.canPressMediaKeys ?? false
             self.appearance = document.appearance ?? AppearanceSettings()
             self.alerts = document.alerts ?? AlertSettings()
-            self.tokenScanInterval = document.tokenScanInterval ?? .fiveMinutes
+            self.tokenScanInterval = document.tokenScanInterval ?? SettingsStore.defaultTokenScanInterval
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
             self.isFirstRun = false
         } else {
