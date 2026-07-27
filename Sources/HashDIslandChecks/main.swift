@@ -1350,6 +1350,29 @@ MainActor.assumeIsolated {
     // The shipped defaults are the arrangement the app was actually tuned on,
     // not whatever fell out of the order things were written in.
     check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
+
+    // A graph with nothing to plot yet must still LOOK like a graph.
+    //
+    // Two points are needed for a shape, and below that the sparkline drew
+    // nothing at all — no line, no fill, just empty space where a graph
+    // belongs, which a reader cannot tell apart from the graph being switched
+    // off. That is precisely what a fresh launch looks like, because the
+    // readouts that live in the panel only sample while the panel is open: open
+    // it for the first time and the internet graph is simply absent. It reads
+    // as "graphs are not on by default" when they are, and sends people into
+    // Settings to switch on something already switched on.
+    check(
+        "a graph with no samples yet still draws its baseline",
+        Sparkline.showsBaselineOnly(sampleCount: 0)
+    )
+    check(
+        "and so does one with a single sample",
+        Sparkline.showsBaselineOnly(sampleCount: 1)
+    )
+    check(
+        "two samples are enough to draw the real shape",
+        Sparkline.showsBaselineOnly(sampleCount: 2) == false
+    )
     // The default order is a value in the core, and the manifest sorts itself
     // by it — so adding a feature to the manifest cannot silently rearrange
     // everybody's panel, and this pins the arrangement itself.

@@ -57,9 +57,41 @@ public struct Sparkline: View {
         }
     }
 
+    /// A shape needs two points; one sample is a dot and none is nothing.
+    package static let minimumSamplesForShape = 2
+
+    /// Whether there is still too little to draw a shape, so only the baseline
+    /// is shown. Pure and package-visible because what happens BELOW this
+    /// threshold is the interesting case: it used to be "draw nothing", which a
+    /// reader cannot tell apart from the graph being switched off.
+    package static func showsBaselineOnly(sampleCount: Int) -> Bool {
+        sampleCount < minimumSamplesForShape
+    }
+
     @ViewBuilder
     private func line(in size: CGSize) -> some View {
-        if values.count >= 2 {
+        if Self.showsBaselineOnly(sampleCount: values.count) {
+            // Not enough samples to draw a shape yet — so draw the floor.
+            //
+            // Two points are needed for a line, and until then this drew
+            // NOTHING: no line, no fill, no dot, just empty space where a graph
+            // belongs. That is indistinguishable from the graph being switched
+            // off, and it is exactly what somebody meets on a fresh launch,
+            // because the readouts that live in the panel only sample while the
+            // panel is open. Open it for the first time and the internet graph
+            // is simply absent — which reads as "graphs are not on by default"
+            // when they are, and sends people into Settings to turn on
+            // something that was already on.
+            //
+            // A flat line at the baseline says the right thing instead: the
+            // graph is here, and it has nothing to show yet. It fills in the
+            // moment a second sample lands.
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height - 1))
+                path.addLine(to: CGPoint(x: size.width, y: size.height - 1))
+            }
+            .stroke(tint.opacity(0.45), style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+        } else {
             let path = shape(in: size)
             ZStack {
                 // The fill under the line does the work at this size; the
