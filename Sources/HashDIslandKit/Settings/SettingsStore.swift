@@ -57,7 +57,15 @@ public struct AppearanceSettings: Codable, Equatable {
         }
     }
 
-    public var panelFill: PanelFill = .glass
+    /// Solid black, not frosted.
+    ///
+    /// Frosted is the prettier screenshot and the worse default. The panel
+    /// hangs off a physical notch that is solid black, so anything translucent
+    /// makes the join visible: the notch stays black while the panel picks up
+    /// whatever is behind it, and the illusion that the hardware itself opened
+    /// is what pays for the whole design. Solid keeps them one piece on any
+    /// wallpaper, and frosted is one click away for anyone who wants it.
+    public var panelFill: PanelFill = .solid
     public var accentID: String = AccentColor.default.id
     public var motion: Motion = .standard
     /// The open panel's corner rounding, in points.

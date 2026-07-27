@@ -96,7 +96,7 @@ package enum CallReader {
     /// should be about.
     package static func current() -> Listener? {
         let listeners = allListeners()
-        guard !listeners.isEmpty else { return nil }
+        guard !listeners.isEmpty else { return unattributedIfInputRunning() }
 
         // An app somebody would recognise, if one of them is holding the
         // microphone directly. This is the ordinary case — Zoom, Teams, a
@@ -134,6 +134,30 @@ package enum CallReader {
             bundleIdentifier: listeners[0].bundleIdentifier,
             name: "Microphone in use",
             processID: listeners[0].processID,
+            isNamedApp: false
+        )
+    }
+
+    /// The last resort: the input device says it is running, but no process the
+    /// app can see owns it.
+    ///
+    /// This is what dictation looks like. macOS runs it through `corespeechd`,
+    /// which has no bundle identifier at all and so never appears as an app —
+    /// and which holds an input stream open PERMANENTLY on an ordinary Mac, so
+    /// its own flag says nothing about whether anybody is dictating. Measured:
+    /// idle, with corespeechd holding input, the device still reported itself
+    /// as not running.
+    ///
+    /// So the two answer different questions. The per-process list answers WHO,
+    /// and the device flag answers WHETHER — and when the second says yes while
+    /// the first has nobody to offer, the honest readout is that the microphone
+    /// is live with no name attached.
+    private static func unattributedIfInputRunning() -> Listener? {
+        guard inputBusyDeviceWide() else { return nil }
+        return Listener(
+            bundleIdentifier: "",
+            name: "Microphone in use",
+            processID: 0,
             isNamedApp: false
         )
     }

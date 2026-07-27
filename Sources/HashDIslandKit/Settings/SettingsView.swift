@@ -555,9 +555,7 @@ public struct SettingsView: View {
             SettingCard {
                 SettingRow(
                     "Fit",
-                    detail: current.isAutomatic
-                        ? "Automatic — measured from this display."
-                        : "Adjusted by hand for this display."
+                    detail: current.isAutomatic ? "Measured automatically." : "Adjusted by hand."
                 ) {
                     Button("Reset to automatic") {
                         settings.setAdjustment(IslandAdjustment(), for: key)
@@ -566,40 +564,40 @@ public struct SettingsView: View {
                 }
             }
 
+            // Two groups rather than four rows in a list. Moving the island and
+            // resizing it are different intentions, and a heading over each
+            // says which is which faster than a sentence under every slider.
             SettingCard {
+                SettingGroupLabel("Move")
                 adjustmentSlider(
-                    "Move sideways",
+                    "Sideways",
                     value: adjustmentBinding(key, \.horizontal),
-                    range: IslandAdjustment.horizontalRange,
-                    detail: "Left and right, in points."
+                    range: IslandAdjustment.horizontalRange
                 )
-                SettingDivider()
                 adjustmentSlider(
-                    "Move down",
+                    "Down",
                     value: adjustmentBinding(key, \.vertical),
-                    range: IslandAdjustment.verticalRange,
-                    detail: "Away from the top edge of the screen."
-                )
-                SettingDivider()
-                adjustmentSlider(
-                    "Width",
-                    value: adjustmentBinding(key, \.width),
-                    range: IslandAdjustment.widthRange,
-                    detail: "Added to the island's resting width. It grows evenly from its centre."
-                )
-                SettingDivider()
-                adjustmentSlider(
-                    "Height",
-                    value: adjustmentBinding(key, \.height),
-                    range: IslandAdjustment.heightRange,
-                    detail: "Added to the island's resting height."
+                    range: IslandAdjustment.verticalRange
                 )
             }
 
-            Text("Adjustments are remembered per display, so a correction for your laptop never follows you onto an external monitor.")
+            SettingCard {
+                SettingGroupLabel("Size")
+                adjustmentSlider(
+                    "Width",
+                    value: adjustmentBinding(key, \.width),
+                    range: IslandAdjustment.widthRange
+                )
+                adjustmentSlider(
+                    "Height",
+                    value: adjustmentBinding(key, \.height),
+                    range: IslandAdjustment.heightRange
+                )
+            }
+
+            Text("Remembered per display.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
         }
@@ -619,15 +617,43 @@ public struct SettingsView: View {
         )
     }
 
+    /// One adjustment: a short name, its value, and a full-width track.
+    ///
+    /// The old shape put a name and a sentence of explanation on the left and
+    /// the slider in whatever space was left on the right — so four of them
+    /// stacked gave four paragraphs and four stubs of track crushed against the
+    /// edge, on a page that is nothing but sliders. The words were the problem:
+    /// "Move sideways" needs no sentence under it, and "Currently 12 pt" is a
+    /// value, not prose.
+    ///
+    /// So the name and the value share one line, and the track gets the whole
+    /// width below them. Nothing is lost — the number is still there, and it is
+    /// easier to read where it is now.
     private func adjustmentSlider(
         _ title: String,
         value: Binding<Double>,
-        range: ClosedRange<Double>,
-        detail: String
+        range: ClosedRange<Double>
     ) -> some View {
-        SettingRow(title, detail: "\(detail) Currently \(Int(value.wrappedValue)) pt.") {
-            Slider(value: whole(value), in: range).frame(maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.88))
+                Spacer(minLength: 8)
+                Text("\(Int(value.wrappedValue)) pt")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(
+                        Int(value.wrappedValue) == 0
+                            ? .white.opacity(0.35)
+                            : settings.accent.color
+                    )
+                    .monospacedDigit()
+            }
+            Slider(value: whole(value), in: range)
+                .frame(maxWidth: .infinity)
+                .controlSize(.small)
         }
+        .padding(.vertical, 2)
     }
 
     private func adjustmentBinding(
@@ -1027,5 +1053,22 @@ struct PrivacyNone: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.white.opacity(0.045))
         )
+    }
+}
+
+/// A quiet heading inside a card, for when a group of controls needs naming but
+/// does not need a sentence.
+struct SettingGroupLabel: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 9, weight: .semibold))
+            .kerning(1.0)
+            .foregroundStyle(.white.opacity(0.4))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 2)
     }
 }

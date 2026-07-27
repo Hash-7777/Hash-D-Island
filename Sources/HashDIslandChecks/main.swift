@@ -1399,6 +1399,11 @@ MainActor.assumeIsolated {
     )
 
     check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
+    // The panel hangs off a notch that is solid black. Anything translucent
+    // makes the join visible — the notch stays black while the panel picks up
+    // the wallpaper — and the illusion that the hardware opened is what the
+    // whole design is paying for.
+    check("the panel starts solid, so it matches the notch", AppearanceSettings().panelFill == .solid)
 
     // A graph with nothing to plot yet must still LOOK like a graph.
     //
