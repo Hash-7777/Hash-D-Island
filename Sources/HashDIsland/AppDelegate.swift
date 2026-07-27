@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // So a feature can get out of the way of a system dialog it just
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
-        wire(controller)
+        wire(controller, context: context)
 
         let power = PowerCoordinator(registry: registry, context: context)
         // A locked Mac is exactly when the notch's summary of your afternoon
@@ -265,11 +265,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// looked like a click on empty space and shut the panel — the bug this
     /// went looking for, still live in a second form after the first was
     /// fixed. Adding a closure here now reaches both paths by construction.
-    private func wire(_ controller: NotchWindowController) {
+    private func wire(_ controller: NotchWindowController, context: FeatureContext) {
         // So a feature can get out of the way of a system dialog it just
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
-        context?.closePanel = { [weak controller] in controller?.collapse() }
+        context.closePanel = { [weak controller] in controller?.collapse() }
         // So a click anywhere that is not this app puts the whole thing away.
         // The controller cannot see the settings window, and the settings
         // window can be dragged, so it asks rather than being told once.
@@ -284,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let registry, let context else { return }
         controller?.hide()
         let fresh = NotchWindowController(registry: registry, context: context)
-        wire(fresh)
+        wire(fresh, context: context)
         fresh.show()
         controller = fresh
         // A display change builds a new overlay, and the new one knows nothing

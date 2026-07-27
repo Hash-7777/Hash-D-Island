@@ -65,6 +65,21 @@ public final class NotchWindowController {
     private var settleWork: DispatchWorkItem?
     private var isPinnedOpen = false
 
+    /// Whether the panel must stay open regardless of where the cursor is.
+    ///
+    /// True whenever the settings window is ON SCREEN, not merely when
+    /// something remembered to set the flag. The flag records that settings was
+    /// opened in the usual way — from the gear, which pins deliberately — and
+    /// there are now paths that put the window up without it, so the flag and
+    /// the screen could disagree. When they did, the panel collapsed out from
+    /// under a window that is attached to it: the settings stayed, the panel it
+    /// belongs to went, and it took a second click to be rid of the pair.
+    ///
+    /// Asking what is actually showing cannot drift. The flag is kept because
+    /// it is what `setPinnedOpen` writes and what a click away clears, but
+    /// every decision about holding the panel open reads this instead.
+    private var holdsPanelOpen: Bool { isPinnedOpen || settingsFrame() != nil }
+
     /// Shadow room around the island, per state — kept as tight as each
     /// state's shadow needs so a window screenshot captures the island, not a
     /// big empty box. (side, bottom).
@@ -315,7 +330,7 @@ public final class NotchWindowController {
     /// very thing it just asked them to look at. Hover cannot do this: the
     /// pointer is still over the panel, which is how it was clicked.
     public func collapse() {
-        guard !isPinnedOpen else { return }
+        guard !holdsPanelOpen else { return }
         // Closing is not enough on its own, and this is why it appeared to do
         // nothing at all: the pointer is still sitting on the panel — it has to
         // be, that is what was just clicked — so the very next mouse-moved
@@ -630,7 +645,7 @@ public final class NotchWindowController {
 
     private func handleScroll(_ event: NSEvent) {
         if handleSidewaysSwipe(event) { return }
-        guard !isPinnedOpen else { return }
+        guard !holdsPanelOpen else { return }
         let delta = event.scrollingDeltaY
         guard abs(delta) >= 10 else { return }
         guard Date().timeIntervalSince(lastSwipe) > 0.5 else { return }
@@ -738,7 +753,7 @@ public final class NotchWindowController {
         // anywhere to put it away" has to mean the window too, however it came
         // to be open.
         let settingsShowing = settingsFrame() != nil
-        guard state.isExpanded || isPinnedOpen || settingsShowing else { return }
+        guard state.isExpanded || holdsPanelOpen else { return }
         // The panel itself, with a little slop for its edge.
         if panelAnchor.insetBy(dx: -4, dy: -4).contains(location) { return }
         // The notch: clicking it is how the panel is opened, so treating that
@@ -798,7 +813,7 @@ public final class NotchWindowController {
         // strip is wider than the panel, so its far edges did exactly that).
         // Pinned beats everything: while settings is open beside the panel,
         // the cursor is expected to be away from the island.
-        guard !isPinnedOpen else {
+        guard !holdsPanelOpen else {
             state.setExpanded(true)
             return
         }
