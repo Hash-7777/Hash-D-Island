@@ -48,7 +48,25 @@ public enum BatteryEvent: Equatable {
         case .pluggedIn: return "bolt.fill"
         case .lowBattery: return "exclamationmark.triangle.fill"
         case .fullyCharged: return "checkmark.circle.fill"
-        case .unplugged: return "powerplug"
+        // A battery, filled to where the battery actually is — not a plug.
+        //
+        // Unplugging was drawn with a plug symbol, which names the thing that
+        // just LEFT. At a glance that reads as "there is a charger here", the
+        // opposite of what happened. What matters now is the battery, and how
+        // much of it there is, so the symbol says exactly that.
+        case .unplugged(let percent): return Self.batterySymbol(for: percent)
+        }
+    }
+
+    /// The battery glyph closest to a given level, so the symbol and the number
+    /// beside it never disagree.
+    package static func batterySymbol(for percent: Int) -> String {
+        switch percent {
+        case ..<13: return "battery.0percent"
+        case ..<38: return "battery.25percent"
+        case ..<63: return "battery.50percent"
+        case ..<88: return "battery.75percent"
+        default: return "battery.100percent"
         }
     }
 }

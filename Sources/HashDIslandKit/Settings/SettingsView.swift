@@ -421,6 +421,39 @@ public struct SettingsView: View {
                     Slider(value: whole($settings.appearance.panelCornerRadius), in: 8...36)
                         .frame(maxWidth: .infinity)
                 }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Dividing lines",
+                    detail: separatorDetail,
+                    stacked: true
+                ) {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 10) {
+                            Text("Thickness")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .frame(width: 62, alignment: .leading)
+                            Slider(
+                                value: $settings.appearance.separatorThickness,
+                                in: AppearanceSettings.separatorThicknessRange,
+                                step: 0.5
+                            )
+                        }
+                        HStack(spacing: 10) {
+                            Text("Strength")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .frame(width: 62, alignment: .leading)
+                            Slider(
+                                value: $settings.appearance.separatorOpacity,
+                                in: AppearanceSettings.separatorOpacityRange
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
 
             Spacer(minLength: 0)
@@ -902,5 +935,19 @@ private extension View {
         } else {
             self
         }
+    }
+}
+
+private extension SettingsView {
+    /// Says what the sliders currently amount to, including the case where they
+    /// amount to nothing — turning the lines off is a preference, not a fault,
+    /// and the row should say so rather than describing a line that is not there.
+    var separatorDetail: String {
+        let thickness = settings.appearance.separatorThickness
+        guard thickness > 0, settings.appearance.separatorOpacity > 0 else {
+            return "Off — the indicators run together."
+        }
+        let percent = Int((settings.appearance.separatorOpacity * 100).rounded())
+        return String(format: "%.1f pt at %d%% between each indicator.", thickness, percent)
     }
 }

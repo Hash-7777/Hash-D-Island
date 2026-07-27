@@ -1297,9 +1297,40 @@ MainActor.assumeIsolated {
         "and it shows the same bolt at every level",
         [0, 50, 79, 80, 99, 100].allSatisfy { BatteryEvent.pluggedIn($0).symbolName == "bolt.fill" }
     )
+    // Unplugging used to draw a PLUG, which names the thing that just left — at
+    // a glance that reads as "there is a charger here", the opposite of what
+    // happened. It shows a battery now, filled to where the battery actually
+    // is, so the symbol and the number beside it never disagree.
     check(
-        "unplugging does not show the bolt",
-        BatteryEvent.unplugged(50).symbolName != "bolt.fill"
+        "unplugging shows a battery, not a plug",
+        BatteryEvent.unplugged(50).symbolName.hasPrefix("battery.")
+    )
+    check(
+        "and the battery it shows matches the level",
+        BatteryEvent.unplugged(5).symbolName == "battery.0percent"
+            && BatteryEvent.unplugged(50).symbolName == "battery.50percent"
+            && BatteryEvent.unplugged(100).symbolName == "battery.100percent"
+    )
+    check(
+        "every level has a battery to draw",
+        (0...100).allSatisfy { BatteryEvent.unplugged($0).symbolName.hasPrefix("battery.") }
+    )
+
+    // The dividing lines between indicators are the reader's to set — including
+    // all the way off, which is a preference rather than a broken state.
+    check(
+        "the dividing lines can be turned off entirely",
+        AppearanceSettings.separatorThicknessRange.lowerBound == 0
+    )
+    check(
+        "and never drawn thick enough to become a row of their own",
+        AppearanceSettings.separatorThicknessRange.upperBound <= 4
+            && AppearanceSettings.separatorOpacityRange.upperBound <= 0.35
+    )
+    check(
+        "the shipped default is a visible hairline",
+        AppearanceSettings().separatorThickness > 0
+            && AppearanceSettings().separatorOpacity > 0
     )
     check(
         "every announcement has a symbol of its own",

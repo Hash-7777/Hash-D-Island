@@ -43,6 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
         context.closePanel = { [weak controller] in controller?.collapse() }
+        // So a click anywhere that is not this app puts the whole thing away.
+        // The controller cannot see the settings window, and the settings
+        // window can be dragged, so it asks rather than being told once.
+        controller.settingsFrame = { [weak settingsWindow] in settingsWindow?.visibleFrame }
+        controller.closeSettings = { [weak settingsWindow] in settingsWindow?.hide() }
 
         let power = PowerCoordinator(registry: registry, context: context)
         power.begin()

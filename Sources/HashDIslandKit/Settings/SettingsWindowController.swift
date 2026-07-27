@@ -51,6 +51,14 @@ public final class SettingsWindowController {
 
     public var isVisible: Bool { window?.isVisible == true }
 
+    /// Where it currently is on screen, or nil when it is not showing. The
+    /// island asks so a click outside both it and the panel can put the pair
+    /// away — and it has to be asked live, because the window can be dragged.
+    public var visibleFrame: CGRect? {
+        guard let window, window.isVisible else { return nil }
+        return window.frame
+    }
+
     /// The gear is one button, so it is one button both ways.
     public func toggle(anchor: CGRect, on screen: NSScreen?) {
         isVisible ? hide() : show(anchor: anchor, on: screen)

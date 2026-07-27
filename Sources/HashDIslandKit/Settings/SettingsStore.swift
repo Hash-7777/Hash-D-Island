@@ -63,6 +63,21 @@ public struct AppearanceSettings: Codable, Equatable {
     /// The open panel's corner rounding, in points.
     public var panelCornerRadius: Double = 26
 
+    /// The line drawn between one indicator and the next, in points.
+    ///
+    /// Adjustable because the right answer depends on the eye and the screen.
+    /// A separator has to be strong enough to group what it divides and weak
+    /// enough not to become one of the things being read — and where that line
+    /// falls differs between somebody on a bright external display and somebody
+    /// glancing at a laptop in the dark. Zero turns them off entirely, which is
+    /// a legitimate preference rather than a broken state.
+    public var separatorThickness: Double = 1.5
+    /// How bright that line is, 0 to 1.
+    public var separatorOpacity: Double = 0.10
+
+    public static let separatorThicknessRange: ClosedRange<Double> = 0...4
+    public static let separatorOpacityRange: ClosedRange<Double> = 0...0.35
+
     public init() {}
 }
 

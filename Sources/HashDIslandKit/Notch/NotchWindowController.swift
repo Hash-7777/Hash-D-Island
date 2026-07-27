@@ -43,6 +43,11 @@ public final class NotchWindowController {
     /// Until when hover must not reopen the panel, after something closed it
     /// deliberately while the pointer was still on it.
     private var hoverSuppressedUntil: Date?
+    /// Where the settings window is while it is showing, so a click outside
+    /// both it and the panel can put the pair away. Nil when it is closed.
+    public var settingsFrame: () -> CGRect? = { nil }
+    /// Closes the settings window. Supplied by whoever owns it.
+    public var closeSettings: () -> Void = {}
     /// Long enough to move a hand off the panel, short enough that it is never
     /// noticed as the island being unresponsive.
     private static let hoverSuppression: TimeInterval = 1.2
@@ -695,9 +700,30 @@ public final class NotchWindowController {
     /// The panel's own rectangle is the test, not the window's — the window is
     /// deliberately much wider, and the space either side of the panel is
     /// somewhere the user is clicking to get AWAY from it.
+    /// A click anywhere that is not the panel, the notch, or the settings
+    /// window puts all of it away.
+    ///
+    /// It used to refuse outright while settings was open — `!isPinnedOpen` was
+    /// the first thing it checked — so with settings up, clicking the desktop,
+    /// another window, or anywhere else on screen did nothing at all. The panel
+    /// and the settings window sat there until the close button was found. That
+    /// is the opposite of what a click away from something means, and it made
+    /// large parts of the screen feel dead.
+    ///
+    /// Now the pin only decides what to close, never whether to. The three
+    /// places that keep it open are the three places that are actually this
+    /// app: the panel, the notch that opens it, and the settings window itself.
     private func closeIfClickedAway(at location: CGPoint) {
-        guard state.isExpanded, !isPinnedOpen else { return }
-        guard !panelAnchor.insetBy(dx: -4, dy: -4).contains(location) else { return }
+        guard state.isExpanded || isPinnedOpen else { return }
+        // The panel itself, with a little slop for its edge.
+        if panelAnchor.insetBy(dx: -4, dy: -4).contains(location) { return }
+        // The notch: clicking it is how the panel is opened, so treating that
+        // as "away" would fight the gesture that got here.
+        if collapsedHoverRect.contains(location) { return }
+        // The settings window, wherever it has been dragged to.
+        if let settings = settingsFrame(), settings.insetBy(dx: -6, dy: -6).contains(location) { return }
+
+        if isPinnedOpen { closeSettings() }
         state.setExpanded(false)
     }
 

@@ -216,6 +216,23 @@ struct NotchIslandView: View {
                 : .spring(response: 0.30 * motionScale, dampingFraction: 1.0),
             value: liveShown
         )
+        // Handing the strip from one feature to another.
+        //
+        // The strip hugs its content, so swapping owners changes its width — a
+        // track title and artwork give way to four words, or the other way
+        // about. Nothing animated that, so the pill jumped to its new size in a
+        // single frame while the content cross-faded, which read as the strip
+        // slamming shut and reopening in the middle of a hand-off. Plugging in
+        // a charger while music played did it every time, because that is
+        // exactly when one feature takes the strip and gives it straight back.
+        //
+        // Fully damped: this is a hand-off between two things that are both
+        // already there, not an arrival, and a bounce would draw the eye to the
+        // furniture rather than to what it now says.
+        .animation(
+            .spring(response: 0.38 * motionScale, dampingFraction: 1.0),
+            value: liveFeature?.id
+        )
     }
 
     // MARK: The three pills
@@ -367,10 +384,10 @@ struct NotchIslandView: View {
         }
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                if index > 0 {
+                if index > 0, settings.appearance.separatorThickness > 0 {
                     Rectangle()
-                        .fill(Color.white.opacity(0.10))
-                        .frame(height: 1.5)
+                        .fill(Color.white.opacity(settings.appearance.separatorOpacity))
+                        .frame(height: settings.appearance.separatorThickness)
                         .frame(width: Panel.rowWidth)
                         .padding(.vertical, 9)
                 }

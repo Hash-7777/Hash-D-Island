@@ -120,32 +120,21 @@ struct BatteryEventTextView: View {
 
     private func text(_ event: BatteryEvent) -> String {
         switch event {
-        case .pluggedIn(let percent):
-            // Read from the LIVE state rather than from the moment the cable
-            // went in. macOS needs a second to settle on whether this is a
-            // charge, a health hold, or nothing to do — and because this view
-            // observes the monitor, the line rewrites itself in place as that
-            // answer arrives, rather than committing to a guess and being wrong
-            // for the four seconds it is on screen.
-            switch monitor.state {
-            case .charged:
-                return "Charged · \(percent)%"
-            case .onHold:
-                return "Plugged in · \(percent)% · held for battery health"
-            case .charging, .discharging:
-                // The cable is the part you can see. The time to full, and
-                // whether what you grabbed will actually get you there, is the
-                // part you cannot.
-                var parts = ["\(monitor.chargeSpeed?.label ?? "Charging") · \(percent)%"]
-                if let watts = monitor.adapterWatts, watts > 0 { parts.append("\(watts)W") }
-                // Only when there is one. On the strip there is no room to
-                // explain that macOS has not decided yet, and a four-second
-                // glance is the wrong place to raise the question.
-                if let minutes = monitor.minutesToFull, minutes > 0 {
-                    parts.append("\(Formatters.hoursMinutes(minutes)) to full")
-                }
-                return parts.joined(separator: " · ")
-            }
+        case .pluggedIn:
+            // Four words, and nothing that can change while they are on screen.
+            //
+            // This used to read the live state and assemble the level, the
+            // wattage, the charge speed and the time to full. Every one of
+            // those settles at its own pace in the seconds after a cable goes
+            // in, so the line rewrote itself two or three times while being
+            // read — and rewrote itself into something LONGER, which resized
+            // the strip underneath the words.
+            //
+            // The announcement is confirmation that the cable took. That is all
+            // anybody wants at that instant, and it is the one thing already
+            // true when it appears. Everything else is a lasting fact and lives
+            // in the panel, which is open for as long as somebody wants to know.
+            return "Charger connected"
         case .lowBattery(let percent):
             // Says what to do, not just what happened. Low Power Mode is the
             // one action that buys real time, and on a Mac it lives one click
