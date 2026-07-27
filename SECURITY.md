@@ -52,6 +52,26 @@ If you ran the Claude hook installer, also remove the two entries mentioning
 
 No launch agents, no caches, no receipts. That is the complete list.
 
+## Nothing at all while your Mac is locked
+
+The island leaves the screen the moment the Mac locks, and every indicator stops
+with it. Not dimmed, not covered — gone, and reading nothing.
+
+This is deliberate rather than incidental. What the notch shows is a summary of
+your afternoon: what you are listening to, which app has your microphone open
+and for how long, how much you have spent on AI today, how hard the machine is
+working. A locked Mac is exactly the moment somebody who is not you may be
+standing in front of it.
+
+macOS already puts the login window above ordinary windows, so the island would
+be *covered* anyway. Covered is not the same as absent, and this is the one
+claim where the difference is worth code: the overlay is taken off screen and
+the features are stopped, so there is nothing to be covered and nothing being
+read. Everything returns when you unlock.
+
+The same applies when the display sleeps, where it is a battery decision as much
+as a privacy one.
+
 ## What it reads, and why
 
 | What | How | Why |

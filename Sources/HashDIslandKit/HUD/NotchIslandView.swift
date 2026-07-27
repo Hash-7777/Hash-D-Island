@@ -184,7 +184,12 @@ struct NotchIslandView: View {
                     .transition(.drop(
                         widthRatio: state.notchWidth / max(state.expandedWidth, 1),
                         heightRatio: 0.04,
-                        anchor: .top
+                        anchor: .top,
+                        // Full black from the first frame. See the note on
+                        // `drop` — fading a black panel in over a white desktop
+                        // reads as a grey ghost, and the panel is supposed to be
+                        // the notch stretching rather than a window appearing.
+                        arrivesOpaque: true
                     ))
             }
         }
@@ -314,20 +319,22 @@ struct NotchIslandView: View {
                     pillShape(radius: panelRadius)
                         .strokeBorder(Color.white.opacity(panelRevealed ? 0.12 : 0), lineWidth: 0.7)
                 )
-                // Softer and closer in than it was. The old shadow was strong
-                // enough to read as a shape of its own against a light
-                // background rather than as depth under the panel.
+                // No shadow, on any system.
                 //
-                // Dropped entirely on the oldest supported system: a wide soft
-                // shadow under a live-blurred window that is resizing every
-                // frame is the most expensive thing the island asks the
-                // compositor for, and it is decoration. The panel still reads
-                // as its own surface without it — it has a fill and a hairline.
-                .shadow(
-                    color: .black.opacity(SystemGeneration.current.drawsPanelShadow ? 0.4 : 0),
-                    radius: SystemGeneration.current.panelShadowRadius,
-                    y: 8
-                )
+                // It was already softened once and already dropped on the
+                // oldest system for cost. Filmed in slow motion against a white
+                // desktop it was still the most obvious thing on screen: a wide
+                // grey halo that grew and shrank around the panel through every
+                // open and close, and lingered as a smear while the panel was
+                // small. That is the "shadow that keeps showing and
+                // disappearing" — the strip's was the other one.
+                //
+                // Nothing is lost. A shadow says an object floats above a
+                // surface, and this object is supposed to be part of the
+                // hardware at the top of the screen: the physical notch casts
+                // none, so neither should what pretends to be it. The panel is
+                // still plainly a surface — it has its own fill and a hairline
+                // along its edge.
             )
     }
 

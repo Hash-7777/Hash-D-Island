@@ -41,16 +41,13 @@ public enum SystemGeneration: Sendable {
         }
     }
 
-    /// Whether to draw the large soft shadow under the panel.
-    ///
-    /// A big-radius shadow on a live-blurred, constantly resizing window is the
-    /// single most expensive thing the island asks for, and it is decoration.
-    /// The panel still reads as a distinct surface without it — it has its own
-    /// fill and a hairline border.
-    public var drawsPanelShadow: Bool { self != .monterey }
-
-    /// The blur radius the panel's shadow uses where it is drawn at all.
-    public var panelShadowRadius: CGFloat { self == .latest ? 18 : 12 }
+    // The panel's shadow used to be decided here — dropped on Monterey for
+    // cost, softened elsewhere. It is now drawn on no system at all, so there
+    // is nothing left to decide: a shadow says an object floats above a
+    // surface, and this one is pretending to be part of the hardware.
+    //
+    // Which leaves timing as the only thing this type still scales, and that is
+    // enough for it to keep earning its place.
 
     /// Every generation, so the checks can require the rules to hold for all of
     /// them rather than only for whichever Mac happens to be running them.

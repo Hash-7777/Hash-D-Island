@@ -71,6 +71,8 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **Zero network requests.** Not "encrypted", not "anonymised" — none. The artwork comes from the system, so there is nothing to fetch and nothing that could ever leak. You can verify that claim with Little Snitch in about ten seconds.
 
+**Nothing while your Mac is locked.** The island leaves the screen the moment you lock it, and every indicator stops with it — not dimmed, not covered, gone. What the notch shows is a summary of your afternoon, and a locked Mac is exactly when somebody who is not you might be standing in front of it.
+
 **Off means off.** Switching an indicator off stops it *reading*, not just showing. A feature that is off opens no files, runs no subprocess, and can trigger none of the permission prompts.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.

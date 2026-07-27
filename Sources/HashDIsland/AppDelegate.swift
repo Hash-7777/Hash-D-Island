@@ -50,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.closeSettings = { [weak settingsWindow] in settingsWindow?.hide() }
 
         let power = PowerCoordinator(registry: registry, context: context)
+        // A locked Mac is exactly when the notch's summary of your afternoon
+        // should not be readable, so the overlay leaves the screen rather than
+        // relying on the login window to cover it.
+        power.onConcealed = { [weak controller] concealed in
+            concealed ? controller?.hide() : controller?.show()
+        }
         power.begin()
 
         self.registry = registry

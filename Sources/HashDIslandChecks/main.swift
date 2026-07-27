@@ -485,18 +485,12 @@ MainActor.assumeIsolated {
         "the newest system is not slowed down",
         SystemGeneration.latest.motionScale == 1.0
     )
-    // The expensive decoration is the thing dropped, and only on the oldest.
+    // Timing is now the only thing that varies by system — the panel's shadow
+    // was the other, and it is drawn on no system at all. Every generation must
+    // still be given a usable amount of it.
     check(
-        "the heaviest effect is dropped only on the oldest system",
-        SystemGeneration.monterey.drawsPanelShadow == false
-            && SystemGeneration.modern.drawsPanelShadow
-            && SystemGeneration.latest.drawsPanelShadow
-    )
-    check(
-        "a shadow that is drawn always has a radius",
-        SystemGeneration.allCasesForChecks
-            .filter(\.drawsPanelShadow)
-            .allSatisfy { $0.panelShadowRadius > 0 }
+        "no generation is left without a workable animation speed",
+        SystemGeneration.allCasesForChecks.allSatisfy { $0.motionScale >= 1.0 && $0.motionScale <= 2.0 }
     )
 
     // ── A reported position has to earn its place ───────────────────────────
@@ -1396,6 +1390,17 @@ MainActor.assumeIsolated {
             )
             return unnamed.isNamedApp == false && !unnamed.name.isEmpty
         }()
+    )
+
+    // A locked Mac is the one moment none of this should be readable: what you
+    // are listening to, which app has your microphone, what you have spent on
+    // AI today. macOS puts the login window above ordinary windows, so the
+    // island is already covered in practice — but covered is not the same as
+    // absent, and this is the claim where that difference matters.
+    check(
+        "locking and unlocking are watched under the names macOS uses",
+        PowerCoordinator.lockedNotification == "com.apple.screenIsLocked"
+            && PowerCoordinator.unlockedNotification == "com.apple.screenIsUnlocked"
     )
 
     check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
