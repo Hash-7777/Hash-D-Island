@@ -2,17 +2,34 @@ import Foundation
 import SwiftUI
 import HashDIslandKit
 
-/// Track position, published separately from `NowPlaying` so a steadily
-/// playing track causes no identity churn — views interpolate from here.
+/// The player's own account of where the track is: a position, and the instant
+/// that position was true.
+///
+/// ## One clock, not two
+///
+/// The bar used to run on a clock of its own, seeded from the player and then
+/// corrected against it, with a rule deciding which to believe when they
+/// disagreed. They disagreed constantly, because each side was extrapolating
+/// the same truth from a different starting instant — and the visible result
+/// was a readout that counted 1, 2, 3 and started again.
+///
+/// It was patched twice. The second patch is the admission that the design was
+/// wrong: two clocks cannot be reconciled by choosing between them, only by
+/// there being one.
+///
+/// So this holds exactly what the player said and nothing derived from it. The
+/// position is worked out once, at the moment of drawing, from that pair. There
+/// is no local clock to drift, nothing to arbitrate, and no way for the readout
+/// to disagree with the player it came from — if the player's own figures jump,
+/// the bar jumps with them, which is the correct behaviour and was the point.
 public struct MediaProgress: Equatable {
+    /// Where the track was at `at`. Never a computed "position now".
     public let elapsed: Double
     public let duration: Double
     public let isPlaying: Bool
+    /// The instant `elapsed` was true, as the player reported it.
     public let at: Date
 
-    /// Package-visible so the checks can build one, which is what lets the
-    /// rule about which reported positions to believe be pinned without a
-    /// player running.
     package init(elapsed: Double, duration: Double, isPlaying: Bool, at: Date) {
         self.elapsed = elapsed
         self.duration = duration
@@ -20,7 +37,11 @@ public struct MediaProgress: Equatable {
         self.at = at
     }
 
-    /// Position now: the last reported position plus wall time while playing.
+    /// The position now, derived from the player's pair and nothing else.
+    ///
+    /// A playing track has advanced by the wall time since the reading; a
+    /// paused one has not moved at all. Clamped to the track, so a reading left
+    /// stale by a player that stopped reporting cannot run past the end.
     public func current(now: Date) -> Double {
         let base = isPlaying ? elapsed + now.timeIntervalSince(at) : elapsed
         return min(max(base, 0), duration)
@@ -480,12 +501,12 @@ public final class MediaMonitor: ObservableObject {
                 elapsed: elapsed,
                 duration: duration,
                 isPlaying: shown.isPlaying,
-                at: shown.fetchedAt
+                at: shown.elapsedAt
             )
-            // Follow the player, and only refuse to step BACKWARDS by a hair.
-            // See `resolved` — this is the line that decides whether the bar
-            // agrees with the video or drifts off on a clock of its own.
-            progress = Self.resolved(reported: reported, current: progress)
+            // Taken as it comes. There is nothing to weigh it against any
+            // more: the bar is derived from this pair and only this pair, so a
+            // new reading cannot conflict with a clock that no longer exists.
+            progress = reported
         } else {
             progress = nil
         }
@@ -611,62 +632,6 @@ public final class MediaMonitor: ObservableObject {
         return nil
     }
 
-    /// The position to show, given what the player just reported and where the
-    /// bar had got to on its own.
-    ///
-    /// Two things are wanted at once and they pull against each other. The bar
-    /// must follow the PLAYER, so it agrees with the video rather than drifting
-    /// off on a clock of its own. And it must never tick backwards, because a
-    /// readout that goes 1:41, 1:40, 1:41 looks broken however accurate it is.
-    ///
-    /// An earlier version chose the second and ignored small disagreements
-    /// entirely. That stopped the flicker and caused the real complaint: the
-    /// bar ran on its own clock and stopped matching the video.
-    ///
-    /// So the player is always followed, and the only thing suppressed is going
-    /// backwards by a hair. The reported position wins outright when it differs
-    /// enough to be a real event — a seek, a stall, a track change, an ad
-    /// ending. Within that, it is taken as the anchor but never allowed to show
-    /// less than the bar already showed, so an accurate reading a fraction
-    /// behind the clock is caught up with rather than snapped back to.
-    ///
-    /// Pure and package-visible so the checks can pin it without a player.
-    package nonisolated static func resolved(
-        reported: MediaProgress,
-        current: MediaProgress?,
-        tolerance: TimeInterval = positionTolerance
-    ) -> MediaProgress {
-        guard let current else { return reported }
-        // Facts about the track rather than estimates of where it is: a change
-        // of either means this is a different situation, and the report is the
-        // only thing that knows about it.
-        if reported.isPlaying != current.isPlaying { return reported }
-        if Int(reported.duration) != Int(current.duration) { return reported }
-
-        let running = current.current(now: reported.at)
-        let difference = reported.elapsed - running
-        // A real jump, in either direction. Follow it exactly.
-        if abs(difference) > tolerance { return reported }
-        // The report is a little BEHIND the running bar. Hold the bar where it
-        // is rather than stepping back a second; the next report will have
-        // caught up. Only ever a fraction of a second of difference.
-        if difference < 0 {
-            return MediaProgress(
-                elapsed: running,
-                duration: reported.duration,
-                isPlaying: reported.isPlaying,
-                at: reported.at
-            )
-        }
-        // The report is AHEAD — the player is further on than the bar thought,
-        // so take it. This is the case that used to be thrown away, and it is
-        // exactly how the bar came to disagree with the video.
-        return reported
-    }
-
-    /// How far a reported position may differ from the running bar before it is
-    /// treated as a jump rather than as ordinary jitter between readings.
-    package nonisolated static let positionTolerance: TimeInterval = 1.5
 
     /// Whether a polled play state should be trusted, or the state the button
     /// already showed kept for a moment longer.

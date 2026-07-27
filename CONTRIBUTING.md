@@ -79,3 +79,13 @@ throwaway domain, and the sweep at the end of the run removes it.
 - **Naming apps to support them.** Ask the system what is playing or what has
   the microphone; a list is wrong for everything not on it. The one exception in
   the codebase is documented with its reason beside it.
+
+## Licence
+
+This project is under the **GNU General Public License v3 or later**. By
+contributing you agree your work goes out under the same terms.
+
+In plain terms: anyone may use, read, change and share this. If they distribute
+something built on it, that has to be free too, with its source available. That
+is deliberate — an app whose whole claim is that you can check what it does
+should not be forkable into something you cannot.

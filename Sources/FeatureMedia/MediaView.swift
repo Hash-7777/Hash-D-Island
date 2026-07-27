@@ -74,6 +74,8 @@ struct MediaDetailView: View {
     /// Shuts the panel, for the one case that needs it: raising a system
     /// permission dialog the panel would otherwise cover.
     var onClose: () -> Void = {}
+    /// Opens settings at a named page, for the notice that names a switch.
+    var onOpenSettingsPage: (String) -> Void = { _ in }
     /// Where the finger is during a drag of the progress bar, in seconds. Nil
     /// when nobody is dragging, which is when the clock owns the bar again.
     @State private var scrubbing: Double?
@@ -182,6 +184,18 @@ struct MediaDetailView: View {
                 .foregroundStyle(theme.subtitleColor)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
+            if problem == .browserControlOff {
+                // The notice names a switch, so it had better be able to reach
+                // it. Telling somebody where to go and making them find it is
+                // most of the way to not telling them.
+                Button("Open…") {
+                    onClose()
+                    onOpenSettingsPage(SettingsRoute.browserControl)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(theme.accent)
+            }
             if problem == .accessibilityMissing {
                 Button("Allow…") {
                     // Get out of the way first. The panel hangs from the top of
@@ -210,7 +224,7 @@ struct MediaDetailView: View {
         case .browserControlOff:
             // Named for what the user would look for, not for the mechanism:
             // the setting is called "Control video in your browser".
-            return "A browser only listens to the media keys. Turn on \"Control video in your browser\" in Settings."
+            return "A browser only listens to the media keys. Turn on \"Control video in your browser\"."
         case .accessibilityMissing:
             // The switch reading "on" while the permission is not in force is
             // the normal case after an update, not an edge case, so the remedy

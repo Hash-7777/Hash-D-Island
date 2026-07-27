@@ -16,6 +16,23 @@ public struct FeatureDescriptor: Identifiable {
     }
 }
 
+/// Which page the settings window should show.
+///
+/// Its own object rather than a value on `SettingsStore`, because where somebody
+/// is looking is not a preference and has no business being saved to disk with
+/// the ones that are. The island sets this when it sends somebody here to fix
+/// something specific, so they arrive at the switch rather than at a window.
+@MainActor
+public final class SettingsRoute: ObservableObject {
+    @Published public var requested: String?
+
+    public init() {}
+
+    /// Where the browser-control switch lives. Named here so a caller does not
+    /// have to know the page it happens to sit on today.
+    public static let browserControl = "alerts"
+}
+
 /// The customization window.
 ///
 /// Deliberately not a stock grouped Form: this window is the only face the app
@@ -24,6 +41,7 @@ public struct FeatureDescriptor: Identifiable {
 /// scroll, which is what made the previous single list feel thin.
 public struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var route: SettingsRoute
     let features: [FeatureDescriptor]
 
     @State private var section: Section = .general
@@ -64,10 +82,12 @@ public struct SettingsView: View {
     public init(
         settings: SettingsStore,
         features: [FeatureDescriptor],
+        route: SettingsRoute,
         onClose: @escaping () -> Void = {}
     ) {
         self.settings = settings
         self.features = features
+        self.route = route
         self.onClose = onClose
     }
 
@@ -112,6 +132,17 @@ public struct SettingsView: View {
         )
         .preferredColorScheme(.dark)
         .tint(settings.accent.color)
+        .onAppear { jumpIfRequested() }
+        .onChange(of: route.requested) { _ in jumpIfRequested() }
+    }
+
+    /// Move to a page the island asked for, once.
+    private func jumpIfRequested() {
+        guard let wanted = route.requested,
+              let target = Section(rawValue: wanted) else { return }
+        dragging = nil
+        section = target
+        route.requested = nil
     }
 
     /// Frosted where the system allows it, with a dark wash over the top so the

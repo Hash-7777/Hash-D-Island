@@ -51,8 +51,13 @@ public struct NowPlaying {
     /// polling rules be pinned without a player running.
     package init(
         title: String, artist: String?, isPlaying: Bool, artwork: Data?,
-        source: MediaSource, elapsed: Double?, duration: Double?, fetchedAt: Date
+        source: MediaSource, elapsed: Double?, duration: Double?, fetchedAt: Date,
+        elapsedAt: Date? = nil
     ) {
+        // Where `elapsed` was true. Nil only on the fallback path, which has no
+        // timestamp of its own — there, the moment of reading is the best
+        // available answer and is close enough, because that path re-reads.
+        self.elapsedAt = elapsedAt ?? fetchedAt
         self.title = title
         self.artist = artist
         self.isPlaying = isPlaying
@@ -71,6 +76,9 @@ public struct NowPlaying {
     public let elapsed: Double?
     public let duration: Double?
     public let fetchedAt: Date
+    /// The instant `elapsed` was true, as the player reported it — not the
+    /// instant this app happened to ask.
+    public let elapsedAt: Date
 }
 
 extension NowPlaying: Equatable {
@@ -369,7 +377,8 @@ final class MediaRemoteReader {
                     source: NowPlayingDirect.source(forBundleIdentifier: bundle),
                     elapsed: snapshot.elapsed,
                     duration: snapshot.duration,
-                    fetchedAt: Date()
+                    fetchedAt: Date(),
+                    elapsedAt: snapshot.elapsedAt
                 ))
             }
         }

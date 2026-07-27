@@ -22,6 +22,10 @@ public final class SettingsWindowController {
     private let settings: SettingsStore
     private let descriptors: [FeatureDescriptor]
     private var window: SettingsPanelWindow?
+    /// Which page to show. Held here rather than passed at open time, because
+    /// the window and its view are built once and reused — a value the view is
+    /// watching survives that, an argument to `show` would not.
+    private let route = SettingsRoute()
     private var escapeMonitor: Any?
     private var outsideClickMonitor: Any?
 
@@ -70,6 +74,16 @@ public final class SettingsWindowController {
     /// The gear is one button, so it is one button both ways.
     public func toggle(anchor: CGRect, on screen: NSScreen?) {
         isVisible ? hide() : show(anchor: anchor, on: screen)
+    }
+
+    /// Show it, and land on a particular page.
+    ///
+    /// Used when the island has just told somebody a switch is off: sending
+    /// them to a window and letting them hunt for it is most of the way to not
+    /// telling them at all.
+    public func show(anchor: CGRect, on screen: NSScreen?, section: String) {
+        route.requested = section
+        show(anchor: anchor, on: screen)
     }
 
     public func show(anchor: CGRect, on screen: NSScreen?) {
@@ -163,7 +177,7 @@ public final class SettingsWindowController {
         window.level = .statusBar
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
 
-        let root = SettingsView(settings: settings, features: descriptors) { [weak self] in
+        let root = SettingsView(settings: settings, features: descriptors, route: route) { [weak self] in
             self?.hide()
         }
         window.contentViewController = NSHostingController(rootView: root)

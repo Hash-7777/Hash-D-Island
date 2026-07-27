@@ -23,6 +23,13 @@ public final class FeatureContext {
     /// island's gear button calls it (there is no menu-bar item).
     public var openSettings: () -> Void = {}
 
+    /// Opens the customization window ON a particular page.
+    ///
+    /// For the case where the island has just told somebody that a switch is
+    /// off. Sending them to a window and leaving them to find it themselves is
+    /// most of the way to not having told them.
+    public var openSettingsPage: (String) -> Void = { _ in }
+
     /// Shuts the panel. For the case where a feature is about to hand the user
     /// over to something else — a system permission dialog, say — and the panel
     /// would otherwise sit on top of the thing it just asked them to look at.

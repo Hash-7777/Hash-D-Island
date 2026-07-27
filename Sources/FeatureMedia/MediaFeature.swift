@@ -40,7 +40,8 @@ public final class MediaFeature: NotchFeature {
         return AnyView(MediaDetailView(
             monitor: monitor,
             theme: context.theme,
-            onClose: context.closePanel
+            onClose: context.closePanel,
+            onOpenSettingsPage: context.openSettingsPage
         ))
     }
 

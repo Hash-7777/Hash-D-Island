@@ -48,7 +48,12 @@ package final class NowPlayingDirect {
         package let title: String
         package let artist: String?
         package let isPlaying: Bool
+        /// Where the track was at `elapsedAt` — the player's own figure, not a
+        /// position worked out from it.
         package let elapsed: Double?
+        /// When that figure was true. Everything downstream derives the current
+        /// position from this pair and nothing else.
+        package let elapsedAt: Date
         package let duration: Double?
         package let artwork: Data?
         /// The bundle id of the app that is playing, when the system says.
@@ -145,32 +150,30 @@ package final class NowPlayingDirect {
         let duration = number("Duration").flatMap { $0 > 0 ? $0 : nil }
         let isPlaying = (number("PlaybackRate") ?? 0) > 0
 
-        // ElapsedTime is NOT the position now. It is where the track was at
-        // `Timestamp`, and macOS only refreshes the pair when something
-        // happens — a pause, a seek, a track change — not while a track simply
-        // plays. Reading the number and ignoring the timestamp beside it is
-        // therefore wrong by however long the track has been left alone:
-        // measured at 217 seconds out on a track playing undisturbed, and the
-        // longer nobody touches it the further behind it falls.
+        // The player's own pair, handed on untouched: where the track was, and
+        // WHEN it was there. Both, together, or neither is any use.
         //
-        // While playing, the position is that snapshot plus the wall time since
-        // it was taken. While paused it is the snapshot, because nothing has
-        // moved. Clamped to the track's length so a stale pair cannot report a
-        // position past the end.
-        let elapsed = number("ElapsedTime").map { reported -> Double in
-            let base = max(0, reported)
-            guard isPlaying, let stamp = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date
-            else { return base }
-            let since = max(0, now.timeIntervalSince(stamp))
-            let position = base + since
-            return duration.map { min(position, $0) } ?? position
-        }
+        // `ElapsedTime` alone is not the position now — macOS refreshes it only
+        // when something happens, so on an undisturbed track it falls behind by
+        // however long nobody has touched it (measured once at 217 seconds).
+        // The timestamp beside it is what makes it meaningful.
+        //
+        // This used to work the position out here, and then the monitor kept a
+        // clock of its own and worked it out AGAIN from a different starting
+        // instant. Two extrapolations of one truth, from two reference points,
+        // arbitrated by a rule about which to believe — which is why the
+        // readout could sit there counting 1, 2, 3, 1, 2, 3. Nothing is
+        // computed here now. The pair travels to the one place that needs a
+        // number, and the position is derived once, at the moment of drawing.
+        let elapsed = number("ElapsedTime").map { max(0, $0) }
+        let elapsedAt = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date
 
         return Snapshot(
             title: title,
             artist: string("Artist"),
             isPlaying: isPlaying,
             elapsed: elapsed,
+            elapsedAt: elapsedAt ?? now,
             duration: duration,
             artwork: artwork,
             bundleIdentifier: nil

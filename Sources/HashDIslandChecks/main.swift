@@ -507,63 +507,47 @@ MainActor.assumeIsolated {
             at: Date(timeIntervalSince1970: seconds)
         )
     }
-    func resolve(_ reported: MediaProgress, _ current: MediaProgress?) -> Double {
-        MediaMonitor.resolved(reported: reported, current: current).elapsed
-    }
-
-    check("the first position is taken as it comes", resolve(at(10, 0), nil) == 10)
-
-    // AHEAD of the bar. The player has got further than the clock thought, and
-    // this is the case an earlier version threw away — which is exactly how the
-    // bar came to run on its own clock and stop matching the video.
+    // The bar is derived from the player's own pair — a position and the
+    // instant it was true — and from nothing else. There is no second clock to
+    // disagree with, which is what the counting 1, 2, 3, 1, 2, 3 actually was:
+    // two extrapolations of one truth from two different starting instants,
+    // arbitrated by a rule.
     check(
-        "a report ahead of the bar is followed",
-        resolve(at(45, 40), at(10, 10)) == 45
-    )
-    // A real jump in either direction is followed exactly.
-    check(
-        "a seek forwards is followed exactly",
-        resolve(at(200, 40), at(10, 10)) == 200
+        "a playing track advances by the time since the player's reading",
+        at(30, 10).current(now: Date(timeIntervalSince1970: 70)) == 90
     )
     check(
-        "a seek backwards is followed exactly",
-        resolve(at(5, 40), at(10, 10)) == 5
-    )
-    // BEHIND by a hair. The bar is at 40s, the reading says 39.6s. Stepping
-    // back is what produced 1:41, 1:40, 1:41 on a normally playing track, so
-    // the bar holds and the next reading catches up.
-    check(
-        "a report a fraction behind does not step the bar backwards",
-        resolve(at(39.6, 40), at(10, 10)) == 40
+        "a paused track does not move, however long ago it was read",
+        at(30, 10, playing: false).current(now: Date(timeIntervalSince1970: 9_000)) == 30
     )
     check(
-        "and holding is never more than the tolerance",
-        MediaMonitor.positionTolerance <= 1.5
+        "the position at the instant of the reading is the reading",
+        at(30, 10).current(now: Date(timeIntervalSince1970: 10)) == 30
     )
-    // Facts about the track rather than estimates of where it is.
+    // A player that stops reporting must not drive the bar past the end of the
+    // track, which would show a full bar and a negative time remaining.
     check(
-        "a change of play state is followed",
-        MediaMonitor.resolved(reported: at(39.6, 40, playing: false), current: at(10, 10)).isPlaying == false
+        "a stale reading cannot run past the end",
+        at(280, 10, length: 300).current(now: Date(timeIntervalSince1970: 10_000)) == 300
     )
     check(
-        "a change of track length is followed",
-        MediaMonitor.resolved(reported: at(39.6, 40, length: 500), current: at(10, 10)).duration == 500
-    )
-    // A paused track does not advance, so its bar and its reading agree exactly
-    // and it simply stays put.
-    check(
-        "a paused track stays where it is",
-        resolve(at(30, 90, playing: false), at(30, 10, playing: false)) == 30
+        "and cannot go negative if the clocks disagree",
+        at(5, 100).current(now: Date(timeIntervalSince1970: 0)) == 0
     )
 
-    // ── The position is a snapshot, not a reading ────────────────────────────
+    // ── The reading is passed on, not interpreted ────────────────────────────
     //
     // kMRMediaRemoteNowPlayingInfoElapsedTime is where the track was at
     // kMRMediaRemoteNowPlayingInfoTimestamp, and macOS refreshes the pair only
     // when something HAPPENS — a pause, a seek, a track change — not while a
-    // track simply plays. Taking the number at face value is therefore wrong by
-    // however long the track has been left alone. Measured on an undisturbed
-    // track: reported 31:45, actually 35:22, out by 217 seconds and growing.
+    // track simply plays. Taking the number at face value is wrong by however
+    // long the track has been left alone: measured once at 217 seconds out.
+    //
+    // The correction used to be applied HERE, and then the monitor applied its
+    // own on top from a different starting instant. That is what made the
+    // readout count 1, 2, 3 and start again. So this layer now interprets
+    // nothing: it hands on the player's figure and the instant it was true, and
+    // the position is derived once, where it is drawn.
     let stamped = Date(timeIntervalSince1970: 1_000_000)
     func timed(rate: Double, elapsed: Double, duration: Double? = 240) -> [String: Any] {
         var info = mediaInfo(rate: rate, elapsed: elapsed, duration: duration)
@@ -571,55 +555,37 @@ MainActor.assumeIsolated {
         return info
     }
     check(
-        "a playing track advances by the age of the reading",
+        "the player's own figure is passed on untouched",
         NowPlayingDirect.snapshot(
             from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(60)
-        )?.elapsed == 90
-    )
-    // A paused track has not moved, so adding wall time to it would have it
-    // creep forward while visibly stopped.
-    check(
-        "a paused track stays exactly where it stopped",
-        NowPlayingDirect.snapshot(
-            from: timed(rate: 0, elapsed: 30), now: stamped.addingTimeInterval(600)
         )?.elapsed == 30
     )
     check(
-        "a reading taken this instant is used as-is",
-        NowPlayingDirect.snapshot(from: timed(rate: 1, elapsed: 30), now: stamped)?.elapsed == 30
-    )
-    // A stale pair plus a long silence must not report a position past the end,
-    // which would drive the progress bar past full and the remaining time
-    // negative.
-    check(
-        "a stale reading cannot run past the end of the track",
+        "and so is the instant it was true",
         NowPlayingDirect.snapshot(
-            from: timed(rate: 1, elapsed: 200, duration: 240),
-            now: stamped.addingTimeInterval(10_000)
-        )?.elapsed == 240
+            from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(60)
+        )?.elapsedAt == stamped
     )
-    // A stream has no end to clamp against, so it simply keeps counting.
+    // Put the two together and the position comes out right — the same 90
+    // seconds the old code computed here, now computed once, in one place.
     check(
-        "a stream with no length still counts up",
-        NowPlayingDirect.snapshot(
-            from: timed(rate: 1, elapsed: 10, duration: nil), now: stamped.addingTimeInterval(50)
-        )?.elapsed == 60
+        "the pair together gives the position", {
+            guard let s = NowPlayingDirect.snapshot(
+                from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(60)
+            ), let e = s.elapsed, let d = s.duration else { return false }
+            let progress = MediaProgress(
+                elapsed: e, duration: d, isPlaying: s.isPlaying, at: s.elapsedAt
+            )
+            return progress.current(now: stamped.addingTimeInterval(60)) == 90
+        }()
     )
-    // Older macOS may not send the timestamp at all. Without it there is
-    // nothing to correct by, and the raw figure is the best available.
+    // Older macOS may not send a timestamp at all. The moment of reading is
+    // then the best available answer, and the pair still works.
     check(
-        "with no timestamp the reading is taken as it comes",
+        "a reading with no timestamp is stamped when it was read",
         NowPlayingDirect.snapshot(
-            from: mediaInfo(rate: 1, elapsed: 30), now: Date()
-        )?.elapsed == 30
-    )
-    // Clocks can disagree; a timestamp in the future must not run the position
-    // backwards.
-    check(
-        "a reading stamped in the future does not rewind the track",
-        NowPlayingDirect.snapshot(
-            from: timed(rate: 1, elapsed: 30), now: stamped.addingTimeInterval(-90)
-        )?.elapsed == 30
+            from: mediaInfo(rate: 1, elapsed: 30), now: stamped
+        )?.elapsedAt == stamped
     )
 
     // The bundle id picks a CONTROL channel and nothing else. An app nobody

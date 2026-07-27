@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The gear opens settings beside the panel it was clicked from, and
         // holds that panel open for as long as they are both showing.
         context.openSettings = { [weak self] in self?.toggleSettings() }
+        // Landing on the page that holds the switch the island just named.
+        context.openSettingsPage = { [weak self] page in self?.openSettings(at: page) }
         settingsWindow.onVisibilityChange = { [weak self] visible in
             self?.controller?.setPinnedOpen(visible)
         }
@@ -150,6 +152,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func toggleSettings() {
         guard let controller, let settingsWindow else { return }
         settingsWindow.toggle(anchor: controller.panelAnchor, on: NotchGeometry.preferredScreen())
+    }
+
+    /// Open settings ON a page, for when the island has named a switch.
+    private func openSettings(at page: String) {
+        guard let controller, let settingsWindow else { return }
+        settingsWindow.show(
+            anchor: controller.panelAnchor,
+            on: NotchGeometry.preferredScreen(),
+            section: page
+        )
     }
 
     /// Start or stop the features whose switch has just changed.

@@ -15,8 +15,8 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-474%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="474 automated checks passing">
-  <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
+  <img src="https://img.shields.io/badge/checks-467%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="467 automated checks passing">
+  <img src="https://img.shields.io/badge/license-GPL%20v3-AEB7C8?style=flat-square&labelColor=0B0C10" alt="GNU General Public License v3">
 </p>
 
 <a href="#-install"><b>Install</b></a> &nbsp;·&nbsp;
@@ -77,7 +77,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 474 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 467 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -188,7 +188,9 @@ Architecture in full: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 <div align="center">
 
-**[Apache 2.0](LICENSE)** © 2026 Seif Hashish
+**[GNU General Public License v3](LICENSE)** · Copyright © 2026 **Seif Hashish**
+
+Free to use, read, change and share. Anything you distribute built on it stays free too.
 
 [Release notes](CHANGELOG.md) · [Security & privacy](SECURITY.md) · [Architecture](docs/ARCHITECTURE.md)
 
