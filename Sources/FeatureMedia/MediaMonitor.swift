@@ -494,11 +494,25 @@ public final class MediaMonitor: ObservableObject {
     private static let emptyReadingsBeforeClearing = 2
 
     private func apply(_ snapshot: NowPlaying?) {
-        // Keep whatever track exists — playing OR paused, any source. Both the
-        // compact strip and the panel card stay up while a track is present so
-        // the artwork and controls survive a pause; they clear only when the
-        // system reports no item at all (the app quit, the tab closed).
-        let shown = settling(snapshot)
+        // Keep a track — playing OR paused, any source — for as long as it has
+        // earned a place: both the strip and the panel card survive a pause so
+        // the artwork and the resume button stay where you left them. What has
+        // NOT earned one is dropped here, at the single point both readouts are
+        // fed from, so nothing that merely announced itself can reach either.
+        let reported = settling(snapshot)
+
+        // Remember a track the moment it proves itself, so it keeps its place
+        // through the pause that follows. Judged on the raw reading, before
+        // anything is withheld, and cleared with the track rather than carried
+        // to the next one.
+        if let reported {
+            if Self.hasBeenPlayed(reported) { playedTitle = reported.title }
+            else if playedTitle != reported.title { playedTitle = nil }
+        } else {
+            playedTitle = nil
+        }
+
+        let shown = Self.earnsPlace(reported, playedTitle: playedTitle) ? reported : nil
 
         if shown != nowPlaying {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { nowPlaying = shown }
@@ -571,17 +585,7 @@ public final class MediaMonitor: ObservableObject {
             pendingRequest = nil
         }
 
-        // Remember a track the moment it proves itself, so it keeps the strip
-        // through the pause that follows. Cleared with the track, never carried
-        // to the next one.
-        if let shown {
-            if Self.hasBeenPlayed(shown) { playedTitle = shown.title }
-            else if playedTitle != shown.title { playedTitle = nil }
-        } else {
-            playedTitle = nil
-        }
-
-        presence?.setActive("media", Self.earnsStrip(shown, playedTitle: playedTitle))
+        presence?.setActive("media", shown != nil)
 
         // Count the looks that found nothing while the speakers were busy, so
         // chasing a sound with no track behind it gives up rather than running
@@ -610,7 +614,8 @@ public final class MediaMonitor: ObservableObject {
         track.isPlaying || (track.elapsed ?? 0) > 0
     }
 
-    /// Whether a track has earned the strip beside the notch.
+    /// Whether a track has earned a place on the notch — the strip beside it
+    /// and the card inside the panel alike.
     ///
     /// Anything playing has, always. A PAUSED one has only if it was really
     /// played — either seen playing earlier in this run, or handed over already
@@ -626,9 +631,17 @@ public final class MediaMonitor: ObservableObject {
     /// the notch for the rest of the day. You can only want to resume what you
     /// were actually listening to, so that is exactly what is kept.
     ///
+    /// This governs BOTH readouts rather than only the always-visible one. A
+    /// panel is opened deliberately, so there was a case for letting it show
+    /// whatever the system had loaded — but a media card is a claim that there
+    /// is something to play, with a progress bar reading 0:00 and a play
+    /// button that would start a video the reader never chose. Offering that
+    /// for a page nobody pressed play on is the same untruth in a quieter
+    /// place.
+    ///
     /// Nothing here names an app or a site. It asks the only question that
     /// separates the two cases, and it asks it of any player equally.
-    package nonisolated static func earnsStrip(
+    package nonisolated static func earnsPlace(
         _ shown: NowPlaying?,
         playedTitle: String?
     ) -> Bool {
