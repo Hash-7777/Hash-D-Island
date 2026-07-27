@@ -95,6 +95,10 @@ public final class MediaMonitor: ObservableObject {
     /// read as "the button did nothing".
     private var lastCommand = Date.distantPast
     private static let commandSettleWindow: TimeInterval = 1.5
+    /// Prints what the bar is being told, for when a readout misbehaves and
+    /// guessing has already been tried. `HASHDISLAND_DEBUG=media`.
+    private static let logsProgress =
+        (ProcessInfo.processInfo.environment["HASHDISLAND_DEBUG"] ?? "").contains("media")
     private var audioObserver: AudioActivityObserver?
     /// Whether the user has allowed the media keys, read at the moment a button
     /// is pressed so switching it on takes effect without a restart.
@@ -507,6 +511,15 @@ public final class MediaMonitor: ObservableObject {
             // more: the bar is derived from this pair and only this pair, so a
             // new reading cannot conflict with a clock that no longer exists.
             progress = reported
+            if Self.logsProgress {
+                let now = Date()
+                FileHandle.standardError.write(Data(String(
+                    format: "[progress] elapsed=%.2f stampAge=%.2fs playing=%@ dur=%.0f -> shows %.2f\n",
+                    reported.elapsed, now.timeIntervalSince(reported.at),
+                    reported.isPlaying ? "y" : "n", reported.duration,
+                    reported.current(now: now)
+                ).utf8))
+            }
         } else {
             progress = nil
         }

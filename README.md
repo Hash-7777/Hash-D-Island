@@ -8,12 +8,12 @@
 
 **See the unseen.**
 
-What's playing, how fast your internet is, what your battery is doing, how hot the chip is running, what you have spent on AI today — all of it a glance away, and **none of it leaves your Mac**. No account. No telemetry. Not a single network request.
+What's playing, how fast your internet is, what your battery is doing, how hot the chip is running, what you have spent on AI today — all of it a glance away. No account. No telemetry. Nothing about you ever leaves your Mac.
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-12%2B-408CFF?style=flat-square&logo=apple&logoColor=white&labelColor=0B0C10" alt="macOS 12+">
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
-  <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
+  <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
   <img src="https://img.shields.io/badge/checks-467%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="467 automated checks passing">
   <img src="https://img.shields.io/badge/license-GPL%20v3-AEB7C8?style=flat-square&labelColor=0B0C10" alt="GNU General Public License v3">
@@ -43,7 +43,7 @@ Swipe **down** on the notch to open it. Swipe **sideways** across the open panel
 
 ## ◦ What it shows
 
-**Now playing** — anything that plays. Spotify, Apple Music, TV, Podcasts, Anghami, VLC, a browser tab. Real artwork for all of it, a title that scrolls, a progress bar you can drag, and a volume slider.
+**Now playing** — anything that plays: Spotify, Apple Music, TV, Podcasts, Anghami, VLC, a browser tab. Title, artist, live position, a progress bar you can drag, and a volume slider. Album art comes from Spotify and Apple Music, and a video's thumbnail from your browser; anything else shows a placeholder tile.
 
 **Microphone** — the moment any app opens your microphone, a live dot and a running timer appear beside the notch, with that app's own icon: FaceTime, Zoom, Teams, a browser call, a voice memo. It asks macOS one yes-or-no question — *does this app have an input stream open* — and **never listens, records or transcribes**. It holds no microphone permission of its own, and could not use one.
 
@@ -67,9 +67,9 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 ## ◦ Why this one
 
-**Every app gets artwork — not a list of supported ones.** There is no hand-written support per player here, so nothing falls off the end of a list. macOS itself is asked what is playing, which means a niche music app, a podcast player, or something released next year arrives with real cover art and working controls on day one, with no update from me.
+**Every app is read, not a list of supported ones.** There is no hand-written support per player: macOS itself is asked what is playing, so a niche music app, a podcast player or something released next year shows its title, artist and position on day one, with no update from me.
 
-**Zero network requests.** Not "encrypted", not "anonymised" — none. The artwork comes from the system, so there is nothing to fetch and nothing that could ever leak. You can verify that claim with Little Snitch in about ten seconds.
+**One kind of network request, and only that one.** Fetching a cover — from Spotify's image hosts or YouTube's thumbnail host, over HTTPS, size-capped, refused if a redirect would leave them. Nothing else in the app touches the network, and nothing about you is ever sent anywhere. You can watch it with Little Snitch in about ten seconds.
 
 **Nothing while your Mac is locked.** The island leaves the screen the moment you lock it, and every indicator stops with it — not dimmed, not covered, gone. What the notch shows is a summary of your afternoon, and a locked Mac is exactly when somebody who is not you might be standing in front of it.
 
@@ -116,7 +116,7 @@ Any **Apple Silicon** Mac (M1 and later). Older releases get every feature, with
 
 ## ◦ Privacy
 
-No accounts. No analytics. No telemetry. No servers. **No network requests at all.**
+No accounts. No analytics. No telemetry. No servers. The only request it can make is for a cover image, restricted to the hosts that serve them.
 
 The app writes no files; its only stored state is its own settings. Removing it takes four steps and leaves nothing behind.
 

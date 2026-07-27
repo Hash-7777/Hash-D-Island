@@ -1,45 +1,32 @@
 import Foundation
 
-/// Reads Now Playing straight from MediaRemote, in process, artwork included.
+/// Reads Now Playing straight from MediaRemote, in process — where macOS lets
+/// it, which on a signed app bundle it does not.
 ///
-/// ## Why this exists, and why it did not before
+/// ## Measured, and the measurement was taken in the wrong place
 ///
-/// Everything the panel shows about a track used to come out of an `osascript`
-/// subprocess, because a direct MediaRemote call had once crashed the app and
-/// because the in-process route appeared to hand over no artwork — so covers
-/// had to be scraped from whichever app was playing: Spotify's scripting
-/// interface, Apple Music's raw bytes, or a sweep of every browser tab looking
-/// for a YouTube video id. Each of those needs Automation permission, and none
-/// of them helps for anything else. A track playing in Anghami, TV, Podcasts,
-/// VLC or any other app got a placeholder tile, because nobody had written a
-/// scraper for it.
+/// `MRMediaRemoteGetNowPlayingInfo` returns the full dictionary INCLUDING
+/// `kMRMediaRemoteNowPlayingInfoArtworkData` — 256 KB of JPEG for a YouTube
+/// video, on 25 consecutive calls, worst round trip 17 ms. That was measured
+/// from a plain `swift file.swift` binary and it is true of one.
 ///
-/// That conclusion was drawn from the wrong call.
-/// `MRNowPlayingRequest.localNowPlayingItem.nowPlayingInfo` — the route the
-/// subprocess used — really does withhold the image: it publishes
-/// `ArtworkMIMEType`, `ArtworkIdentifier` and the pixel dimensions, but no
-/// data, and its `artwork` property is nil. `MRMediaRemoteGetNowPlayingInfo`,
-/// the callback-based call, returns the same dictionary WITH
-/// `kMRMediaRemoteNowPlayingInfoArtworkData` in it. Measured against a YouTube
-/// video playing in Chrome: 256 KB of JPEG, on 25 consecutive calls, worst
-/// round trip 17 ms, no crash.
+/// It is not true of this app. Called from the signed `.app`, the same function
+/// hands back a **nil dictionary**, every time. Apple gates it behind an
+/// entitlement, and a command-line binary is not held to that check while a
+/// bundled application is. Which is precisely why the `osascript` subprocess
+/// existed in the first place: `osascript` is Apple's own binary and carries
+/// what this one cannot.
 ///
-/// So the app now asks the system directly, and gets for free what it was
-/// scraping for:
+/// So this type is, for now, a path that is tried and does not answer. It is
+/// kept rather than deleted because the check costs one nil test per poll, and
+/// because the entitlement rules are Apple's to change — if a future macOS
+/// answers, everything below starts working with no further edit. What it must
+/// NOT be is a claim: nothing in the app's documentation may promise artwork
+/// for every player, because on a shipped build this never runs.
 ///
-///   * **Artwork for anything.** Whatever is playing, from any app, including
-///     ones nobody wrote support for.
-///   * **No Automation prompts to read.** No Apple Events are sent at all.
-///     Reading a track no longer asks Spotify, Music or any browser anything,
-///     so it can no longer trigger a permission dialog or stall behind one.
-///   * **No network request for a cover**, because the bytes are already here.
-///   * **No subprocess per poll** — 17 ms in process against roughly 90 ms and
-///     a process spawn.
-///
-/// The old path is kept as a fallback rather than deleted. These are private
-/// APIs; this was measured on one macOS version, and the app supports several.
-/// If the symbols are missing or the call yields nothing, the caller falls back
-/// to the subprocess exactly as before.
+/// The lesson is the one already written into CONTRIBUTING, and it caught me
+/// anyway: measure the thing you are going to ship, in the form you are going
+/// to ship it. A standalone binary is a different program.
 ///
 /// Read-only throughout: this asks what is playing and never sets anything.
 package final class NowPlayingDirect {

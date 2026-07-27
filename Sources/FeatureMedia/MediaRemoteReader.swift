@@ -168,7 +168,7 @@ final class MediaRemoteReader {
     function run(argv) {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
-      let source = 'other', elapsed = null, duration = null;
+      let source = 'other', elapsed = null, duration = null, elapsedAt = null;
 
       // What the app already holds. Artwork is expensive to produce — Apple
       // Music base64-encodes the whole image, Spotify costs an Apple Event —
@@ -196,6 +196,11 @@ final class MediaRemoteReader {
             const rate = s('kMRMediaRemoteNowPlayingInfoPlaybackRate');
             playing = rate ? (rate > 0) : false;
             elapsed = s('kMRMediaRemoteNowPlayingInfoElapsedTime');
+            // WHEN that position was true. Without it the position is just a
+            // number that was right at some unknown moment, and anchoring it to
+            // the moment of asking makes the bar restart on every poll.
+            const stamp = s('kMRMediaRemoteNowPlayingInfoTimestamp');
+            if (stamp) { try { elapsedAt = stamp.getTime() / 1000; } catch (e) {} }
             duration = s('kMRMediaRemoteNowPlayingInfoDuration');
           }
         }
@@ -320,7 +325,7 @@ final class MediaRemoteReader {
       }
 
       if (source === 'other' && artIsCurrent(title)) artUnchanged = true;
-      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, duration: duration, artUnchanged: artUnchanged });
+      return JSON.stringify({ title: title, artist: artist, playing: playing, artworkUrl: artworkUrl, artwork: artwork, source: source, elapsed: elapsed, elapsedAt: elapsedAt, duration: duration, artUnchanged: artUnchanged });
     }
     """
 
@@ -407,6 +412,8 @@ final class MediaRemoteReader {
         let artwork: String?
         let artUnchanged: Bool?
         let source: String?
+        /// Seconds since 1970, when `elapsed` was true.
+        let elapsedAt: Double?
         let elapsed: Double?
         let duration: Double?
     }
@@ -568,7 +575,15 @@ final class MediaRemoteReader {
             source: source,
             elapsed: payload.elapsed,
             duration: payload.duration,
-            fetchedAt: Date()
+            fetchedAt: Date(),
+            // Spotify and Music are asked for their position directly, so their
+            // answer is true as of now. Everything else comes from the system's
+            // own record, which carries the instant it was taken — and using
+            // the moment of ASKING for that is what made the bar count a couple
+            // of seconds and start again on every poll.
+            elapsedAt: source == .other
+                ? payload.elapsedAt.map { Date(timeIntervalSince1970: $0) }
+                : nil
         )
     }
 
