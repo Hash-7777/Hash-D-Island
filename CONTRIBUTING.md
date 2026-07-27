@@ -6,11 +6,27 @@ mostly about evidence rather than style.
 ## Before anything else
 
 ```sh
+git config core.hooksPath .githooks
+```
+
+Once per clone. Git does not carry hooks across a clone — deliberately, since a
+hook is code that would otherwise run on somebody's machine without their
+having read it. `.githooks/pre-commit` refuses a commit carrying a secret, a
+`*.local.md` note, or build output. It judges only what is staged, and it can be
+overridden with `--no-verify` when you are sure.
+
+Then, before every push:
+
+```sh
 swift build                 # must be clean, and warning-free
 swift run HashDIslandChecks # must pass, all of them
 ```
 
-Both are the gate. There is no CI to catch it for you.
+Both are the gate, and both run again on GitHub for every push and pull request
+(`.github/workflows/build.yml`) — on a machine that is not yours, which is the
+only way a gate is a gate rather than a habit. That job also builds the release
+configuration, assembles and verifies the `.app`, and checks that the README's
+"checks passing" badge still matches the number that actually ran.
 
 ## The one rule that matters
 

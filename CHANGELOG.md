@@ -40,8 +40,9 @@ moment something is.
   Zoom, Teams, a browser call, a voice memo. macOS is asked one yes-or-no
   question — does this app have an input stream open — and the app **never
   listens, records or transcribes**. It holds no microphone permission of its
-  own, and could not use one. Needs macOS 14.4 or later, where the per-process
-  list exists; below that the readout is simply unavailable.
+  own, and could not use one. On macOS 14.4 and later it can name the app;
+  below that macOS offers only a device-wide answer, so the dot appears without
+  a name attached.
 - **Internet speed** — live upload and download.
 - **Battery** — level, time remaining, and time to charge, with the adapter's
   wattage and whether that is a slow or fast charge. A Mac limited to 80%
@@ -82,11 +83,12 @@ moment something is.
   where it appears — Open at Login needs macOS 13, and says so.
 - Sampling stops entirely while the screen is asleep; timers are coalesced and
   monitors publish only when a displayed value actually changes.
-- Nothing is read that is not being looked at. Every reading that only appears
-  inside the panel is taken only while the panel is open, anything slow — the
-  sensors, the AirPods report, the token count — runs off the thread that draws
-  it, and a feature switched off is never started at all. With the panel shut
-  and nothing live, the app is idle.
+- With the panel shut it costs nothing measurable: **0.13% of one core and no
+  idle wake-ups at all**, measured over a minute against the packaged app with a
+  track held on the strip. Every reading that only appears inside the panel is
+  taken only while the panel is open, anything slow — the sensors, the AirPods
+  report, the token count — runs off the thread that draws it, and a feature
+  switched off is never started at all.
 - Every capability is a self-contained module — adding or removing one touches
   a single manifest line and never the core.
 

@@ -1,0 +1,86 @@
+name: Build and check
+
+# Runs the same two commands the rules require before a push, on a machine that
+# is not the developer's. That is the whole point: everything here has always
+# been runnable locally, and something that only ever runs locally is a habit
+# rather than a gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Apple Silicon, which is what the app is built for. The app reads
+    # Apple Silicon sensors and macOS media interfaces, so an Intel runner
+    # would be testing a machine nobody ships to.
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the toolchain
+        run: swift --version
+
+      # Debug and release are built separately on purpose: release turns on
+      # optimisation and whole-module builds, and has caught warnings that a
+      # debug build does not surface.
+      - name: Build (debug)
+        run: swift build 2>&1 | tee build-debug.log
+
+      - name: Build (release)
+        run: swift build -c release 2>&1 | tee build-release.log
+
+      # The project ships zero warnings and says so. A warning that lands
+      # quietly is one nobody reads afterwards.
+      - name: Refuse any warning
+        run: |
+          if grep -E ': (warning|error):' build-debug.log build-release.log; then
+            echo "::error::The build produced warnings or errors (see above)."
+            exit 1
+          fi
+          echo "No warnings in either configuration."
+
+      - name: Run the checks
+        run: swift run HashDIslandChecks
+
+      # The README carries a "467 checks passing" badge. A badge is a claim, so
+      # it has to be true — and it is the kind of claim that rots silently,
+      # because adding a check is exactly when nobody thinks about the README.
+      - name: The badge must match the checks
+        run: |
+          counted=$(swift run HashDIslandChecks | grep -c '^  ok' || true)
+          claimed=$(grep -oE 'checks-[0-9]+%20passing' README.md | grep -oE '[0-9]+' | head -1)
+          echo "checks that ran: $counted"
+          echo "README badge:    ${claimed:-<none found>}"
+          if [ -z "$claimed" ]; then
+            echo "::error::Could not find the checks badge in README.md."
+            exit 1
+          fi
+          if [ "$counted" != "$claimed" ]; then
+            echo "::error::The README badge claims $claimed checks but $counted ran. Update the badge and the \"Verified, not asserted\" line."
+            exit 1
+          fi
+          echo "The badge is telling the truth."
+
+      # Proves the thing that actually gets shipped assembles and that its
+      # signature verifies — the failure that would otherwise reach every
+      # person who downloads it. Ad-hoc signed here, as on the developer's Mac;
+      # no certificate or secret is needed, and none is available to this job.
+      - name: Assemble the app bundle
+        run: ./scripts/build_app.sh
+
+      - name: Confirm the bundle is what it claims
+        run: |
+          app="build/Hash D Island.app"
+          codesign --verify --strict --verbose=2 "$app"
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
+          echo "Built and verified Hash D Island $version"

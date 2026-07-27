@@ -717,7 +717,7 @@ public struct SettingsView: View {
             // that are simply NONE are said as one word each, because that is
             // the whole answer and anything added to it is dilution.
             HStack(spacing: 8) {
-                PrivacyNone("Network", "no requests at all")
+                PrivacyNone("Accounts", "nothing to sign in to")
                 PrivacyNone("Analytics", "nothing counted")
             }
             HStack(spacing: 8) {
@@ -726,6 +726,17 @@ public struct SettingsView: View {
             }
 
             SettingCard {
+                // Network is NOT in the None grid above, and that is the point.
+                // It used to be, reading "Network — None — no requests at all",
+                // which was false: covers are downloaded, as they always were.
+                // The grid's whole meaning is that the format is reserved for
+                // absolutes, so an almost-absolute put there costs every other
+                // tile its credibility.
+                PrivacyLine(
+                    "The one request it makes",
+                    "Fetching the cover for what's playing, over HTTPS, only from the image hosts that serve them, size-capped, and refused if a redirect would lead elsewhere. Nothing else touches the network, and nothing about you is ever sent anywhere."
+                )
+                SettingDivider()
                 PrivacyLine(
                     "What it may ask for",
                     "Your media apps, to control playback. Your Downloads folder, for the download notice. Notifications, for the timer."
