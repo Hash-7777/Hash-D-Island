@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController?
     /// Held only until it is answered; a new install sees it once.
     private var firstRunWindow: FirstRunWindowController?
+    /// Set for one programmatic open, so settings appears without dragging the
+    /// panel open behind it. Cleared as soon as that open happens.
+    private var opensSettingsAlone = false
     private var power: PowerCoordinator?
     private var screenObserver: NSObjectProtocol?
     private var rebuildWork: DispatchWorkItem?
@@ -35,7 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Landing on the page that holds the switch the island just named.
         context.openSettingsPage = { [weak self] page in self?.openSettings(at: page) }
         settingsWindow.onVisibilityChange = { [weak self] visible in
-            self?.controller?.setPinnedOpen(visible)
+            guard let self else { return }
+            // Settings normally holds the panel open beside it, because it was
+            // opened FROM that panel and leaving it to collapse would strand
+            // the window next to nothing. An open asked for on the command line
+            // has no panel behind it to belong to, so it skips the pin and
+            // appears on its own.
+            if visible, self.opensSettingsAlone {
+                self.opensSettingsAlone = false
+                return
+            }
+            self.controller?.setPinnedOpen(visible)
         }
 
         // Only the features that are switched on are started at all — and on a
@@ -172,6 +185,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // be the only thing on screen, and a second panel opening behind it
             // would be both confusing and a strange thing for that particular
             // window to be competing with.
+            //
+            // Opened ALONE. Settings normally pins the panel open beside it,
+            // which is right when the gear was clicked on that panel and wrong
+            // here: it dragged the whole island open on every launch, so a
+            // rebuild landed on a 756-point panel of rows that had not yet read
+            // anything, next to the window actually being looked at.
+            opensSettingsAlone = true
             openSettings(at: page)
         }
     }
