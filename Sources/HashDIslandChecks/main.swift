@@ -1882,6 +1882,42 @@ MainActor.assumeIsolated {
             playedTitle: nil
         ) == false
     )
+    // The same feed, once it is actually played. Both readings below are real,
+    // taken from MediaRemote three seconds apart: ignored, then playing.
+    check(
+        "the same feed, once actually played, is shown",
+        MediaMonitor.earnsPlace(
+            track("Feed | LinkedIn", playing: true, elapsed: 25.47), playedTitle: nil
+        )
+    )
+    // Withholding a track must not make the monitor stop looking at it.
+    //
+    // A withheld track is still a track sitting there able to start, so it is
+    // paced like the paused track it is. Pacing it like an EMPTY screen —
+    // which is what asking these questions of the withheld view did — gave it
+    // the laziest rate there is, so a feed that was ignored and then played
+    // took up to fifteen seconds to appear. That reads as never appearing.
+    check(
+        "a withheld track is still paced as a track, not as an empty screen",
+        MediaMonitor.interval(
+            for: track("Feed | LinkedIn", playing: false, elapsed: 0),
+            audioElsewhere: false
+        ) == 12
+    )
+    check(
+        "and briskly while something else is audible",
+        MediaMonitor.interval(
+            for: track("Feed | LinkedIn", playing: false, elapsed: 0),
+            audioElsewhere: true
+        ) == 2
+    )
+    check(
+        "a look that found a track is never a fruitless one",
+        MediaMonitor.interval(
+            for: track("Feed | LinkedIn", playing: false, elapsed: 0),
+            audioElsewhere: true, fruitlessLooks: 99
+        ) == 2
+    )
 
     check(
         "nothing playing is looked at least often",

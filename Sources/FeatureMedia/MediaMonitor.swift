@@ -592,8 +592,16 @@ public final class MediaMonitor: ObservableObject {
         // for the length of a call. Anything else resets it — including the
         // sound stopping — so the next thing to start is chased just as
         // promptly.
+        //
+        // Asked of what was FOUND, not of what is shown. A look that found a
+        // track was not fruitless, even when that track has not earned its
+        // place: we know exactly what is there and it may start playing at any
+        // moment. Counting a withheld track as nothing made the monitor give
+        // up after five looks and fall back to the idle rate — so a feed that
+        // was sitting there ignored, then actually played, took up to fifteen
+        // seconds to appear, which reads as never.
         let audioRunning = audioObserver?.isAudioRunning ?? false
-        if shown == nil, audioRunning {
+        if reported == nil, audioRunning {
             fruitlessLooks += 1
         } else {
             fruitlessLooks = 0
@@ -601,8 +609,14 @@ public final class MediaMonitor: ObservableObject {
 
         // Follow the music, not merely the track: a paused song holds the strip
         // but changes nothing, so it is polled as lazily as silence.
+        //
+        // Paced on what was FOUND rather than on what is shown, for the same
+        // reason the count above is. A track being withheld is still a track
+        // sitting there able to start, and pacing on the withheld view treated
+        // it as an empty screen — the laziest rate there is, and the one that
+        // must not be used on the thing most likely to change next.
         startSampling(interval: Self.interval(
-            for: shown, audioElsewhere: audioRunning, fruitlessLooks: fruitlessLooks
+            for: reported, audioElsewhere: audioRunning, fruitlessLooks: fruitlessLooks
         ))
     }
 
