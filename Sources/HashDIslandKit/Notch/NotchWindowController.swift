@@ -40,6 +40,12 @@ public final class NotchWindowController {
     private var clickMonitor: Any?
     private var localClickMonitor: Any?
     private var lastSwipe = Date.distantPast
+    /// Until when hover must not reopen the panel, after something closed it
+    /// deliberately while the pointer was still on it.
+    private var hoverSuppressedUntil: Date?
+    /// Long enough to move a hand off the panel, short enough that it is never
+    /// noticed as the island being unresponsive.
+    private static let hoverSuppression: TimeInterval = 1.2
     private var cancellables = Set<AnyCancellable>()
     private var lastIslandSize: CGSize?
     private var settleWork: DispatchWorkItem?
@@ -296,6 +302,14 @@ public final class NotchWindowController {
     /// pointer is still over the panel, which is how it was clicked.
     public func collapse() {
         guard !isPinnedOpen else { return }
+        // Closing is not enough on its own, and this is why it appeared to do
+        // nothing at all: the pointer is still sitting on the panel — it has to
+        // be, that is what was just clicked — so the very next mouse-moved
+        // event finds it inside the keep-open zone and reopens the panel before
+        // anyone sees it shut. Hover has to be told to stand down for long
+        // enough to get out of the way, and any real movement afterwards is
+        // free to bring it back.
+        hoverSuppressedUntil = Date().addingTimeInterval(Self.hoverSuppression)
         state.setExpanded(false)
     }
 
@@ -715,6 +729,13 @@ public final class NotchWindowController {
         guard !isPinnedOpen else {
             state.setExpanded(true)
             return
+        }
+        // Something closed the panel on purpose and the pointer has not moved
+        // off it yet. Without this the next mouse-moved event puts it straight
+        // back, and a deliberate close looks like a button that does nothing.
+        if let until = hoverSuppressedUntil {
+            guard Date() >= until else { return }
+            hoverSuppressedUntil = nil
         }
         let location = NSEvent.mouseLocation
         let inside: Bool

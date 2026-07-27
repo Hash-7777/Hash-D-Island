@@ -348,12 +348,33 @@ struct NotchIslandView: View {
 
     // MARK: Expanded (clean vertical list, below the notch)
 
+    /// The panel's rows, with a hairline between each feature.
+    ///
+    /// Every feature was drawing its own heading and its own rows into one
+    /// evenly spaced column, so a dozen unrelated readouts arrived as a single
+    /// undifferentiated list — the eye had nothing to tell it where the
+    /// temperatures stopped and the timer began. Equal spacing between things
+    /// says they are equally related, and these are not: a section is a group,
+    /// and between groups there should be a boundary.
+    ///
+    /// A one-pixel line and a little more room around it is the whole fix. The
+    /// separator only ever goes BETWEEN features, never above the first or
+    /// below the last, so the panel keeps clean edges.
     private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            ForEach(enabledFeatures, id: \.id) { feature in
-                if let detail = feature.makeExpandedView(context: context) {
-                    detail
+        let sections = enabledFeatures.compactMap { feature -> (id: String, view: AnyView)? in
+            guard let detail = feature.makeExpandedView(context: context) else { return nil }
+            return (feature.id, detail)
+        }
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                if index > 0 {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.07))
+                        .frame(height: 1)
+                        .frame(width: Panel.rowWidth)
+                        .padding(.vertical, 9)
                 }
+                section.view
             }
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))

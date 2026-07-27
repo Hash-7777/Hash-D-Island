@@ -18,10 +18,19 @@ public struct NotchSectionHeader: View {
     }
 
     public var body: some View {
-        Text(title)
-            .font(.system(size: 9, weight: .bold))
-            .kerning(0.6)
-            .foregroundStyle(theme.subtitleColor)
+        // Dimmer and more widely spaced than the rows beneath it, not bolder.
+        //
+        // A heading has to read as a different KIND of thing from the numbers
+        // under it, and the obvious way — making it louder — puts it in
+        // competition with the readouts, which are the reason the panel is
+        // open. Quieter and wider apart reads as a label rather than as data,
+        // the way small caps do on a printed page, and it leaves the figures
+        // the brightest thing in view.
+        Text(title.uppercased())
+            .font(.system(size: 8.5, weight: .semibold))
+            .kerning(1.1)
+            .foregroundStyle(theme.subtitleColor.opacity(0.72))
+            .padding(.bottom, 2)
     }
 }
 

@@ -85,6 +85,10 @@ public final class MediaMonitor: ObservableObject {
     /// The play state most recently asked for, and when. Once the settle window
     /// has passed, a player still disagreeing with this did not obey.
     private var pendingRequest: (wanted: Bool, at: Date)?
+    /// Consecutive readings that found nothing while a track was showing. A
+    /// paused item lapses out of the now-playing session and comes back, so one
+    /// of these is noise rather than news.
+    private var emptyReadings = 0
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
@@ -418,9 +422,47 @@ public final class MediaMonitor: ObservableObject {
     private func refresh() {
         guard let reader else { return }
         reader.fetch { snapshot in
-            Task { @MainActor [weak self] in self?.apply(snapshot) }
+            Task { @MainActor [weak self] in self?.receive(snapshot) }
         }
     }
+
+    /// One reading, with a single empty answer treated as a maybe rather than
+    /// as the truth.
+    ///
+    /// A PAUSED track is where this matters. macOS lets a paused item lapse out
+    /// of the now-playing session and then reports it again on the next look, so
+    /// a track sitting paused produces the occasional empty reading among good
+    /// ones. Believing each of those cleared the notch and the following
+    /// reading brought it straight back — which on screen was the strip
+    /// slamming shut and springing open every few seconds, over and over, on
+    /// media nobody had touched.
+    ///
+    /// So an empty reading has to be repeated before it is believed. Nothing
+    /// is lost by waiting: a track that really has ended stays gone, and the
+    /// notch clears on the very next look. Any reading WITH a track is taken
+    /// immediately — this only ever delays the disappearance, never the
+    /// arrival.
+    private func receive(_ snapshot: NowPlaying?) {
+        if snapshot == nil, nowPlaying != nil {
+            emptyReadings += 1
+            guard emptyReadings >= Self.emptyReadingsBeforeClearing else {
+                // Keep showing what we have, and look again promptly rather
+                // than waiting out the interval for an answer we distrusted.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                    self?.refresh()
+                }
+                return
+            }
+        } else {
+            emptyReadings = 0
+        }
+        apply(snapshot)
+    }
+
+    /// How many empty readings in a row it takes to accept that nothing is
+    /// playing. Two, because one is the flicker and two in a row has never been
+    /// observed on a track that is still there.
+    private static let emptyReadingsBeforeClearing = 2
 
     private func apply(_ snapshot: NowPlaying?) {
         // Keep whatever track exists — playing OR paused, any source. Both the
@@ -440,20 +482,10 @@ public final class MediaMonitor: ObservableObject {
                 isPlaying: shown.isPlaying,
                 at: shown.fetchedAt
             )
-            // Only take a reported position when it actually says something new.
-            //
-            // Between polls the bar advances on its own clock, which is what
-            // makes it move smoothly. The reported position is the same track
-            // measured a moment earlier and rounded on the way, so it lands a
-            // fraction either side of where the clock has already got to —
-            // and adopting it every time drags the readout back and forth
-            // across a second boundary. On screen that is 1:41, 1:40, 1:41,
-            // over and over, on a track playing perfectly normally.
-            //
-            // So a poll that merely agrees is ignored, and the clock keeps
-            // running. A poll that DISAGREES — a seek, a track change, a
-            // stall — is worth more than the clock and is taken at once.
-            progress = Self.adopt(reported, over: progress) ? reported : progress
+            // Follow the player, and only refuse to step BACKWARDS by a hair.
+            // See `resolved` — this is the line that decides whether the bar
+            // agrees with the video or drifts off on a clock of its own.
+            progress = Self.resolved(reported: reported, current: progress)
         } else {
             progress = nil
         }
@@ -579,42 +611,62 @@ public final class MediaMonitor: ObservableObject {
         return nil
     }
 
-    /// Whether a freshly reported position should replace the one the bar is
-    /// already running on.
+    /// The position to show, given what the player just reported and where the
+    /// bar had got to on its own.
     ///
-    /// The bar advances on its own clock between polls, which is what makes it
-    /// move smoothly rather than in one-second steps. The reported position
-    /// measures the same track a moment earlier, so the two are never exactly
-    /// equal — and taking the report every time drags the readout back across a
-    /// second boundary and then forwards again: 1:41, 1:40, 1:41, on a track
-    /// playing normally.
+    /// Two things are wanted at once and they pull against each other. The bar
+    /// must follow the PLAYER, so it agrees with the video rather than drifting
+    /// off on a clock of its own. And it must never tick backwards, because a
+    /// readout that goes 1:41, 1:40, 1:41 looks broken however accurate it is.
     ///
-    /// The rule is that a report has to earn its place. Agreement within the
-    /// tolerance means the clock is right and the report adds nothing. Anything
-    /// larger is a real event — a seek, a track change, a stall, a stream that
-    /// jumped — and the report is then the only thing that knows the truth.
+    /// An earlier version chose the second and ignored small disagreements
+    /// entirely. That stopped the flicker and caused the real complaint: the
+    /// bar ran on its own clock and stopped matching the video.
     ///
-    /// A change of play state or of track length is always adopted, whatever
-    /// the position says: those are facts about the track rather than estimates
-    /// of where it is.
+    /// So the player is always followed, and the only thing suppressed is going
+    /// backwards by a hair. The reported position wins outright when it differs
+    /// enough to be a real event — a seek, a stall, a track change, an ad
+    /// ending. Within that, it is taken as the anchor but never allowed to show
+    /// less than the bar already showed, so an accurate reading a fraction
+    /// behind the clock is caught up with rather than snapped back to.
     ///
     /// Pure and package-visible so the checks can pin it without a player.
-    package nonisolated static func adopt(
-        _ reported: MediaProgress,
-        over current: MediaProgress?,
+    package nonisolated static func resolved(
+        reported: MediaProgress,
+        current: MediaProgress?,
         tolerance: TimeInterval = positionTolerance
-    ) -> Bool {
-        guard let current else { return true }
-        if reported.isPlaying != current.isPlaying { return true }
-        if Int(reported.duration) != Int(current.duration) { return true }
-        let expected = current.current(now: reported.at)
-        return abs(reported.elapsed - expected) > tolerance
+    ) -> MediaProgress {
+        guard let current else { return reported }
+        // Facts about the track rather than estimates of where it is: a change
+        // of either means this is a different situation, and the report is the
+        // only thing that knows about it.
+        if reported.isPlaying != current.isPlaying { return reported }
+        if Int(reported.duration) != Int(current.duration) { return reported }
+
+        let running = current.current(now: reported.at)
+        let difference = reported.elapsed - running
+        // A real jump, in either direction. Follow it exactly.
+        if abs(difference) > tolerance { return reported }
+        // The report is a little BEHIND the running bar. Hold the bar where it
+        // is rather than stepping back a second; the next report will have
+        // caught up. Only ever a fraction of a second of difference.
+        if difference < 0 {
+            return MediaProgress(
+                elapsed: running,
+                duration: reported.duration,
+                isPlaying: reported.isPlaying,
+                at: reported.at
+            )
+        }
+        // The report is AHEAD — the player is further on than the bar thought,
+        // so take it. This is the case that used to be thrown away, and it is
+        // exactly how the bar came to disagree with the video.
+        return reported
     }
 
-    /// How far a reported position may differ from the running clock before it
-    /// is believed. Wide enough to swallow the rounding and the delay in a
-    /// reading; far narrower than any real jump.
-    package nonisolated static let positionTolerance: TimeInterval = 2.5
+    /// How far a reported position may differ from the running bar before it is
+    /// treated as a jump rather than as ordinary jitter between readings.
+    package nonisolated static let positionTolerance: TimeInterval = 1.5
 
     /// Whether a polled play state should be trusted, or the state the button
     /// already showed kept for a moment longer.

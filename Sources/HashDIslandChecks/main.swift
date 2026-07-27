@@ -512,43 +512,53 @@ MainActor.assumeIsolated {
             at: Date(timeIntervalSince1970: seconds)
         )
     }
+    func resolve(_ reported: MediaProgress, _ current: MediaProgress?) -> Double {
+        MediaMonitor.resolved(reported: reported, current: current).elapsed
+    }
+
+    check("the first position is taken as it comes", resolve(at(10, 0), nil) == 10)
+
+    // AHEAD of the bar. The player has got further than the clock thought, and
+    // this is the case an earlier version threw away — which is exactly how the
+    // bar came to run on its own clock and stop matching the video.
     check(
-        "the first position is always taken",
-        MediaMonitor.adopt(at(10, 0), over: nil)
+        "a report ahead of the bar is followed",
+        resolve(at(45, 40), at(10, 10)) == 45
     )
-    // The clock says 40s; the report says 40.6s. Nothing has happened.
+    // A real jump in either direction is followed exactly.
     check(
-        "a report that agrees with the clock is ignored",
-        MediaMonitor.adopt(at(40.6, 40), over: at(10, 10)) == false
-    )
-    // Ten seconds adrift is a seek, not drift.
-    check(
-        "a report that disagrees is taken at once",
-        MediaMonitor.adopt(at(120, 40), over: at(10, 10))
-    )
-    check(
-        "so is a jump backwards",
-        MediaMonitor.adopt(at(5, 40), over: at(10, 10))
-    )
-    // Play state and length are facts about the track, not estimates of where
-    // it is, so they are adopted whatever the position says.
-    check(
-        "a change of play state is always taken",
-        MediaMonitor.adopt(at(40.6, 40, playing: false), over: at(10, 10))
+        "a seek forwards is followed exactly",
+        resolve(at(200, 40), at(10, 10)) == 200
     )
     check(
-        "a change of track length is always taken",
-        MediaMonitor.adopt(at(40.6, 40, length: 500), over: at(10, 10))
+        "a seek backwards is followed exactly",
+        resolve(at(5, 40), at(10, 10)) == 5
     )
-    // A paused track does not advance, so its clock and its report agree
-    // exactly and nothing should keep replacing it.
+    // BEHIND by a hair. The bar is at 40s, the reading says 39.6s. Stepping
+    // back is what produced 1:41, 1:40, 1:41 on a normally playing track, so
+    // the bar holds and the next reading catches up.
     check(
-        "a paused track's unchanged report is ignored",
-        MediaMonitor.adopt(at(30, 90, playing: false), over: at(30, 10, playing: false)) == false
+        "a report a fraction behind does not step the bar backwards",
+        resolve(at(39.6, 40), at(10, 10)) == 40
     )
     check(
-        "the tolerance is wide enough for rounding, narrow enough to catch a seek",
-        MediaMonitor.positionTolerance > 1 && MediaMonitor.positionTolerance < 5
+        "and holding is never more than the tolerance",
+        MediaMonitor.positionTolerance <= 1.5
+    )
+    // Facts about the track rather than estimates of where it is.
+    check(
+        "a change of play state is followed",
+        MediaMonitor.resolved(reported: at(39.6, 40, playing: false), current: at(10, 10)).isPlaying == false
+    )
+    check(
+        "a change of track length is followed",
+        MediaMonitor.resolved(reported: at(39.6, 40, length: 500), current: at(10, 10)).duration == 500
+    )
+    // A paused track does not advance, so its bar and its reading agree exactly
+    // and it simply stays put.
+    check(
+        "a paused track stays where it is",
+        resolve(at(30, 90, playing: false), at(30, 10, playing: false)) == 30
     )
 
     // ── The position is a snapshot, not a reading ────────────────────────────
