@@ -92,26 +92,23 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1)
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    page
-                        .padding(.horizontal, 22)
-                        .padding(.bottom, 24)
-                        // Belt and braces after the picker fix: the page takes
-                        // the width it is given rather than asking for more,
-                        // so one over-eager control can never push the rest of
-                        // the column off the edge again.
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                // Hiding the scrollbar is cosmetic; on macOS 12 it simply shows
-                // in the system's usual way, which is not worth a workaround.
-                .hideScrollIndicatorsIfPossible()
+        VStack(spacing: 0) {
+            header
+            tabStrip
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+            ScrollView {
+                page
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 24)
+                    // Belt and braces after the picker fix: the page takes
+                    // the width it is given rather than asking for more,
+                    // so one over-eager control can never push the rest of
+                    // the column off the edge again.
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Hiding the scrollbar is cosmetic; on macOS 12 it simply shows
+            // in the system's usual way, which is not worth a workaround.
+            .hideScrollIndicatorsIfPossible()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(panelSurface)
@@ -154,11 +151,17 @@ public struct SettingsView: View {
         }
     }
 
-    /// The page's own title, and the way out.
+    /// The app's name, and the way out.
+    ///
+    /// The name sits here now rather than above a column of links, because the
+    /// column is gone. No page title here though: every page already opens with
+    /// its own heading and a line explaining it, and the two stacked read as a
+    /// stutter.
     private var header: some View {
         HStack(spacing: 8) {
-            // No title here. Every page already opens with its own heading and
-            // a line explaining it, and the two stacked read as a stutter.
+            Text("Hash D Island")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
             Spacer(minLength: 8)
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -176,33 +179,33 @@ public struct SettingsView: View {
         .padding(.bottom, 0)
     }
 
-    // MARK: Sidebar
+    // MARK: Tabs
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Hash D Island")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.92))
-                .padding(.horizontal, 14)
-                .padding(.top, 16)
-                .padding(.bottom, 10)
-
+    /// The six pages, across the top.
+    ///
+    /// This was a 146pt column down the left, which cost the content a third of
+    /// the window's width on every page to show six words. Across the top the
+    /// same six pages cost about 54pt of height once, and the pages below get
+    /// the full width — which is what stops a row of controls from having to
+    /// choose between wrapping and running off the edge.
+    ///
+    /// The icon sits ABOVE its label rather than beside it, and that is what
+    /// makes six fit. Side by side, "Appearance" plus its icon is roughly 77pt,
+    /// so the row would want over 460pt before padding and the last tab would
+    /// be pushed out. Stacked, each tab needs only as much width as its widest
+    /// word.
+    private var tabStrip: some View {
+        HStack(spacing: 4) {
             ForEach(Section.allCases) { item in
-                sidebarRow(item)
+                tab(item)
             }
-            Spacer()
         }
-        .frame(width: 146)
-        .frame(maxHeight: .infinity)
-        .background(Color.white.opacity(0.03))
-        // The sidebar keeps its width no matter how wide the page beside it
-        // wants to be. Without this a long row of buttons steals space from
-        // here, and the first thing to go is the title's opening letters.
-        .fixedSize(horizontal: true, vertical: false)
-        .layoutPriority(1)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
     }
 
-    private func sidebarRow(_ item: Section) -> some View {
+    private func tab(_ item: Section) -> some View {
         let selected = section == item
         return Button {
             // Leaving the page abandons any drag that was in progress. Without
@@ -211,26 +214,31 @@ public struct SettingsView: View {
             dragging = nil
             section = item
         } label: {
-            HStack(spacing: 9) {
+            VStack(spacing: 4) {
                 Image(systemName: item.symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 16)
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(height: 14)
                     .foregroundStyle(selected ? settings.accent.color : Color.white.opacity(0.55))
                 Text(item.title)
-                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                    .font(.system(size: 10, weight: selected ? .semibold : .regular))
                     .foregroundStyle(selected ? Color.white : Color.white.opacity(0.7))
-                Spacer(minLength: 0)
+                    // One line, always. A tab that wraps is taller than its
+                    // neighbours and the whole strip grows to match it.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(.horizontal, 10)
+            // Equal shares of whatever width there is, so the strip stays even
+            // on a display that has squeezed the window narrower.
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 7)
             .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.white.opacity(selected ? 0.09 : 0))
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 8)
+        .help(item.title)
     }
 
     // MARK: Pages
@@ -938,7 +946,7 @@ private struct ReorderDrop: DropDelegate {
 ///
 /// `performDrop` is the only place the held id was cleared, and it only runs
 /// when a drag lands ON a row. Let go over the gap between two rows, over the
-/// sidebar, or outside the window, and nothing ran — so the id stayed set for
+/// tabs, or outside the window, and nothing ran — so the id stayed set for
 /// the rest of the session. The row it named stayed dimmed, and every later
 /// hover over any row fired a reorder against that stale id, which is what made
 /// the settings window appear to freeze after reordering indicators.

@@ -35,11 +35,16 @@ public final class SettingsWindowController {
     /// the settings would be left hanging beside nothing.
     public var onVisibilityChange: (Bool) -> Void = { _ in }
 
-    /// Wide enough for a sidebar and a column of controls, narrow enough to sit
+    /// Wide enough for a full-width column of controls, narrow enough to sit
     /// beside the panel on a laptop display — there are only about 490 points
     /// to the right of the island on this size of screen, and a window that
     /// does not fit beside the thing it belongs to is not attached to anything.
     /// Tall enough that no page has to be scrolled.
+    ///
+    /// The width stayed at 460 when the page links moved from a column down the
+    /// left to a strip across the top, because the goal was never a smaller
+    /// window — it was giving the controls the 146 points the column was
+    /// spending on six words.
     ///
     /// The height was 580, which fitted most pages and left Appearance and
     /// Indicators a little short — so those two scrolled, and a settings window
