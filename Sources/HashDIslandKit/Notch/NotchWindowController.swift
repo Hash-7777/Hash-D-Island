@@ -271,15 +271,40 @@ public final class NotchWindowController {
         notchRect: CGRect,
         islandTop: CGFloat,
         width: CGFloat,
-        height: CGFloat
+        height: CGFloat,
+        topOvershoot: CGFloat = 0
     ) -> CGRect {
         let slop: CGFloat = 12
         return CGRect(
             x: notchRect.midX - (width / 2 + 6),
             y: islandTop - (height + slop),
             width: width + 12,
-            height: height + slop
+            height: height + slop + topOvershoot
         )
+    }
+
+    /// How far a hover zone reaches ABOVE the island's top edge.
+    ///
+    /// A zone that stops exactly at the island's top edge does not include that
+    /// edge: `CGRect.contains` excludes its own maxY. On a Mac with a notch the
+    /// island's top edge IS the screen's top edge, so pushing the cursor up into
+    /// the bezel — still squarely over the notch — put it on a boundary that
+    /// counted as outside, and the panel shut at the very top of the thing that
+    /// opens it.
+    ///
+    /// Reaching past the screen's top edge costs nothing, because there is no
+    /// screen up there for the cursor to be in. So where the island already sits
+    /// at that edge, the zone is allowed to overshoot it.
+    ///
+    /// Where the island hangs BELOW a menu bar instead — a display with no notch
+    /// — it must not grow at all. Directly above it are the menu bar's own
+    /// status items, and a zone reaching into them would open the panel over the
+    /// very icon being reached for, which is the mistake the open zone is
+    /// written to avoid.
+    package static func topOvershoot(islandTop: CGFloat, screenFrame: CGRect) -> CGFloat {
+        // A hair of tolerance: these are measured values, and "the island is at
+        // the top of the screen" should not turn on an exact float match.
+        islandTop >= screenFrame.maxY - 0.5 ? 6 : 0
     }
 
     /// The overlay's current frame. Package-visible so the checks can prove a
@@ -397,11 +422,15 @@ public final class NotchWindowController {
         // the panel over the very thing being reached for. The strip is
         // something to read, not something to press; opening is the notch's
         // job, whether or not anything is live.
+        // Both zones reach a little ABOVE the island where the island is already
+        // at the screen's top edge, so that pressing the cursor into the bezel
+        // still counts as being on the notch. See `topOvershoot`.
+        let overshoot = Self.topOvershoot(islandTop: top, screenFrame: screenFrame)
         collapsedHoverRect = CGRect(
             x: notch.minX - 6,
             y: top - (state.collapsedHeight + 6),
             width: notch.width + 12,
-            height: state.collapsedHeight + 6
+            height: state.collapsedHeight + 6 + overshoot
         )
         // Expanded: the whole dropped panel, at the height it actually is.
         expandedHoverRect = Self.expandedZone(
@@ -412,7 +441,8 @@ public final class NotchWindowController {
                 measured: lastIslandSize?.height,
                 islandTop: top,
                 screenFrame: screenFrame
-            )
+            ),
+            topOvershoot: overshoot
         )
     }
 

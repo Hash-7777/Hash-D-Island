@@ -2773,6 +2773,66 @@ do {
     check("the strip and the panel are never on screen together", !bothEverShown)
 }
 
+// ── The bezel is still the notch ─────────────────────────────────────────────
+//
+// Hovering the notch opened the panel, and then pushing the cursor up against
+// the bezel — still squarely over the notch — shut it again.
+//
+// The cause is one word of geometry: `CGRect.contains` EXCLUDES its own maxY,
+// and both hover zones ended exactly at the island's top edge. On a Mac with a
+// notch that edge is the screen's top edge, which is precisely where the cursor
+// lands when it is pushed as far up as it goes. So the topmost row of points
+// over the notch counted as outside the notch.
+//
+// Reaching past the screen's top edge is free — there is no screen up there to
+// be in — but only where the island is already AT that edge. On a display with
+// no notch the island hangs below the menu bar, and a zone growing upward there
+// would sit under the menu bar's own status items and open the panel over the
+// icon being reached for.
+MainActor.assumeIsolated {
+    let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+    let notch = CGRect(x: 642, y: 872, width: 156, height: 28)
+
+    check(
+        "an island at the screen's edge reaches past it",
+        NotchWindowController.topOvershoot(islandTop: screen.maxY, screenFrame: screen) > 0
+    )
+    check(
+        "a measured edge a hair short still counts as the screen's edge",
+        NotchWindowController.topOvershoot(islandTop: screen.maxY - 0.4, screenFrame: screen) > 0
+    )
+    // The notchless case: the island hangs below a 24pt menu bar, and the strip
+    // of screen above it belongs to the menu bar's status items.
+    check(
+        "an island below a menu bar never reaches up into it",
+        NotchWindowController.topOvershoot(islandTop: screen.maxY - 24, screenFrame: screen) == 0
+    )
+
+    // The failure itself, stated as the user meets it: the very top row of
+    // points over the notch has to be inside the zone that keeps the panel open.
+    let overshoot = NotchWindowController.topOvershoot(islandTop: screen.maxY, screenFrame: screen)
+    let opened = NotchWindowController.expandedZone(
+        notchRect: notch, islandTop: screen.maxY, width: 320, height: 300,
+        topOvershoot: overshoot
+    )
+    let atTheBezel = CGPoint(x: notch.midX, y: screen.maxY)
+    check("the screen's top edge, over the notch, is inside the panel zone", opened.contains(atTheBezel))
+    check(
+        "without the overshoot that same point falls outside",
+        !NotchWindowController.expandedZone(
+            notchRect: notch, islandTop: screen.maxY, width: 320, height: 300
+        ).contains(atTheBezel)
+    )
+
+    // And the zone still hangs from the island, so nothing below it moved.
+    check(
+        "reaching up does not move the zone's bottom edge",
+        opened.minY == NotchWindowController.expandedZone(
+            notchRect: notch, islandTop: screen.maxY, width: 320, height: 300
+        ).minY
+    )
+}
+
 // ── Putting things back ──────────────────────────────────────────────────────
 //
 // A reset is the one control that can destroy work, so what it does and what it
