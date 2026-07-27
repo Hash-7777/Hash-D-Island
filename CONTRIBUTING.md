@@ -22,11 +22,17 @@ swift build                 # must be clean, and warning-free
 swift run HashDIslandChecks # must pass, all of them
 ```
 
-Both are the gate, and both run again on GitHub for every push and pull request
-(`.github/workflows/build.yml`) — on a machine that is not yours, which is the
-only way a gate is a gate rather than a habit. That job also builds the release
-configuration, assembles and verifies the `.app`, and checks that the README's
-"checks passing" badge still matches the number that actually ran.
+Both are the gate, and they are yours to run — nothing catches a broken push for
+you.
+
+The same two commands run again on GitHub (`.github/workflows/build.yml`) for
+every **pull request**, and on demand from the Actions tab. Not on every push:
+macOS runners are billed at ten times the Linux rate, and re-confirming a result
+you just watched succeed is not worth that. Run it by hand when a second machine
+genuinely tells you something — before a release, or after a change too large to
+trust to one. That job also builds the release configuration, assembles and
+verifies the `.app`, and checks that the README's "checks passing" badge still
+matches the number that actually ran.
 
 ## The one rule that matters
 
