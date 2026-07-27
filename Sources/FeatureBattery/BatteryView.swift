@@ -89,14 +89,11 @@ struct BatteryEventIconView: View {
         }
     }
 
-    private func iconName(_ event: BatteryEvent) -> String {
-        switch event {
-        case .pluggedIn: return monitor.state == .onHold ? "pause.circle.fill" : "bolt.fill"
-        case .lowBattery: return "exclamationmark.triangle.fill"
-        case .fullyCharged: return "checkmark.circle.fill"
-        case .unplugged: return "powerplug"
-        }
-    }
+    /// The symbol belongs to the announcement, not to whatever the battery
+    /// happens to be doing while it is on screen — see `BatteryEvent.symbolName`
+    /// for why asking the live state was wrong at precisely the moment it was
+    /// asked.
+    private func iconName(_ event: BatteryEvent) -> String { event.symbolName }
 
     private func iconColor(_ event: BatteryEvent) -> Color {
         switch event {

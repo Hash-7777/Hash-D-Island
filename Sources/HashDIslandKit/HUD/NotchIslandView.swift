@@ -369,8 +369,8 @@ struct NotchIslandView: View {
             ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                 if index > 0 {
                     Rectangle()
-                        .fill(Color.white.opacity(0.07))
-                        .frame(height: 1)
+                        .fill(Color.white.opacity(0.10))
+                        .frame(height: 1.5)
                         .frame(width: Panel.rowWidth)
                         .padding(.vertical, 9)
                 }

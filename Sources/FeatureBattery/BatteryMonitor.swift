@@ -29,6 +29,28 @@ public enum BatteryEvent: Equatable {
         if case .lowBattery = self { return true }
         return false
     }
+
+    /// The symbol this announcement shows.
+    ///
+    /// A property of the EVENT, not of the live state, and that distinction is
+    /// the whole point. The view used to pick this by asking what the battery
+    /// was doing right then — and at the instant a cable goes in, macOS reports
+    /// external power a beat before it reports charging, so the state is
+    /// briefly "on hold" and plugging in was announced with a PAUSE symbol.
+    /// Every time, on a Mac that then charged perfectly normally.
+    ///
+    /// An announcement is about the thing that just happened. You plugged it
+    /// in, so it shows a bolt. What the battery then decides — charge, hold at
+    /// 80% for its health, or nothing because it is already full — is a lasting
+    /// fact rather than a moment, and the panel says which in words.
+    package var symbolName: String {
+        switch self {
+        case .pluggedIn: return "bolt.fill"
+        case .lowBattery: return "exclamationmark.triangle.fill"
+        case .fullyCharged: return "checkmark.circle.fill"
+        case .unplugged: return "powerplug"
+        }
+    }
 }
 
 /// What the battery is doing, as the iPhone distinguishes it.

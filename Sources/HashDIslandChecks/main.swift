@@ -1282,6 +1282,34 @@ MainActor.assumeIsolated {
     // Only the low-battery warning earns the longer stay on the notch.
     check("a low warning is a warning", BatteryEvent.lowBattery(10).isWarning)
     check("plugging in is not a warning", BatteryEvent.pluggedIn(50).isWarning == false)
+
+    // An announcement's symbol belongs to the announcement, not to whatever the
+    // battery is doing while it is on screen. The view used to ask the live
+    // state, and macOS reports external power a beat BEFORE it reports
+    // charging — so at the instant a cable went in the state was "on hold" and
+    // plugging in was announced with a pause symbol, every time, on a Mac that
+    // then charged perfectly normally.
+    check(
+        "plugging in always shows the bolt",
+        BatteryEvent.pluggedIn(50).symbolName == "bolt.fill"
+    )
+    check(
+        "and it shows the same bolt at every level",
+        [0, 50, 79, 80, 99, 100].allSatisfy { BatteryEvent.pluggedIn($0).symbolName == "bolt.fill" }
+    )
+    check(
+        "unplugging does not show the bolt",
+        BatteryEvent.unplugged(50).symbolName != "bolt.fill"
+    )
+    check(
+        "every announcement has a symbol of its own",
+        Set([
+            BatteryEvent.pluggedIn(50).symbolName,
+            BatteryEvent.lowBattery(10).symbolName,
+            BatteryEvent.fullyCharged(100).symbolName,
+            BatteryEvent.unplugged(50).symbolName,
+        ]).count == 4
+    )
     check("fully charged is not a warning", BatteryEvent.fullyCharged(100).isWarning == false)
     check("unplugging is not a warning", BatteryEvent.unplugged(80).isWarning == false)
 
