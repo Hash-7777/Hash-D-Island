@@ -730,7 +730,15 @@ public final class NotchWindowController {
     /// places that keep it open are the three places that are actually this
     /// app: the panel, the notch that opens it, and the settings window itself.
     private func closeIfClickedAway(at location: CGPoint) {
-        guard state.isExpanded || isPinnedOpen else { return }
+        // Anything of ours that is on screen is reason enough to be here. The
+        // settings window is included in its own right rather than only through
+        // the pin: a window opened WITHOUT pinning the panel — which is what a
+        // programmatic open does — was invisible to this test, so clicking away
+        // from it closed the panel and left the window sitting there. "Click
+        // anywhere to put it away" has to mean the window too, however it came
+        // to be open.
+        let settingsShowing = settingsFrame() != nil
+        guard state.isExpanded || isPinnedOpen || settingsShowing else { return }
         // The panel itself, with a little slop for its edge.
         if panelAnchor.insetBy(dx: -4, dy: -4).contains(location) { return }
         // The notch: clicking it is how the panel is opened, so treating that
@@ -756,10 +764,12 @@ public final class NotchWindowController {
         // the pointer has not moved and must not be read as a fresh approach.
         // The later report from the window is then a no-op.
         hoverSuppressedUntil = Date().addingTimeInterval(Self.hoverSuppression)
-        if isPinnedOpen {
-            isPinnedOpen = false
-            closeSettings()
-        }
+        isPinnedOpen = false
+        // Asked unconditionally rather than only when the pin was set, because
+        // the pin records how settings was OPENED and this is about what is on
+        // screen NOW. `closeSettings` is a no-op when the window is not
+        // showing, so there is nothing to guard against.
+        if settingsShowing { closeSettings() }
         state.setExpanded(false)
     }
 
