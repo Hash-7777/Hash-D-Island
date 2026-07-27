@@ -120,7 +120,24 @@ public final class FeatureRegistry {
     ///
     /// Idempotent, so it is safe to call on every settings change: a feature
     /// already in the right state is left alone rather than restarted.
+    /// Nothing runs until somebody has been told what running means.
+    ///
+    /// Every switch above was already honoured — a feature that is off opens no
+    /// files and spawns no subprocess — but they all ship ON, and this ran at
+    /// launch before the user had seen a single word about what any of them
+    /// read. So the honest description of a first launch was: the app listed
+    /// the Downloads folder, asked macOS which processes held the microphone,
+    /// and started reading what was playing — and THEN offered the switches.
+    ///
+    /// Being able to switch something off afterwards is not the same as having
+    /// been asked. Until the answer is yes this stops everything rather than
+    /// starting anything, so the state before consent IS the everything-off
+    /// state rather than a promise about it.
     public func syncRunning(context: FeatureContext) {
+        guard context.settings.hasAcceptedReading else {
+            stopAll()
+            return
+        }
         for feature in features {
             let wanted = context.settings.isEnabled(feature.id)
             if wanted, !running.contains(feature.id) {

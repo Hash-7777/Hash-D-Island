@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var context: FeatureContext?
     private var controller: NotchWindowController?
     private var settingsWindow: SettingsWindowController?
+    /// Held only until it is answered; a new install sees it once.
+    private var firstRunWindow: FirstRunWindowController?
     private var power: PowerCoordinator?
     private var screenObserver: NSObjectProtocol?
     private var rebuildWork: DispatchWorkItem?
@@ -36,7 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.controller?.setPinnedOpen(visible)
         }
 
-        // Only the features that are switched on are started at all.
+        // Only the features that are switched on are started at all — and on a
+        // brand-new install, not even those, until the first-run window has
+        // been answered. `syncRunning` refuses to start anything while consent
+        // is outstanding, so this call is safe either way and does nothing on a
+        // first launch.
         registry.syncRunning(context: context)
 
         let controller = NotchWindowController(registry: registry, context: context)
@@ -132,10 +138,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ))
         }
 
-        // First launch: show the settings window so the app is easy to find.
-        if settings.isFirstRun {
-            settingsWindow.show(anchor: controller.panelAnchor, on: NotchGeometry.preferredScreen())
+        // A new install is told what the indicators read BEFORE any of them
+        // read anything, and nothing starts until it answers.
+        //
+        // This used to open the settings window instead, purely so the app was
+        // easy to find — but by then every feature was already running, which
+        // made the settings window a place to undo something rather than a
+        // place to decide it.
+        if !settings.hasAcceptedReading {
+            let firstRun = FirstRunWindowController(settings: settings)
+            firstRun.onAccept = { [weak self] in
+                self?.acceptReading()
+            }
+            firstRun.onChoose = { [weak self] in
+                // Still consent — they have read the same list — but they want
+                // to switch things off before they run. So the features are
+                // started and settings is opened on the page that holds the
+                // switches, where anything unwanted stops it reading again.
+                self?.acceptReading()
+                self?.openSettings(at: "indicators")
+            }
+            self.firstRunWindow = firstRun
+            firstRun.show()
         }
+    }
+
+    /// Record that the reading was agreed to, and start what is switched on.
+    private func acceptReading() {
+        guard let registry, let context else { return }
+        context.settings.hasAcceptedReading = true
+        registry.syncRunning(context: context)
     }
 
     private func restartFeatures() {

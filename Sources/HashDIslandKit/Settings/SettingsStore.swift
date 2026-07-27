@@ -165,6 +165,11 @@ private struct SettingsDocument: Codable {
     var tokenScanInterval: TokenScanInterval?
     /// Hand-made position corrections, keyed by display.
     var adjustments: [String: IslandAdjustment]?
+    /// Whether the user has seen what the indicators read and agreed to it.
+    /// Optional because documents written before this existed have no opinion,
+    /// and those are installs that already made their choices — they are read
+    /// as having agreed rather than being asked again.
+    var hasAcceptedReading: Bool?
 }
 
 /// The single source of truth for user customization, backed by `UserDefaults`.
@@ -257,6 +262,21 @@ public final class SettingsStore: ObservableObject {
     /// Used to show the settings window once so the app is easy to find.
     public let isFirstRun: Bool
 
+    /// Whether the user has been shown what the indicators read and agreed to
+    /// it. Nothing that reads a file, runs a subprocess, or can raise a macOS
+    /// permission prompt starts until this is true.
+    ///
+    /// Stored rather than derived so it survives a relaunch, and separate from
+    /// `isFirstRun` because they answer different questions: `isFirstRun` asks
+    /// whether there were settings to load, this asks whether anybody said yes.
+    ///
+    /// **An existing install counts as having agreed.** Someone already running
+    /// the app chose their indicators long ago, and putting a consent screen in
+    /// front of them on an update would be asking a question they have already
+    /// answered — so the carry-over path below sets this true. Only a genuinely
+    /// new install is asked.
+    @Published public var hasAcceptedReading: Bool = false
+
     private let defaults: UserDefaults
     private let storageKey = "hashdisland.settings.v2"
     private var saveCancellable: AnyCancellable?
@@ -290,10 +310,16 @@ public final class SettingsStore: ObservableObject {
             self.tokenScanInterval = document.tokenScanInterval ?? SettingsStore.defaultTokenScanInterval
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
             self.isFirstRun = false
+            // Absent in a document written before this existed, which is
+            // exactly an install that predates the question — and one that
+            // already chose its indicators. Asking it now would be asking
+            // something already answered.
+            self.hasAcceptedReading = document.hasAcceptedReading ?? true
         } else {
             self.features = [:]
             self.launchAtLogin = false
             self.isFirstRun = true
+            self.hasAcceptedReading = false
         }
 
         // Persist on any change, coalesced to the next runloop tick.
@@ -390,7 +416,8 @@ public final class SettingsStore: ObservableObject {
             appearance: appearance,
             alerts: alerts,
             tokenScanInterval: tokenScanInterval,
-            adjustments: adjustments
+            adjustments: adjustments,
+            hasAcceptedReading: hasAcceptedReading
         )
         if let data = try? JSONEncoder().encode(document) {
             defaults.set(data, forKey: storageKey)

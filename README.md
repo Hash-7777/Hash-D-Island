@@ -15,7 +15,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-486%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="486 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-493%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="493 automated checks passing">
   <img src="https://img.shields.io/badge/license-GPL%20v3-AEB7C8?style=flat-square&labelColor=0B0C10" alt="GNU General Public License v3">
 </p>
 
@@ -73,11 +73,13 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **Nothing while your Mac is locked.** The island leaves the screen the moment you lock it, and every indicator stops with it — not dimmed, not covered, gone. What the notch shows is a summary of your afternoon, and a locked Mac is exactly when somebody who is not you might be standing in front of it.
 
+**Nothing runs until you have been asked.** On first launch the app has read nothing. A window lists what every indicator reads, and what it will never do, and not one of them starts until you accept — until then the app is in the same state as having everything switched off, not merely promising to be.
+
 **Off means off.** Switching an indicator off stops it *reading*, not just showing. A feature that is off opens no files, runs no subprocess, and can trigger none of the permission prompts.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 486 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 493 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks

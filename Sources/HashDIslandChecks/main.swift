@@ -107,7 +107,7 @@ MainActor.assumeIsolated {
     // playing.
     let runSuite = "hashdisland.checks.running.\(UUID().uuidString)"
     let runDefaults = UserDefaults(suiteName: runSuite)!
-    let runSettings = SettingsStore(defaults: runDefaults)
+    let runSettings = checkStore(defaults: runDefaults)
     let onFeature = CountingFeature(id: "on")
     let offFeature = CountingFeature(id: "off")
     let runRegistry = FeatureRegistry()
@@ -138,11 +138,44 @@ MainActor.assumeIsolated {
     runRegistry.syncRunning(context: runContext)
     check("syncing again does not restart a running feature", offFeature.starts == startsBefore)
 
+    // Nothing reads anything until somebody has been asked.
+    //
+    // Every switch above was already honoured, but they all ship ON, so a
+    // first launch listed the Downloads folder and asked macOS which processes
+    // held the microphone BEFORE offering the switches. Being able to turn
+    // something off afterwards is not the same as having been asked. These pin
+    // the state before consent as the everything-off state itself, rather than
+    // a promise about it.
+    let gateSuite = "hashdisland.checks.consent.\(UUID().uuidString)"
+    let gateSettings = checkStore(defaults: UserDefaults(suiteName: gateSuite)!, accepted: false)
+    let gatedFeature = CountingFeature(id: "gated")
+    let gateRegistry = FeatureRegistry()
+    gateRegistry.register([gatedFeature])
+    gateSettings.seed(features: gateRegistry.features)
+    let gateContext = FeatureContext(settings: gateSettings)
+
+    check("a fresh install has agreed to nothing", gateSettings.hasAcceptedReading == false)
+    check("the feature is switched on all the same", gateSettings.isEnabled("gated"))
+    gateRegistry.syncRunning(context: gateContext)
+    check("yet nothing starts before the reading is agreed to", gatedFeature.isRunning == false)
+    check("and nothing is tracked as running either", gateRegistry.runningIDs.isEmpty)
+
+    // Agreeing is what starts it, and it starts what was switched on.
+    gateSettings.hasAcceptedReading = true
+    gateRegistry.syncRunning(context: gateContext)
+    check("agreeing starts what is switched on", gatedFeature.isRunning)
+
+    // Withdrawing stops everything again, so the gate is a real switch rather
+    // than a one-way door that only ever gets opened.
+    gateSettings.hasAcceptedReading = false
+    gateRegistry.syncRunning(context: gateContext)
+    check("withdrawing stops it reading again", gatedFeature.isRunning == false)
+
     // A sideways swipe over the open panel is offered to the features until one
     // takes it. The core stays ignorant of what the gesture means — it only
     // knows the fingers went sideways over the panel.
     let swipeSuite = "hashdisland.checks.swipe.\(UUID().uuidString)"
-    let swipeSettings = SettingsStore(defaults: UserDefaults(suiteName: swipeSuite)!)
+    let swipeSettings = checkStore(defaults: UserDefaults(suiteName: swipeSuite)!)
     let quietFeature = CountingFeature(id: "quiet")
     let eagerFeature = CountingFeature(id: "eager")
     let laterFeature = CountingFeature(id: "later")
@@ -212,7 +245,7 @@ MainActor.assumeIsolated {
     // to change. So the thing actually pinned here is that it INVALIDATES.
     let orderSuite = "hashdisland.checks.order.\(UUID().uuidString)"
     let orderDefaults = UserDefaults(suiteName: orderSuite)!
-    let orderSettings = SettingsStore(defaults: orderDefaults)
+    let orderSettings = checkStore(defaults: orderDefaults)
     let orderRegistry = FeatureRegistry()
     orderRegistry.register([
         StubFeature(id: "first", placement: .expanded),
@@ -2164,7 +2197,7 @@ MainActor.assumeIsolated {
     // Settings: defaults, updates, and persistence round-trip.
     let suite = "hashdisland.checks.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
-    let store = SettingsStore(defaults: defaults)
+    let store = checkStore(defaults: defaults)
     let stub = StubFeature(id: "x", placement: .leading)
     store.seed(features: [stub])
     check("settings seed enables", store.isEnabled("x"))
@@ -2175,7 +2208,7 @@ MainActor.assumeIsolated {
     check("settings update style", store.style(for: "x") == "word")
 
     store.flush()
-    let reloaded = SettingsStore(defaults: defaults)
+    let reloaded = checkStore(defaults: defaults)
     check("settings persist enabled", reloaded.isEnabled("x") == false)
     check("settings persist style", reloaded.style(for: "x") == "word")
     defaults.removePersistentDomain(forName: suite)
@@ -2382,7 +2415,7 @@ MainActor.assumeIsolated {
     // another, and resetting removes the entry rather than storing zeroes.
     let posSuite = "hashdisland.checks.position.\(UUID().uuidString)"
     let posDefaults = UserDefaults(suiteName: posSuite)!
-    let positioned = SettingsStore(defaults: posDefaults)
+    let positioned = checkStore(defaults: posDefaults)
     var laptop = IslandAdjustment()
     laptop.horizontal = 12
     positioned.setAdjustment(laptop, for: "display-1")
@@ -2393,7 +2426,7 @@ MainActor.assumeIsolated {
 
     positioned.setAdjustment(laptop, for: "display-1")
     positioned.flush()
-    let reloadedPositions = SettingsStore(defaults: posDefaults)
+    let reloadedPositions = checkStore(defaults: posDefaults)
     check("corrections survive a restart", reloadedPositions.adjustment(for: "display-1").horizontal == 12)
     UserDefaults.standard.removePersistentDomain(forName: posSuite)
 
@@ -2403,7 +2436,7 @@ MainActor.assumeIsolated {
     if NotchGeometry.preferredScreen() != nil {
         let liveSuite = "hashdisland.checks.live.\(UUID().uuidString)"
         let liveDefaults = UserDefaults(suiteName: liveSuite)!
-        let liveSettings = SettingsStore(defaults: liveDefaults)
+        let liveSettings = checkStore(defaults: liveDefaults)
         let liveContext = FeatureContext(settings: liveSettings)
         let liveController = NotchWindowController(registry: FeatureRegistry(), context: liveContext)
 
@@ -2601,7 +2634,7 @@ MainActor.assumeIsolated {
     // sampler multiplies by.
     let scaleSuite = "hashdisland.checks.scale.\(UUID().uuidString)"
     let scaleDefaults = UserDefaults(suiteName: scaleSuite)!
-    let scaled = SettingsStore(defaults: scaleDefaults)
+    let scaled = checkStore(defaults: scaleDefaults)
     check("normally everything samples at its own rate", scaled.samplingScale == 1)
     scaled.batterySaver = true
     check("battery saver halves how often things sample", scaled.samplingScale == 2)
@@ -2617,7 +2650,7 @@ MainActor.assumeIsolated {
     scaled.appearance.motion = .calm
     scaled.alerts.noticeSeconds = 7
     scaled.flush()
-    let reopened = SettingsStore(defaults: scaleDefaults)
+    let reopened = checkStore(defaults: scaleDefaults)
     check("the accent is remembered", reopened.appearance.accentID == "purple")
     check("the panel fill is remembered", reopened.appearance.panelFill == .solid)
     check("the motion is remembered", reopened.appearance.motion == .calm)
@@ -2669,6 +2702,11 @@ MainActor.assumeIsolated {
     check("settings carry over the style", migrated.style(for: "x") == "word")
     check("settings carry over launch at login", migrated.launchAtLogin)
     check("carried-over settings are not a first run", migrated.isFirstRun == false)
+    // An install that predates the consent screen has already chosen its
+    // indicators, and an update must not stop it dead to ask a question it has
+    // effectively answered. The legacy document above has no such field — the
+    // exact shape written before this existed — and reads as having agreed.
+    check("an existing install is not asked again", migrated.hasAcceptedReading)
     migrated.flush()
     check(
         "carried-over settings are rewritten under the new key",
@@ -2754,6 +2792,31 @@ let checkDomainPrefix = "hashdisland.checks."
 /// The throwaway domains still on disk. `CFPreferencesCopyApplicationList` is
 /// unavailable to Swift, so this reads where the domains actually live — one
 /// plist per domain, which is the same thing `defaults domains` enumerates.
+/// A settings store for the checks, isolated from the machine running them.
+///
+/// `SettingsStore` falls back to the app's PREVIOUS preference domain when the
+/// current one is empty — that is how an existing install keeps its choices
+/// across the rename, and it must keep working. In a check it is a trapdoor: a
+/// store built on a throwaway suite quietly loaded the DEVELOPER's real
+/// settings from `com.hashnotch.app`, so a check could pass on the one machine
+/// that happened to have them and fail on every other, CI included. Handing it
+/// an empty legacy suite shuts that door; the suite carries the checks' prefix
+/// so the sweep at the end removes it like any other.
+///
+/// `accepted` is explicit because a genuinely fresh store has NOT agreed to
+/// anything, and the registry refuses to start features until it has. Most
+/// checks are about something else and want a store that has; the ones about
+/// the gate itself pass false.
+@MainActor
+func checkStore(defaults: UserDefaults, accepted: Bool = true) -> SettingsStore {
+    let noLegacy = UserDefaults(
+        suiteName: "hashdisland.checks.nolegacy.\(UUID().uuidString)"
+    )!
+    let store = SettingsStore(defaults: defaults, legacyDefaults: noLegacy)
+    store.hasAcceptedReading = accepted
+    return store
+}
+
 func strayCheckDomains() -> [String] {
     let preferences = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Preferences")

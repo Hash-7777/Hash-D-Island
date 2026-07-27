@@ -128,6 +128,32 @@ That is the complete list. Hash D Island never asks for Input Monitoring,
 Screen Recording, or Full Disk Access, and asks for Accessibility only if you
 switch on the one setting above.
 
+## Nothing runs until you have been asked
+
+The first time you open Hash D Island, it has read nothing. Before a single
+indicator starts, a window lists what each one reads and what it will never do,
+and nothing begins until you accept it.
+
+This is stricter than it sounds, because it is not a notice with an OK button.
+Until the answer is yes, `FeatureRegistry.syncRunning` stops every feature
+rather than starting any, so the state before you accept is the same state as
+switching everything off — no file is opened, no subprocess runs, and none of
+the macOS permission prompts below can be triggered. If you would rather choose
+first, the same window takes you straight to the switches.
+
+It exists because of a fair criticism. Every indicator honoured its switch and
+none of them ever sent anything anywhere — but they all shipped **on**, and the
+app began reading at launch, so the first opportunity to decline arrived after
+the reading had already happened. Being able to switch something off afterwards
+is not the same as having been asked.
+
+An install that predates this is not asked again: it chose its indicators long
+ago, and interrupting it to ask a question it has effectively answered would be
+noise. Only a genuinely new install sees the window.
+
+The behaviour is covered by the automated checks, including that a feature
+switched **on** still does not start while consent is outstanding.
+
 ## Off means off
 
 Every row in the table above belongs to a feature you can switch off in
