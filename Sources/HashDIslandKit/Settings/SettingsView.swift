@@ -738,24 +738,115 @@ public struct SettingsView: View {
                 )
                 SettingDivider()
                 PrivacyLine(
-                    "What it may ask for",
-                    "Your media apps, to control playback. Your Downloads folder, for the download notice. Notifications, for the timer."
-                )
-                SettingDivider()
-                PrivacyLine(
-                    "What it never asks for",
-                    "Screen Recording and Full Disk Access. Accessibility only if you switch on browser control yourself."
+                    "Nothing runs until you say so",
+                    "On a new install every indicator is stopped until the opening window is answered. Before that the app has opened no file, run no command, and could not have raised any of the requests below."
                 )
                 SettingDivider()
                 PrivacyLine(
                     "Off means off",
-                    "An indicator switched off is never started — it reads nothing and asks for nothing."
+                    "An indicator switched off is never started — it reads nothing and asks for nothing. Switching one off stops the work, not just the display."
                 )
             }
 
-            Text("Every line here is checkable by reading the source. The full detail is in SECURITY.md.")
+            // Every permission macOS can put in front of you, in the order you
+            // are likely to meet them.
+            //
+            // Written as one row each rather than as prose, because the three
+            // questions somebody actually has are always the same — when am I
+            // asked, why, and what breaks if I say no — and a paragraph makes
+            // you hunt for all three. The last question is the one usually left
+            // out, and it is the one that decides whether saying no feels safe.
+            SectionLabel("What macOS may ask you")
+
+            SettingCard {
+                PermissionRow(
+                    icon: "music.note",
+                    name: "Control Spotify or Apple Music",
+                    asked: "The first time you press play, pause or skip on one of their tracks.",
+                    why: "Once either app is paused it hands back the system's media session, and only its own controls can start it again.",
+                    ifDenied: "Those two buttons stop working for those two apps. Everything else, including every other player, carries on."
+                )
+                SettingDivider()
+                PermissionRow(
+                    icon: "square.on.square",
+                    name: "Control your browser",
+                    asked: "Only on older systems, and only if a web video is playing with no picture found for it.",
+                    why: "To read the address of the playing tab so its thumbnail can be shown. The list of tabs never leaves the helper — only the one picture address comes back.",
+                    ifDenied: "A web video shows a plain tile instead of its thumbnail. Nothing else changes."
+                )
+                SettingDivider()
+                PermissionRow(
+                    icon: "folder",
+                    name: "Your Downloads folder",
+                    asked: "The first time the download notice looks there.",
+                    why: "To read the file names, so the notch can tell you when a download finishes.",
+                    ifDenied: "You get no download notice. Every other indicator is unaffected — or switch Downloads off and it never looks at all."
+                )
+                SettingDivider()
+                PermissionRow(
+                    icon: "bell",
+                    name: "Notifications",
+                    asked: "The first time you start a timer.",
+                    why: "To post a banner when the timer reaches zero.",
+                    ifDenied: "The timer still chimes and still shows \"Time's up\" at the notch."
+                )
+                SettingDivider()
+                PermissionRow(
+                    icon: "accessibility",
+                    name: "Accessibility",
+                    asked: "Only if you switch on \"Control video in your browser\" yourself. It is off until you do.",
+                    why: "Pressing the keyboard's play, next and previous keys is the only way to reach a video playing in a browser, and macOS puts those three keys behind this permission.",
+                    ifDenied: "The media buttons still work for Spotify and Apple Music. Three key presses are all this is ever used for — it never reads a keystroke."
+                )
+            }
+
+            SectionLabel("What it never asks for")
+
+            SettingCard {
+                PrivacyLine(
+                    "Screen Recording, Input Monitoring, Full Disk Access",
+                    "Never requested, under any setting. If macOS ever shows you a request for one of these in this app's name, something is wrong and you should not grant it."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "The microphone",
+                    "The app holds no microphone permission and could not use one. It asks macOS a yes-or-no question — does this app have an input stream open — and nothing is ever listened to, recorded or transcribed."
+                )
+            }
+
+            SectionLabel("Terms")
+
+            SettingCard {
+                PrivacyLine(
+                    "Your licence",
+                    "Hash D Island is free software under the GNU General Public License, version 3 or later. You may use it for anything, read all of it, change it, and pass it on. Anything you distribute that is built on it must stay free too, with its source available."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "No warranty",
+                    "It is provided as is, with no warranty of any kind. You run it at your own risk, and the author is not liable for any loss or damage arising from its use — as set out in sections 15 and 16 of the licence."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "What it is not for",
+                    "The readings are for your information only. Do not rely on them where being wrong would be dangerous or costly — the temperatures, battery figures and token counts are read from your Mac and other tools, and none of them are guaranteed to be accurate or available."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Your data is yours",
+                    "There is no account, no server and no collection, so there is nothing for anyone to hand over, sell, lose or be compelled to produce. That is a property of the design rather than a promise about conduct, and you can confirm it by reading the source."
+                )
+                SettingDivider()
+                PrivacyLine(
+                    "Other people's names",
+                    "Apple, Spotify, YouTube and every other product named in this app belong to their owners. They are named to say what works with what, and none of them endorse or are connected with this app."
+                )
+            }
+
+            Text("Every line on this page is checkable by reading the source. The full detail is in SECURITY.md, and the licence in full is in the LICENSE file beside it.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
         }
@@ -1002,6 +1093,73 @@ private struct SettingRow<Control: View>: View {
 /// File scope rather than a member: `SettingRow` is generic over its control,
 /// and a generic type cannot hold a stored static.
 private let settingRowMinimumLabelWidth: CGFloat = 150
+
+/// A quiet heading between cards, so a long page reads as a few short lists
+/// rather than one unbroken column of reassurance.
+private struct SectionLabel: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(0.6)
+            .foregroundStyle(.white.opacity(0.42))
+            .padding(.top, 4)
+    }
+}
+
+/// One macOS permission, answered in the three parts anybody actually wants.
+///
+/// When am I asked, why, and what breaks if I say no. Prose makes you hunt for
+/// all three and usually omits the last, which is the one that decides whether
+/// refusing feels safe — so it is given its own line, in its own colour, on
+/// every row. A permission page that only argues for saying yes is a page
+/// nobody believes.
+private struct PermissionRow: View {
+    let icon: String
+    let name: String
+    let asked: String
+    let why: String
+    let ifDenied: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.white.opacity(0.07))
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.system(size: 12, weight: .medium))
+
+                labelled("Asked", asked, tint: .white.opacity(0.55))
+                labelled("For", why, tint: .white.opacity(0.55))
+                labelled("If you refuse", ifDenied, tint: .green.opacity(0.85))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func labelled(_ label: String, _ text: String, tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 5) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 68, alignment: .leading)
+            Text(text)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 
 private struct PrivacyLine: View {
     let title: String

@@ -22,7 +22,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
 <a href="#-install"><b>Install</b></a> &nbsp;·&nbsp;
 <a href="#-what-it-shows"><b>What it shows</b></a> &nbsp;·&nbsp;
 <a href="#-why-this-one"><b>Why this one</b></a> &nbsp;·&nbsp;
-<a href="#-privacy"><b>Privacy</b></a> &nbsp;·&nbsp;
+<a href="#-privacy-permissions-and-terms"><b>Privacy &amp; terms</b></a> &nbsp;·&nbsp;
 <a href="#-for-developers"><b>Developers</b></a>
 
 </div>
@@ -132,13 +132,53 @@ Any **Apple Silicon** Mac (M1 and later). Older releases get every feature, with
 
 ---
 
-## ◦ Privacy
+## ◦ Privacy, permissions and terms
 
-No accounts. No analytics. No telemetry. No servers. The only request it can make is for a cover image, restricted to the hosts that serve them.
+No accounts. No analytics. No telemetry. No servers. The app writes no files — its only stored state is its own settings.
 
-The app writes no files; its only stored state is its own settings. Removing it takes four steps and leaves nothing behind.
+### Nothing runs until you have been asked
 
-Every permission it can ask for, every value it reads, the two private Apple interfaces it uses, and the full uninstall: **[SECURITY.md](SECURITY.md)**. Every claim there is checkable by reading the source and pinned by the checks.
+On a new install, Hash D Island has read nothing. Before a single indicator starts, a window names what each one reads and what it will never do, and **nothing begins until you accept**.
+
+That is stricter than a notice with an OK button. Until you answer, every feature is stopped rather than started, so the app is in the same state as having everything switched off — no file is opened, no command is run, and none of the requests below can even be triggered. Prefer to decide first? The same window takes you straight to the switches.
+
+### Every permission macOS may show you
+
+Each one, when it appears, and — the question usually left out — **what you lose by refusing**.
+
+| Permission | When you're asked | What for | If you refuse |
+| --- | --- | --- | --- |
+| **Control Spotify / Apple Music** | First time you press play, pause or skip on one of their tracks | Once either app is paused it hands back the system's media session, and only its own controls can restart it | Those buttons stop working *for those two apps*. Every other player is unaffected |
+| **Control your browser** | Only on older systems, and only if a web video is playing with no picture found yet | To read the playing tab's address so its thumbnail can be shown. The tab list never leaves the helper — only the one picture address returns | A web video shows a plain tile instead of a thumbnail |
+| **Your Downloads folder** | First time the download notice looks there | To read *file names*, so the notch can say when a download finishes | No download notice. Everything else is unaffected — or switch Downloads off and it never looks |
+| **Notifications** | First time you start a timer | To post a banner when the timer ends | The timer still chimes and still shows "Time's up" at the notch |
+| **Accessibility** | **Only if you switch on "Control video in your browser" yourself.** Off until you do | Pressing the keyboard's play/next/previous keys is the only way to reach a browser video, and macOS gates those three keys behind this | Media buttons still work for Spotify and Apple Music |
+
+### What it never asks for
+
+**Screen Recording**, **Input Monitoring** and **Full Disk Access** are never requested under any setting. If macOS ever shows you one of these in this app's name, something is wrong — don't grant it.
+
+It also **holds no microphone permission and could not use one.** The microphone indicator asks macOS a yes-or-no question — *does this app have an input stream open* — and nothing is ever listened to, recorded or transcribed.
+
+### The one network request
+
+Fetching the cover for what's playing: HTTPS only, restricted to the image hosts that serve them, size-capped, and refused if a redirect would lead elsewhere. It uses a throwaway session, so not even an image cache lands on disk. **Nothing else in the app touches the network**, and nothing about you is ever sent anywhere. Watch it with Little Snitch in about ten seconds.
+
+### Terms
+
+Hash D Island is free software under the **[GNU General Public License v3](LICENSE)** or later. Use it for anything, read all of it, change it, pass it on — anything you distribute built on it stays free too, with its source available.
+
+It comes with **no warranty of any kind**, and you run it at your own risk; the author is not liable for any loss or damage arising from its use (sections 15 and 16 of the licence). The readings are for information only — **don't rely on them where being wrong would be dangerous or costly.**
+
+There is no account, no server and no collection, so there is nothing for anyone to hand over, sell, lose, or be compelled to produce. That is a property of how it is built rather than a promise about behaviour, and you can confirm it by reading the source.
+
+Apple, Spotify, YouTube and every other product named here belong to their owners, are named only to say what works with what, and none of them endorse or are connected with this app.
+
+### Removing it
+
+Four steps, and this is every trace: switch **Open at Login** off and quit; drag the app to the Trash; delete `~/.hashdisland`; run `defaults delete com.hashdisland.app`. No launch agents, no caches, no receipts.
+
+Every value it reads, both private Apple interfaces it uses, and the full detail: **[SECURITY.md](SECURITY.md)**. Every claim there is checkable by reading the source and pinned by the checks.
 
 ---
 
