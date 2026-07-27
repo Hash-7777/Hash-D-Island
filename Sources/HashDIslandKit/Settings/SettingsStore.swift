@@ -384,6 +384,61 @@ public final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Put the look of the island back to the way it ships.
+    ///
+    /// Only the appearance values — accent, fill, motion, rounding, separators.
+    /// Which indicators are on, where they sit, and everything on the other
+    /// pages are left exactly as they are, because someone reaching for the
+    /// button under the appearance controls is asking about what they can see
+    /// on that page, not about their whole configuration.
+    public func resetAppearance() {
+        appearance = AppearanceSettings()
+    }
+
+    /// Put every stored choice back to the way the app ships.
+    ///
+    /// The feature list is REBUILT rather than emptied. `seed` only fills in
+    /// ids it has never seen, and it runs once at launch — so clearing the
+    /// dictionary here would leave the settings window bound to nothing until
+    /// the next start, with every indicator reading as absent rather than as
+    /// its default. Writing a fresh default entry for each descriptor keeps the
+    /// store complete at every moment.
+    ///
+    /// `placement` is carried over rather than reset. It is the feature's own
+    /// declaration of where it can appear, not a choice the user ever makes,
+    /// and the settings UI stopped offering it long ago.
+    ///
+    /// Two things are deliberately NOT reset:
+    ///
+    /// - **Consent.** `hasAcceptedReading` stays true. `isFirstRun` is fixed
+    ///   when the store is built, so the opening window cannot be shown again
+    ///   without a relaunch — while `syncRunning` refuses to start anything at
+    ///   all until consent is given. Clearing it here would stop every
+    ///   indicator and leave no way on screen to say yes again.
+    /// - **Open at login.** That lives in the system, not in this file, and the
+    ///   caller puts it back through `LoginItem` so the stored value and what
+    ///   macOS actually does cannot disagree.
+    public func resetAll(features descriptors: [FeatureDescriptor]) {
+        appearance = AppearanceSettings()
+        alerts = AlertSettings()
+        tokenScanInterval = Self.defaultTokenScanInterval
+        batterySaver = false
+        canSwitchLowPowerMode = false
+        canPressMediaKeys = false
+        adjustments = [:]
+
+        var rebuilt: [String: FeatureConfig] = [:]
+        for (index, descriptor) in descriptors.enumerated() {
+            rebuilt[descriptor.id] = FeatureConfig(
+                enabled: true,
+                placement: features[descriptor.id]?.placement ?? .expanded,
+                styleID: descriptor.options.first?.id ?? "default",
+                order: index
+            )
+        }
+        features = rebuilt
+    }
+
     public func update(_ id: String, _ mutate: (inout FeatureConfig) -> Void) {
         guard var config = features[id] else { return }
         mutate(&config)

@@ -2773,6 +2773,99 @@ do {
     check("the strip and the panel are never on screen together", !bothEverShown)
 }
 
+// ── Putting things back ──────────────────────────────────────────────────────
+//
+// A reset is the one control that can destroy work, so what it does and what it
+// leaves alone both have to be exact. Two of these matter more than the rest:
+//
+// The feature list must come back COMPLETE. `seed` only fills in ids it has
+// never seen and it runs once at launch, so a reset that merely emptied the
+// dictionary would leave the settings window bound to nothing until the next
+// start — every indicator reading as absent rather than as its default.
+//
+// And consent must SURVIVE. `isFirstRun` is fixed when the store is built, so
+// the opening window cannot be shown again without a relaunch, while
+// `syncRunning` refuses to start anything at all until consent is given. A
+// reset that cleared it would stop every indicator with no way on screen to say
+// yes again — a settings button that bricks the app until it is restarted.
+MainActor.assumeIsolated {
+    let resetSuite = "hashdisland.checks.reset.\(UUID().uuidString)"
+    let resetDefaults = UserDefaults(suiteName: resetSuite)!
+    let settings = checkStore(defaults: resetDefaults)
+    let descriptors = [
+        FeatureDescriptor(id: "alpha", title: "Alpha", options: []),
+        FeatureDescriptor(id: "beta", title: "Beta", options: []),
+    ]
+    let registry = FeatureRegistry()
+    registry.register([
+        StubFeature(id: "alpha", placement: .expanded),
+        StubFeature(id: "beta", placement: .leading),
+    ])
+    settings.seed(features: registry.features)
+
+    // Move everything away from its default, on every page.
+    settings.appearance.accentID = "nothing-like-the-default"
+    settings.appearance.motion = .lively
+    settings.appearance.panelFill = .glass
+    settings.appearance.panelCornerRadius = 4
+    settings.alerts.noticeSeconds = 99
+    settings.batterySaver = true
+    settings.canSwitchLowPowerMode = true
+    settings.canPressMediaKeys = true
+    settings.tokenScanInterval = .never
+    var nudged = IslandAdjustment()
+    nudged.horizontal = 9
+    settings.setAdjustment(nudged, for: "display-1")
+    settings.update("alpha") { $0.enabled = false }
+    settings.setOrder(["beta", "alpha"])
+
+    // Appearance alone: the look goes back, everything else is untouched.
+    settings.resetAppearance()
+    check("resetting appearance restores the accent", settings.appearance.accentID == AccentColor.default.id)
+    check("resetting appearance restores the motion", settings.appearance.motion == .standard)
+    check("resetting appearance restores the fill", settings.appearance.panelFill == .solid)
+    check(
+        "resetting appearance restores the rounding",
+        settings.appearance.panelCornerRadius == AppearanceSettings().panelCornerRadius
+    )
+    check("resetting appearance leaves the alerts alone", settings.alerts.noticeSeconds == 99)
+    check("resetting appearance leaves battery saver alone", settings.batterySaver)
+    check("resetting appearance leaves the position alone", settings.adjustments["display-1"] != nil)
+    check("resetting appearance leaves an indicator switched off", !settings.isEnabled("alpha"))
+
+    // Everything: every page goes back.
+    settings.appearance.motion = .calm
+    settings.resetAll(features: descriptors)
+    check("resetting everything restores the look", settings.appearance.motion == .standard)
+    check("resetting everything restores the alerts", settings.alerts.noticeSeconds == AlertSettings().noticeSeconds)
+    check("resetting everything clears battery saver", !settings.batterySaver)
+    check("resetting everything clears the low-power opt-in", !settings.canSwitchLowPowerMode)
+    check("resetting everything clears the media-key opt-in", !settings.canPressMediaKeys)
+    check(
+        "resetting everything restores how often tokens are counted",
+        settings.tokenScanInterval == SettingsStore.defaultTokenScanInterval
+    )
+    check("resetting everything forgets every position correction", settings.adjustments.isEmpty)
+
+    // The two that would be silent failures.
+    check(
+        "resetting everything leaves an entry for every indicator",
+        Set(settings.features.keys) == Set(descriptors.map(\.id))
+    )
+    check("resetting everything switches every indicator back on", settings.isEnabled("alpha"))
+    check(
+        "resetting everything restores the registration order",
+        descriptors.enumerated().allSatisfy { settings.features[$0.element.id]?.order == $0.offset }
+    )
+    check("resetting everything keeps consent given", settings.hasAcceptedReading)
+    check(
+        "resetting everything keeps each feature's own placement",
+        settings.features["beta"]?.placement == .leading
+    )
+
+    UserDefaults.standard.removePersistentDomain(forName: resetSuite)
+}
+
 // ── Leave nothing behind ─────────────────────────────────────────────────────
 //
 // Several checks need a settings store of their own, so they make one in a

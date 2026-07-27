@@ -304,6 +304,15 @@ public struct SettingsView: View {
             }
 
             SettingCard {
+                ResetRow(
+                    title: "Reset all settings",
+                    detail: "Puts every page back the way the app arrived — indicators, look, alerts, position. Your consent to read is kept, so nothing stops working.",
+                    confirmLabel: "Reset everything",
+                    action: resetEverything
+                )
+            }
+
+            SettingCard {
                 SettingRow(
                     "Quit Hash D Island",
                     detail: "Closes the island and stops everything."
@@ -316,6 +325,22 @@ public struct SettingsView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    /// Everything back to shipped, including the login item.
+    ///
+    /// The login item is switched through `LoginItem` rather than by writing
+    /// the stored value, because that value is only ever a copy of what macOS
+    /// is doing — the user can change it in System Settings without this app
+    /// knowing. Setting the copy alone would leave the app still opening at
+    /// login while the settings said it did not.
+    private func resetEverything() {
+        dragging = nil
+        if LoginItem.isSupported, LoginItem.isEnabled {
+            _ = LoginItem.setEnabled(false)
+        }
+        settings.launchAtLogin = LoginItem.isSupported ? LoginItem.isEnabled : false
+        settings.resetAll(features: features)
     }
 
     private var indicators: some View {
@@ -505,6 +530,15 @@ public struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
+            }
+
+            SettingCard {
+                ResetRow(
+                    title: "Reset appearance",
+                    detail: "Puts the colour, fill, motion, rounding and separators back to how they arrived. Nothing on the other pages changes.",
+                    confirmLabel: "Reset appearance",
+                    action: settings.resetAppearance
+                )
             }
 
             Spacer(minLength: 0)
@@ -919,6 +953,46 @@ public struct SettingsView: View {
                 settings.launchAtLogin = ok ? value : LoginItem.isEnabled
             }
         )
+    }
+}
+
+/// A row whose button undoes something, and asks once before it does.
+///
+/// The confirmation is the row itself changing rather than a dialog, because
+/// this window is borderless and floats beside the island — putting a sheet on
+/// it means a second surface hovering over the first, for a question with two
+/// words of context. Here the button is replaced in place by "Cancel" and a
+/// confirm, so the question is asked exactly where the answer will land.
+///
+/// The reset is never one click away, even though the appearance one is cheap
+/// to undo by hand. Someone who has spent time arranging their island should
+/// not be able to lose it by clicking slightly the wrong thing.
+private struct ResetRow: View {
+    let title: String
+    let detail: String
+    let confirmLabel: String
+    let action: () -> Void
+
+    @State private var asking = false
+
+    var body: some View {
+        SettingRow(title, detail: detail) {
+            if asking {
+                HStack(spacing: 6) {
+                    Button("Cancel") { asking = false }
+                        .buttonStyle(.bordered)
+                    Button(confirmLabel) {
+                        asking = false
+                        action()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
+            } else {
+                Button("Reset") { asking = true }
+                    .buttonStyle(.bordered)
+            }
+        }
     }
 }
 
