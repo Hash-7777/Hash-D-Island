@@ -15,7 +15,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-0%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="0 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-474%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="474 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -75,7 +75,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 0 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 474 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks

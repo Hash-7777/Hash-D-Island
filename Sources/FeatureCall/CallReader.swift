@@ -72,16 +72,6 @@ package enum CallReader {
         "com.apple.avconferenced": "com.apple.FaceTime",
     ]
 
-    /// Whether the OS exposes per-process audio at all. macOS 14.4 added it;
-    /// below that only the device-wide flag exists, which says that *something*
-    /// is using the microphone without saying what.
-    package static var namesTheApp: Bool {
-        var size: UInt32 = 0
-        var address = processListAddress
-        return AudioObjectGetPropertyDataSize(
-            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size
-        ) == noErr
-    }
 
     private static var processListAddress = AudioObjectPropertyAddress(
         mSelector: AudioObjectPropertySelector(kAudioHardwarePropertyProcessObjectList),

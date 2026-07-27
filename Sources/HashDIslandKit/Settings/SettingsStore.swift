@@ -375,21 +375,6 @@ public final class SettingsStore: ObservableObject {
         }
     }
 
-    /// Enabled features, in the order they should be drawn.
-    ///
-    /// Ties break on id so the order is stable rather than dependent on
-    /// dictionary iteration, which would otherwise let two features swap places
-    /// between launches.
-    public func orderedIDs(among list: [NotchFeature]) -> [String] {
-        var ranked: [(id: String, order: Int)] = []
-        for (index, feature) in list.enumerated() {
-            ranked.append((feature.id, config(for: feature, index: index).order))
-        }
-        ranked.sort { left, right in
-            left.order == right.order ? left.id < right.id : left.order < right.order
-        }
-        return ranked.map(\.id)
-    }
 
     /// Force an immediate synchronous save (the automatic save is coalesced to
     /// the next runloop tick; tests and shutdown use this).

@@ -32,19 +32,6 @@ public struct AccentColor: Identifiable, Equatable, Sendable {
     /// swatch if the id ever stops existing, so this cannot become nil.
     public static let `default` = all.first { $0.id == "orange" } ?? all[0]
 
-    /// The accent for a stored id, falling back to the default so an id from a
-    /// newer build never leaves the island untinted.
-    /// Text and glyphs drawn ON TOP of this colour.
-    ///
-    /// White on white is invisible, and White is one of the accents offered —
-    /// so a button filled with the accent cannot simply assume its label is
-    /// white. Judged on perceived brightness rather than on a list of which
-    /// colours are light, so an accent added later is handled without anyone
-    /// having to remember this exists.
-    public var contrastingText: Color {
-        isLight ? Color.black.opacity(0.88) : .white
-    }
-
     /// Rec. 601 luma, which weights green far above blue because the eye does.
     /// A plain average would call this app's blue light and its green dark,
     /// which is the wrong way round.

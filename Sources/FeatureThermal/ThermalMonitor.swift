@@ -133,9 +133,6 @@ public final class ThermalMonitor: ObservableObject {
         return "System"
     }
 
-    /// True when we have real sensor values (not just the pressure label).
-    public var hasReadings: Bool { hottestCelsius != nil }
-
     /// Compact text: the hottest die temperature, or the pressure word if no
     /// sensor reading is available.
     public var compactText: String {

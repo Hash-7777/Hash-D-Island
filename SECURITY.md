@@ -130,11 +130,16 @@ covered by the automated checks (`FeatureRegistry.syncRunning`).
 
 Two features use non-public Apple APIs, both read-only:
 
-- **MediaRemote** (via the osascript subprocess) — the only way to read
-  system-wide Now Playing on macOS 15.4+ since Apple locked the direct call
-  behind an entitlement.
+- **MediaRemote** — the only way to read system-wide Now Playing. Called in
+  process for the track, the position and the artwork; the older `osascript`
+  route remains only as a fallback for macOS versions that do not answer that
+  call.
 - **IOHIDEventSystemClient** — the only way to read the real Apple Silicon
   temperature sensors.
+
+Everything else, including the microphone readout, uses documented public
+interfaces. `kAudioHardwarePropertyProcessObjectList` is declared in Apple's
+own `AudioHardware.h`.
 
 If Apple changes either, those readouts degrade to a placeholder and the rest
 of the app keeps working. Because of these APIs, Hash D Island is distributed

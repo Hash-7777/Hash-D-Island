@@ -736,8 +736,18 @@ public struct SettingsView: View {
     }
 
     private var loginDetail: String {
-        if !LoginItem.isSupported {
-            return "Available once Hash D Island is running from your Applications folder."
+        // Ask WHY it is unavailable rather than assuming.
+        //
+        // This used to answer every unavailable case with "available once Hash
+        // D Island is running from your Applications folder" — which is the
+        // right answer for a bare binary and a false one on macOS 12, where the
+        // app IS in Applications and opening at login genuinely cannot work
+        // because the system interface for it did not exist yet. Telling
+        // somebody to do a thing they have already done is the worst kind of
+        // explanation: it costs them the attempt and teaches them not to
+        // believe the next message.
+        if let reason = LoginItem.unavailableReason {
+            return reason
         }
         if LoginItem.needsApproval {
             return "macOS is waiting for you to allow this in System Settings."
