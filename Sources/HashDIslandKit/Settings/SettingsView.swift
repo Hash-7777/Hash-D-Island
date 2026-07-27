@@ -173,7 +173,13 @@ public struct SettingsView: View {
 
     private func sidebarRow(_ item: Section) -> some View {
         let selected = section == item
-        return Button { section = item } label: {
+        return Button {
+            // Leaving the page abandons any drag that was in progress. Without
+            // this a half-finished reorder carried its held id across to
+            // another page, where nothing could ever clear it.
+            dragging = nil
+            section = item
+        } label: {
             HStack(spacing: 9) {
                 Image(systemName: item.symbol)
                     .font(.system(size: 11, weight: .semibold))
@@ -286,9 +292,15 @@ public struct SettingsView: View {
                     indicatorRow(feature)
                 }
             }
+            // Behind the rows, catching any drag let go between them or beside
+            // them. Without it a drag that missed a row left its held id set
+            // for the rest of the session — see `ReorderCancel`.
+            .onDrop(of: [UTType.text], delegate: ReorderCancel(dragging: $dragging))
 
             Spacer(minLength: 0)
         }
+        // And a drag abandoned by closing the page cannot outlive the page.
+        .onDisappear { dragging = nil }
     }
 
     /// Descriptors in the user's chosen order. Ties break on id so two features
@@ -639,34 +651,41 @@ public struct SettingsView: View {
                 detail: "Everything stays on this Mac."
             )
 
+            // Four words that are each their own answer, before any prose.
+            //
+            // This page was five dense paragraphs stacked in one card, and the
+            // effect of putting every reassurance next to every other one is
+            // that none of them lands — a wall of text about privacy reads as
+            // something to skip, which is the opposite of the point. The things
+            // that are simply NONE are said as one word each, because that is
+            // the whole answer and anything added to it is dilution.
+            HStack(spacing: 8) {
+                PrivacyNone("Network", "no requests at all")
+                PrivacyNone("Analytics", "nothing counted")
+            }
+            HStack(spacing: 8) {
+                PrivacyNone("Files written", "settings only")
+                PrivacyNone("Audio", "never listened to")
+            }
+
             SettingCard {
                 PrivacyLine(
-                    "Network",
-                    "One request only: album and video artwork, from Spotify's and YouTube's image hosts. Nothing else ever leaves."
+                    "What it may ask for",
+                    "Your media apps, to control playback. Your Downloads folder, for the download notice. Notifications, for the timer."
                 )
                 SettingDivider()
                 PrivacyLine(
-                    "Files written",
-                    "None. The only thing kept is these settings, where every Mac app keeps them."
+                    "What it never asks for",
+                    "Screen Recording and Full Disk Access. Accessibility only if you switch on browser control yourself."
                 )
                 SettingDivider()
                 PrivacyLine(
-                    "Audio",
-                    "Never listened to. The bars follow the play state, not the sound."
-                )
-                SettingDivider()
-                PrivacyLine(
-                    "Permissions",
-                    "Automation for your media apps, and for your browser only while a web video is playing. Your Downloads folder, for the download notice. Notifications, for the timer. Never Accessibility, Screen Recording or Full Disk Access."
-                )
-                SettingDivider()
-                PrivacyLine(
-                    "Turning one off",
-                    "Stops the work, not just the display. An indicator switched off in Indicators is never started, so it reads nothing and asks for nothing."
+                    "Off means off",
+                    "An indicator switched off is never started — it reads nothing and asks for nothing."
                 )
             }
 
-            Text("The full detail, and how to check every line of it yourself, is in SECURITY.md.")
+            Text("Every line here is checkable by reading the source. The full detail is in SECURITY.md.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -744,6 +763,27 @@ private struct ReorderDrop: DropDelegate {
         dragging = nil
         return true
     }
+}
+
+/// Catches a drag that ended anywhere other than on a row.
+///
+/// `performDrop` is the only place the held id was cleared, and it only runs
+/// when a drag lands ON a row. Let go over the gap between two rows, over the
+/// sidebar, or outside the window, and nothing ran — so the id stayed set for
+/// the rest of the session. The row it named stayed dimmed, and every later
+/// hover over any row fired a reorder against that stale id, which is what made
+/// the settings window appear to freeze after reordering indicators.
+///
+/// This sits behind the whole list and accepts whatever the rows did not.
+private struct ReorderCancel: DropDelegate {
+    @Binding var dragging: String?
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .cancel) }
 }
 
 /// The reordering itself, kept apart from the view so it can be checked.
@@ -949,5 +989,43 @@ private extension SettingsView {
         }
         let percent = Int((settings.appearance.separatorOpacity * 100).rounded())
         return String(format: "%.1f pt at %d%% between each indicator.", thickness, percent)
+    }
+}
+
+/// A single-word answer, for the things that are simply none.
+///
+/// The word carries it. A tile that says "None" in the accent colour, with four
+/// words under it saying what of, is read in the time it takes to glance —
+/// where the same fact inside a paragraph is read by nobody. Reserved for
+/// claims that really are absolute, so the format itself means something.
+struct PrivacyNone: View {
+    let title: String
+    let detail: String
+
+    init(_ title: String, _ detail: String) {
+        self.title = title
+        self.detail = detail
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.55))
+            Text("None")
+                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+            Text(detail)
+                .font(.system(size: 10))
+                .foregroundStyle(.white.opacity(0.42))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.045))
+        )
     }
 }

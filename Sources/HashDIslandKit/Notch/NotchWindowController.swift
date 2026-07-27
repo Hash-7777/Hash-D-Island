@@ -723,7 +723,27 @@ public final class NotchWindowController {
         // The settings window, wherever it has been dragged to.
         if let settings = settingsFrame(), settings.insetBy(dx: -6, dy: -6).contains(location) { return }
 
-        if isPinnedOpen { closeSettings() }
+        // Order matters here, and getting it wrong is what made the panel shut
+        // and spring straight back open.
+        //
+        // While the pin is set, `updateHover` FORCES the panel open on every
+        // mouse-moved event — that is what keeps it up while the settings
+        // window sits beside it. Asking the settings window to hide does not
+        // clear the pin immediately: it animates out over 0.18s and only then
+        // reports its new visibility back. So closing the panel first left a
+        // fifth of a second in which the pin was still set and the smallest
+        // movement of the hand re-opened everything, and the settings window
+        // was still on screen to keep it that way.
+        //
+        // So the pin is dropped HERE, synchronously, before anything else is
+        // asked to happen — and hover is told to stand down as well, because
+        // the pointer has not moved and must not be read as a fresh approach.
+        // The later report from the window is then a no-op.
+        hoverSuppressedUntil = Date().addingTimeInterval(Self.hoverSuppression)
+        if isPinnedOpen {
+            isPinnedOpen = false
+            closeSettings()
+        }
         state.setExpanded(false)
     }
 

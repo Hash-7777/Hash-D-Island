@@ -1332,6 +1332,28 @@ MainActor.assumeIsolated {
         AppearanceSettings().separatorThickness > 0
             && AppearanceSettings().separatorOpacity > 0
     )
+
+    // Plugging in a USB-C charger is not one clean transition: while the
+    // adapter negotiates, macOS can report power arriving, dropping and
+    // arriving again within a second or two, and each crossing looked like
+    // news — so "Charger connected" appeared twice in a row. The physical event
+    // happened once; the reporting of it stuttered.
+    check(
+        "two plug-ins are the same kind of announcement",
+        BatteryEvent.pluggedIn(41).isSameKind(as: BatteryEvent.pluggedIn(42))
+    )
+    check(
+        "plugging in and unplugging are not",
+        BatteryEvent.pluggedIn(50).isSameKind(as: BatteryEvent.unplugged(50)) == false
+    )
+    // The level is deliberately not compared: it may well have ticked between
+    // two reports of one event, and a repeat is a repeat whatever number rode
+    // along with it.
+    check(
+        "a repeat is judged by kind, not by the level it carries",
+        BatteryEvent.lowBattery(20).isSameKind(as: BatteryEvent.lowBattery(19))
+            && BatteryEvent.fullyCharged(100).isSameKind(as: BatteryEvent.lowBattery(100)) == false
+    )
     check(
         "every announcement has a symbol of its own",
         Set([

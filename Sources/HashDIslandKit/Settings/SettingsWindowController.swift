@@ -35,7 +35,15 @@ public final class SettingsWindowController {
     /// beside the panel on a laptop display — there are only about 490 points
     /// to the right of the island on this size of screen, and a window that
     /// does not fit beside the thing it belongs to is not attached to anything.
-    private static let size = CGSize(width: 460, height: 580)
+    /// Tall enough that no page has to be scrolled.
+    ///
+    /// The height was 580, which fitted most pages and left Appearance and
+    /// Indicators a little short — so those two scrolled, and a settings window
+    /// that scrolls on some tabs and not others makes the reader wonder each
+    /// time whether they have seen everything. 760 clears the longest page with
+    /// room to spare; the frame below still shrinks it to fit a small display,
+    /// so this is a ceiling rather than a demand.
+    private static let size = CGSize(width: 460, height: 760)
     /// The gap between the island's edge and this one.
     private static let gap: CGFloat = 12
     /// How far it starts to the left of its resting place, so it reads as

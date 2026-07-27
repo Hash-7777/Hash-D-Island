@@ -58,6 +58,22 @@ public enum BatteryEvent: Equatable {
         }
     }
 
+    /// Whether two announcements are the same KIND of thing, ignoring the level
+    /// they carry.
+    ///
+    /// Used to swallow a repeat: the level may well have ticked between two
+    /// reports of one physical event, and a repeat is a repeat whatever number
+    /// rode along with it.
+    package func isSameKind(as other: BatteryEvent) -> Bool {
+        switch (self, other) {
+        case (.pluggedIn, .pluggedIn), (.unplugged, .unplugged),
+             (.lowBattery, .lowBattery), (.fullyCharged, .fullyCharged):
+            return true
+        default:
+            return false
+        }
+    }
+
     /// The battery glyph closest to a given level, so the symbol and the number
     /// beside it never disagree.
     package static func batterySymbol(for percent: Int) -> String {
@@ -131,6 +147,14 @@ public final class BatteryMonitor: ObservableObject {
     private weak var presence: LivePresence?
     private var powerSource: CFRunLoopSource?
     private var eventWork: DispatchWorkItem?
+    /// The last announcement made, and when. Plugging in a USB-C charger can
+    /// cross the same threshold twice while the adapter negotiates, and one
+    /// cable should produce one announcement.
+    private var lastAnnounced: (event: BatteryEvent, at: Date)?
+    /// How long the same kind of announcement is treated as a repeat of the one
+    /// before it rather than as news. Comfortably longer than a negotiation,
+    /// far shorter than any genuine second plug-in.
+    private static let repeatWindow: TimeInterval = 6
     private var settleSampler: PollingSampler?
     private var settleDeadline = Date.distantPast
     private var lowPowerObserver: NSObjectProtocol?
@@ -443,6 +467,25 @@ public final class BatteryMonitor: ObservableObject {
     }
 
     private func announce(_ newEvent: BatteryEvent) {
+        // One cable, one announcement.
+        //
+        // "Charger connected" appeared twice in a row. Plugging in a USB-C
+        // charger is not one clean transition: while the adapter is negotiated
+        // macOS can report power arriving, dropping and arriving again within a
+        // second or two, and each crossing looked like news. The physical event
+        // happened once — the reporting of it stuttered.
+        //
+        // So the same KIND of announcement arriving again within a few seconds
+        // is treated as the same thing being reported twice, and ignored. The
+        // percentage is deliberately not compared: it may well have ticked in
+        // between, and a repeat is a repeat whatever number rode along with it.
+        if let last = lastAnnounced,
+           last.event.isSameKind(as: newEvent),
+           Date().timeIntervalSince(last.at) < Self.repeatWindow {
+            return
+        }
+        lastAnnounced = (newEvent, Date())
+
         event = newEvent
         presence?.setActive("battery", true)
         eventWork?.cancel()
