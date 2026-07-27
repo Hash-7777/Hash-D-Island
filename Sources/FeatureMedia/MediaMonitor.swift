@@ -114,6 +114,10 @@ public final class MediaMonitor: ObservableObject {
     /// paused item lapses out of the now-playing session and comes back, so one
     /// of these is noise rather than news.
     private var emptyReadings = 0
+    /// The title of the track that has earned the strip by actually being
+    /// played. Held for the current track only, and dropped the moment the
+    /// title changes, so nothing inherits another track's standing.
+    private var playedTitle: String?
     private var stateObservers: [NSObjectProtocol] = []
     private var refreshWork: DispatchWorkItem?
 
@@ -567,7 +571,17 @@ public final class MediaMonitor: ObservableObject {
             pendingRequest = nil
         }
 
-        presence?.setActive("media", shown != nil)
+        // Remember a track the moment it proves itself, so it keeps the strip
+        // through the pause that follows. Cleared with the track, never carried
+        // to the next one.
+        if let shown {
+            if Self.hasBeenPlayed(shown) { playedTitle = shown.title }
+            else if playedTitle != shown.title { playedTitle = nil }
+        } else {
+            playedTitle = nil
+        }
+
+        presence?.setActive("media", Self.earnsStrip(shown, playedTitle: playedTitle))
 
         // Count the looks that found nothing while the speakers were busy, so
         // chasing a sound with no track behind it gives up rather than running
@@ -586,6 +600,41 @@ public final class MediaMonitor: ObservableObject {
         startSampling(interval: Self.interval(
             for: shown, audioElsewhere: audioRunning, fruitlessLooks: fruitlessLooks
         ))
+    }
+
+    /// Whether a track has ever actually been played, as opposed to merely
+    /// announced. Playing now counts; so does arriving already part-way
+    /// through, which is what a track paused before this app was looking at it
+    /// looks like.
+    package nonisolated static func hasBeenPlayed(_ track: NowPlaying) -> Bool {
+        track.isPlaying || (track.elapsed ?? 0) > 0
+    }
+
+    /// Whether a track has earned the strip beside the notch.
+    ///
+    /// Anything playing has, always. A PAUSED one has only if it was really
+    /// played — either seen playing earlier in this run, or handed over already
+    /// part-way through.
+    ///
+    /// The distinction exists because holding a paused track was never about
+    /// paused tracks in general: it was so a song you were listening to keeps
+    /// its artwork and its resume button when you pause it. A web page can
+    /// claim the system's now-playing session without anyone pressing play —
+    /// a social feed autoplaying something under the scroll is the ordinary
+    /// case — and that arrives paused, at position zero, with no artist and no
+    /// artwork. Treating it like a paused song parked a browser tab's TITLE on
+    /// the notch for the rest of the day. You can only want to resume what you
+    /// were actually listening to, so that is exactly what is kept.
+    ///
+    /// Nothing here names an app or a site. It asks the only question that
+    /// separates the two cases, and it asks it of any player equally.
+    package nonisolated static func earnsStrip(
+        _ shown: NowPlaying?,
+        playedTitle: String?
+    ) -> Bool {
+        guard let shown else { return false }
+        if hasBeenPlayed(shown) { return true }
+        return playedTitle == shown.title
     }
 
     /// How often to look, given what is showing. Pure and package-visible: the

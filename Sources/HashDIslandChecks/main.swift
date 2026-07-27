@@ -1799,6 +1799,84 @@ MainActor.assumeIsolated {
             source: .spotify, elapsed: nil, duration: nil, fetchedAt: Date()
         )
     }
+    // Which tracks earn the strip beside the notch.
+    //
+    // A web page can claim the system's now-playing session without anyone
+    // pressing play — a social feed autoplaying under the scroll — and it
+    // arrives paused, at position zero, with no artist and no artwork. The
+    // rule that keeps a paused SONG on the notch (so its artwork and resume
+    // button survive a pause) used to keep those too, parking a browser tab's
+    // title on the notch for the rest of the day. The reading in the first
+    // check below is the real one, taken from MediaRemote while a LinkedIn
+    // feed held the session.
+    func track(
+        _ title: String, playing: Bool, elapsed: Double? = nil,
+        source: MediaSource = .other
+    ) -> NowPlaying {
+        NowPlaying(
+            title: title, artist: nil, isPlaying: playing, artwork: nil,
+            source: source, elapsed: elapsed, duration: nil, fetchedAt: Date()
+        )
+    }
+    check(
+        "a feed that grabbed the session without playing gets no strip",
+        MediaMonitor.earnsStrip(
+            track("Feed | LinkedIn", playing: false, elapsed: 0), playedTitle: nil
+        ) == false
+    )
+    check(
+        "anything actually playing gets the strip",
+        MediaMonitor.earnsStrip(track("a song", playing: true), playedTitle: nil)
+    )
+    check(
+        "a song you paused keeps the strip",
+        MediaMonitor.earnsStrip(
+            track("a song", playing: false), playedTitle: "a song"
+        )
+    )
+    check(
+        "a track already part-way through counts as played",
+        MediaMonitor.earnsStrip(
+            track("resumed", playing: false, elapsed: 42), playedTitle: nil
+        )
+    )
+    check(
+        "one track's standing never passes to the next",
+        MediaMonitor.earnsStrip(
+            track("Feed | LinkedIn", playing: false, elapsed: 0),
+            playedTitle: "a song played earlier"
+        ) == false
+    )
+    check(
+        "nothing at all earns nothing",
+        MediaMonitor.earnsStrip(nil, playedTitle: "a song") == false
+    )
+    check(
+        "playing is what marks a track as played",
+        MediaMonitor.hasBeenPlayed(track("x", playing: true))
+    )
+    check(
+        "and so is arriving part-way through",
+        MediaMonitor.hasBeenPlayed(track("x", playing: false, elapsed: 3))
+    )
+    check(
+        "but announced-and-never-started is not played",
+        MediaMonitor.hasBeenPlayed(track("x", playing: false, elapsed: 0)) == false
+    )
+    check(
+        "nor is one with no position at all",
+        MediaMonitor.hasBeenPlayed(track("x", playing: false)) == false
+    )
+    // The rule is asked of every player equally — a paused Spotify track that
+    // was never played is held to exactly the same standard as the feed.
+    check(
+        "the rule names no app: an unplayed Spotify track is treated the same",
+        MediaMonitor.earnsStrip(
+            track("never started", playing: false, elapsed: 0, source: .spotify),
+            playedTitle: nil
+        ) == false
+    )
+
     check(
         "nothing playing is looked at least often",
         MediaMonitor.interval(for: nil, audioElsewhere: false) == 15
