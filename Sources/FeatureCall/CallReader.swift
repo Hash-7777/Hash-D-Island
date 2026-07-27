@@ -36,7 +36,41 @@ package enum CallReader {
         package let bundleIdentifier: String
         package let name: String
         package let processID: pid_t
+        /// False when the microphone is held by a background service rather
+        /// than by something the user would recognise, and no app could be
+        /// attributed. The readout then says a microphone is in use without
+        /// naming anything, which is the honest answer.
+        package var isNamedApp: Bool = true
+
+        package init(
+            bundleIdentifier: String,
+            name: String,
+            processID: pid_t,
+            isNamedApp: Bool = true
+        ) {
+            self.bundleIdentifier = bundleIdentifier
+            self.name = name
+            self.processID = processID
+            self.isNamedApp = isNamedApp
+        }
     }
+
+    /// Apple's own audio services, and the app each one works for.
+    ///
+    /// A list of one, and it is here reluctantly — naming things by identifier
+    /// is what this file otherwise avoids, because a list is wrong for
+    /// everything not on it. It exists because FaceTime does not hold the
+    /// microphone itself: `avconferenced`, a daemon, holds it on FaceTime's
+    /// behalf, so the readout said "avconferenced" during a FaceTime call. That
+    /// is a true statement about the machine and a useless one about the call.
+    ///
+    /// Every other app tested holds its own input — Zoom, Teams, a browser, a
+    /// voice memo — so nothing else needs an entry, and anything that does show
+    /// up through a daemon nobody has mapped is reported as an unnamed
+    /// microphone rather than by its internal name.
+    private static let serviceOwners: [String: String] = [
+        "com.apple.avconferenced": "com.apple.FaceTime",
+    ]
 
     /// Whether the OS exposes per-process audio at all. macOS 14.4 added it;
     /// below that only the device-wide flag exists, which says that *something*
@@ -63,11 +97,59 @@ package enum CallReader {
     package static func current() -> Listener? {
         let listeners = allListeners()
         guard !listeners.isEmpty else { return nil }
-        if let front = NSWorkspace.shared.frontmostApplication?.processIdentifier,
-           let match = listeners.first(where: { $0.processID == front }) {
-            return match
+
+        // An app somebody would recognise, if one of them is holding the
+        // microphone directly. This is the ordinary case — Zoom, Teams, a
+        // browser, a voice memo all hold their own input.
+        let apps = listeners.filter { isRecognisableApp($0.bundleIdentifier) }
+        if !apps.isEmpty {
+            if let front = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+               let match = apps.first(where: { $0.processID == front }) {
+                return match
+            }
+            return apps.first
         }
-        return listeners.first
+
+        // Otherwise a background service has it. Attribute it to the app it
+        // serves where that is known and that app is actually running —
+        // FaceTime being the case this exists for.
+        for listener in listeners {
+            guard let ownerID = serviceOwners[listener.bundleIdentifier],
+                  let owner = NSRunningApplication
+                      .runningApplications(withBundleIdentifier: ownerID).first,
+                  let name = owner.localizedName
+            else { continue }
+            return Listener(
+                bundleIdentifier: ownerID,
+                name: name,
+                processID: owner.processIdentifier
+            )
+        }
+
+        // Something has the microphone and nothing here can honestly say what.
+        // Still worth showing — that the microphone is live is the important
+        // half — but named as what it is rather than by a daemon's internal
+        // name, which tells the reader nothing and looks like a bug.
+        return Listener(
+            bundleIdentifier: listeners[0].bundleIdentifier,
+            name: "Microphone in use",
+            processID: listeners[0].processID,
+            isNamedApp: false
+        )
+    }
+
+    /// Whether a bundle identifier belongs to something a person would call an
+    /// app, rather than to a background service.
+    ///
+    /// macOS already draws this line: a daemon is `.prohibited` — it cannot be
+    /// brought to the front because there is nothing to bring. Regular apps and
+    /// menu-bar apps both count, since a menu-bar recorder using the microphone
+    /// is a real app doing a real thing.
+    private static func isRecognisableApp(_ bundleIdentifier: String) -> Bool {
+        guard let app = NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleIdentifier).first
+        else { return false }
+        return app.activationPolicy != .prohibited
     }
 
     /// Every real app with an input stream open. Package-visible so the checks

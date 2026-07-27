@@ -84,9 +84,20 @@ struct CallDetailView: View {
                                 .foregroundStyle(theme.textColor)
                                 .lineLimit(1)
                         }
-                        Text("has your microphone open")
-                            .font(.system(size: 9))
-                            .foregroundStyle(theme.subtitleColor)
+                        // Only claim an owner when there is one. When the
+                        // microphone is held by a background service nothing
+                        // could attribute, the name above already says
+                        // "Microphone in use" and a second line insisting it
+                        // belongs to something would be inventing a fact.
+                        if use.isNamedApp {
+                            Text("has your microphone open")
+                                .font(.system(size: 9))
+                                .foregroundStyle(theme.subtitleColor)
+                        } else {
+                            Text("by a background service")
+                                .font(.system(size: 9))
+                                .foregroundStyle(theme.subtitleColor)
+                        }
                     }
                     Spacer(minLength: 8)
                     Text(CallReader.elapsedText(use.elapsed(now: monitor.now)))

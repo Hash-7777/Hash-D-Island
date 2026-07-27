@@ -1373,6 +1373,30 @@ MainActor.assumeIsolated {
         "and every listener it does report is a named app",
         CallReader.allListeners().allSatisfy { !$0.name.isEmpty }
     )
+    // FaceTime does not hold the microphone itself — `avconferenced` holds it
+    // on FaceTime's behalf — so the readout said "avconferenced" during a
+    // FaceTime call, which is true about the machine and useless about the
+    // call. Whatever is reported must be something a person recognises.
+    check(
+        "nothing is ever reported by a daemon's internal name",
+        CallReader.current().map { listener in
+            listener.isNamedApp || listener.name == "Microphone in use"
+        } ?? true
+    )
+    check(
+        "an unattributed microphone still reports that it is live",
+        {
+            // Constructed rather than staged: a background service holding the
+            // input is real and worth showing, it just cannot be named.
+            let unnamed = CallReader.Listener(
+                bundleIdentifier: "com.apple.somedaemon",
+                name: "Microphone in use",
+                processID: 1,
+                isNamedApp: false
+            )
+            return unnamed.isNamedApp == false && !unnamed.name.isEmpty
+        }()
+    )
 
     check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
 

@@ -7,6 +7,9 @@ import HashDIslandKit
 public struct MicrophoneUse: Equatable {
     public let appName: String
     public let bundleIdentifier: String
+    /// False when nothing could be honestly attributed to an app, so the
+    /// readout says a microphone is in use rather than naming a daemon.
+    public let isNamedApp: Bool
     /// When the microphone was first seen open. Not necessarily when a call was
     /// answered — nothing available here knows that.
     public let since: Date
@@ -76,6 +79,7 @@ public final class CallMonitor: ObservableObject {
         use = MicrophoneUse(
             appName: listener.name,
             bundleIdentifier: listener.bundleIdentifier,
+            isNamedApp: listener.isNamedApp,
             since: Date()
         )
         presence?.setActive("call", true)
@@ -103,8 +107,8 @@ public final class CallMonitor: ObservableObject {
     /// generic symbol. Read from the running application — no file is opened
     /// and nothing is downloaded.
     public func appIcon() -> NSImage? {
-        guard let bundle = use?.bundleIdentifier else { return nil }
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundle)
+        guard let use, use.isNamedApp else { return nil }
+        return NSRunningApplication.runningApplications(withBundleIdentifier: use.bundleIdentifier)
             .first?.icon
     }
 }
