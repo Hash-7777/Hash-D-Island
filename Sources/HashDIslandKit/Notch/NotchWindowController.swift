@@ -46,6 +46,15 @@ public final class NotchWindowController {
     /// Where the settings window is while it is showing, so a click outside
     /// both it and the panel can put the pair away. Nil when it is closed.
     public var settingsFrame: () -> CGRect? = { nil }
+    /// Whether a window is the settings window itself.
+    ///
+    /// Asked of the event rather than of the pointer, because a click inside
+    /// settings must never put the panel away and a rectangle is the wrong
+    /// instrument for saying so: it depends on the frame being reported
+    /// correctly at that instant and on this closure having been wired to the
+    /// controller currently on screen. Identity depends on neither, and a
+    /// click carries the window it was delivered to.
+    public var isSettingsWindow: (NSWindow?) -> Bool = { _ in false }
     /// Closes the settings window. Supplied by whoever owns it.
     public var closeSettings: () -> Void = {}
     /// Long enough to move a hand off the panel, short enough that it is never
@@ -606,7 +615,14 @@ public final class NotchWindowController {
         localClickMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] event in
-            MainActor.assumeIsolated { self?.closeIfClickedAway(at: NSEvent.mouseLocation) }
+            MainActor.assumeIsolated {
+                // A click delivered to the settings window is somebody using
+                // settings, never somebody dismissing the panel it belongs to.
+                // Answered from the event's own window so it holds however the
+                // window has been dragged, resized or reported.
+                guard self?.isSettingsWindow(event.window) != true else { return }
+                self?.closeIfClickedAway(at: NSEvent.mouseLocation)
+            }
             return event
         }
         updateHover()

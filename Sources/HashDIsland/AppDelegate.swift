@@ -44,12 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // So a feature can get out of the way of a system dialog it just
         // raised. Wired here, like openSettings, because the controller does
         // not exist until now.
-        context.closePanel = { [weak controller] in controller?.collapse() }
-        // So a click anywhere that is not this app puts the whole thing away.
-        // The controller cannot see the settings window, and the settings
-        // window can be dragged, so it asks rather than being told once.
-        controller.settingsFrame = { [weak settingsWindow] in settingsWindow?.visibleFrame }
-        controller.closeSettings = { [weak settingsWindow] in settingsWindow?.hide() }
+        wire(controller)
 
         let power = PowerCoordinator(registry: registry, context: context)
         // A locked Mac is exactly when the notch's summary of your afternoon
@@ -179,10 +174,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
+    /// Give a controller everything it cannot reach on its own.
+    ///
+    /// Every one of these is a closure onto something the controller has no
+    /// way to see — the settings window it must not dismiss itself for, and
+    /// the panel a feature may need to get out of the way. They exist in one
+    /// place because a REBUILT overlay needs exactly the same set, and until
+    /// now it got none of them: `rebuildOverlay` made a fresh controller and
+    /// wired nothing, so after any screen change the new controller believed
+    /// there was no settings window at all. A click inside settings then
+    /// looked like a click on empty space and shut the panel — the bug this
+    /// went looking for, still live in a second form after the first was
+    /// fixed. Adding a closure here now reaches both paths by construction.
+    private func wire(_ controller: NotchWindowController) {
+        // So a feature can get out of the way of a system dialog it just
+        // raised. Wired here, like openSettings, because the controller does
+        // not exist until now.
+        context?.closePanel = { [weak controller] in controller?.collapse() }
+        // So a click anywhere that is not this app puts the whole thing away.
+        // The controller cannot see the settings window, and the settings
+        // window can be dragged, so it asks rather than being told once.
+        controller.settingsFrame = { [weak settingsWindow] in settingsWindow?.visibleFrame }
+        controller.isSettingsWindow = { [weak settingsWindow] window in
+            settingsWindow?.owns(window) == true
+        }
+        controller.closeSettings = { [weak settingsWindow] in settingsWindow?.hide() }
+    }
+
     private func rebuildOverlay() {
         guard let registry, let context else { return }
         controller?.hide()
         let fresh = NotchWindowController(registry: registry, context: context)
+        wire(fresh)
         fresh.show()
         controller = fresh
         // A display change builds a new overlay, and the new one knows nothing

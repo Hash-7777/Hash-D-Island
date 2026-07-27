@@ -71,6 +71,17 @@ public final class SettingsWindowController {
         return window.frame
     }
 
+    /// Whether a click was delivered to this window.
+    ///
+    /// The island asks so that using settings is never mistaken for dismissing
+    /// the panel settings belongs to. This answers by identity rather than by
+    /// where the pointer was, so it cannot be defeated by the window being
+    /// dragged, by a frame read mid-animation, or by a stale rectangle.
+    public func owns(_ candidate: NSWindow?) -> Bool {
+        guard let candidate, let window else { return false }
+        return candidate === window
+    }
+
     /// The gear is one button, so it is one button both ways.
     public func toggle(anchor: CGRect, on screen: NSScreen?) {
         isVisible ? hide() : show(anchor: anchor, on: screen)
