@@ -762,31 +762,31 @@ public struct SettingsView: View {
                 PermissionRow(
                     icon: "music.note",
                     name: "Control Spotify or Apple Music",
-                    asked: "The first time you press play, pause or skip on one of their tracks.",
-                    why: "Once either app is paused it hands back the system's media session, and only its own controls can start it again.",
-                    ifDenied: "Those two buttons stop working for those two apps. Everything else, including every other player, carries on."
+                    asked: "First time you press play, pause or skip on one of their tracks.",
+                    why: "A paused Spotify or Music hands back the system's media session, and only its own controls can start it again.",
+                    ifDenied: "Only those buttons, only for those two apps. Every other player carries on."
                 )
                 SettingDivider()
                 PermissionRow(
                     icon: "square.on.square",
                     name: "Control your browser",
-                    asked: "Only on older systems, and only if a web video is playing with no picture found for it.",
-                    why: "To read the address of the playing tab so its thumbnail can be shown. The list of tabs never leaves the helper — only the one picture address comes back.",
-                    ifDenied: "A web video shows a plain tile instead of its thumbnail. Nothing else changes."
+                    asked: "Older systems only, and only if a web video is playing with no picture yet.",
+                    why: "To read the playing tab's address for its thumbnail. The tab list never leaves the helper; only that one address returns.",
+                    ifDenied: "A web video shows a plain tile. Nothing else changes."
                 )
                 SettingDivider()
                 PermissionRow(
                     icon: "folder",
                     name: "Your Downloads folder",
-                    asked: "The first time the download notice looks there.",
-                    why: "To read the file names, so the notch can tell you when a download finishes.",
-                    ifDenied: "You get no download notice. Every other indicator is unaffected — or switch Downloads off and it never looks at all."
+                    asked: "First time the download notice looks there.",
+                    why: "To read file names, so the notch can say when a download finishes.",
+                    ifDenied: "No download notice. Nothing else is affected, and switching Downloads off stops it looking at all."
                 )
                 SettingDivider()
                 PermissionRow(
                     icon: "bell",
                     name: "Notifications",
-                    asked: "The first time you start a timer.",
+                    asked: "First time you start a timer.",
                     why: "To post a banner when the timer reaches zero.",
                     ifDenied: "The timer still chimes and still shows \"Time's up\" at the notch."
                 )
@@ -794,9 +794,9 @@ public struct SettingsView: View {
                 PermissionRow(
                     icon: "accessibility",
                     name: "Accessibility",
-                    asked: "Only if you switch on \"Control video in your browser\" yourself. It is off until you do.",
-                    why: "Pressing the keyboard's play, next and previous keys is the only way to reach a video playing in a browser, and macOS puts those three keys behind this permission.",
-                    ifDenied: "The media buttons still work for Spotify and Apple Music. Three key presses are all this is ever used for — it never reads a keystroke."
+                    asked: "Only if you switch on \"Control video in your browser\". It is off until you do.",
+                    why: "The keyboard's play, next and previous keys are the only way to reach a browser video, and macOS gates those three keys behind this.",
+                    ifDenied: "The buttons still work for Spotify and Apple Music. Three key presses are all it is ever used for; it never reads a keystroke."
                 )
             }
 
@@ -1125,39 +1125,56 @@ private struct PermissionRow: View {
     let ifDenied: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 11) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.75))
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
+            // The icon sits beside the NAME only, not beside the whole row.
+            // Indenting three paragraphs past it cost a fifth of the column,
+            // and this column is about 285 points wide.
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .frame(width: 19, height: 19)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(Color.white.opacity(0.07))
+                    )
                 Text(name)
-                    .font(.system(size: 12, weight: .medium))
-
-                labelled("Asked", asked, tint: .white.opacity(0.55))
-                labelled("For", why, tint: .white.opacity(0.55))
-                labelled("If you refuse", ifDenied, tint: .green.opacity(0.85))
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(.bottom, 1)
+
+            labelled("Asked", asked, tint: .white.opacity(0.5))
+            labelled("For", why, tint: .white.opacity(0.5))
+            labelled("If you refuse", ifDenied, tint: .green.opacity(0.9))
         }
     }
 
+    /// The label reads as a lead-in to the sentence rather than a column beside
+    /// it, so the text keeps the full width of the card.
+    ///
+    /// It was a fixed 68-point label with the text in what remained, which is a
+    /// perfectly good shape in a wide window and a bad one here: it left about
+    /// 200 points for prose, so every line broke after three or four words and
+    /// each permission grew into a tall grey ribbon. Concatenated `Text` flows
+    /// as one paragraph — the label is simply its first word, set apart by
+    /// weight and colour instead of by position.
     private func labelled(_ label: String, _ text: String, tint: Color) -> some View {
-        HStack(alignment: .top, spacing: 5) {
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 68, alignment: .leading)
-            Text(text)
-                .font(.system(size: 10.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        // Built as one attributed string rather than two concatenated `Text`s:
+        // styling a `Text` with `foregroundStyle` needs macOS 14, and the older
+        // `foregroundColor` is deprecated loudly enough to fail the build's
+        // no-warnings gate. `AttributedString` does the same job from macOS 12.
+        var head = AttributedString(label.uppercased() + "  ")
+        head.font = .system(size: 9, weight: .bold)
+        head.foregroundColor = tint
+        var rest = AttributedString(text)
+        rest.font = .system(size: 10.5)
+        rest.foregroundColor = .secondary
+
+        return Text(head + rest)
+            .lineSpacing(1.5)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

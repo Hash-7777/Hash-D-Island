@@ -160,7 +160,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.firstRunWindow = firstRun
             firstRun.show()
+        } else if let page = Self.requestedSettingsPage() {
+            // Open straight onto a settings page when the command line asks.
+            //
+            // For working ON the app rather than for using it: rebuilding to
+            // look at one page meant hovering the notch and clicking through to
+            // it on every single launch, which is a toll paid dozens of times
+            // in an afternoon. `--settings-page privacy` lands there directly.
+            //
+            // Never on a first run — the window asking what may be read has to
+            // be the only thing on screen, and a second panel opening behind it
+            // would be both confusing and a strange thing for that particular
+            // window to be competing with.
+            openSettings(at: page)
         }
+    }
+
+    /// The settings page named by `--settings-page <id>`, if any.
+    ///
+    /// TWO dashes deliberately. `UserDefaults` parses the argument domain and
+    /// reads any `-name value` pair as a preference, so a single dash would
+    /// quietly write a setting called `settings-page` rather than being read
+    /// here. Two dashes are invisible to it.
+    private static func requestedSettingsPage() -> String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.firstIndex(of: "--settings-page"),
+              arguments.index(after: flag) < arguments.endIndex else { return nil }
+        let page = arguments[arguments.index(after: flag)]
+        return page.isEmpty ? nil : page
     }
 
     /// Record that the reading was agreed to, and start what is switched on.
