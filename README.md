@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/banner.png" alt="Hash D Island running on a MacBook: a live strip beside the notch showing what is playing, and the panel dropped below it with artwork, progress and controls, internet speed, battery, temperatures, AI token usage and storage." width="100%">
+<img src="docs/media/banner.png" alt="Hash D Island on a MacBook: a live strip beside the notch showing what is playing, and the panel dropped below it with artwork, a progress bar and transport controls, a volume slider, internet speed with a graph, battery held at 80%, AI tokens counted today, processor, drive and battery temperatures, memory, CPU, a timer and storage." width="100%">
 
 # Hash D Island
 
@@ -95,8 +95,24 @@ All checks passed.
 ## ◦ Install
 
 1. Download `Hash D Island.app` from [Releases](https://github.com/Hash-7777/Hash-D-Island/releases), unzip, drag it into **Applications**.
-2. First launch, macOS says it cannot verify the developer. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**. Once only.
+2. First launch, macOS says it cannot verify the developer. Click **Done**, then open **System Settings → Privacy & Security**, scroll to the bottom, and click **Open Anyway**. Once only.
 3. **Hover the notch.** No Dock icon, no menu-bar item — the notch is the whole interface. The gear beside it opens settings.
+
+### If the app still will not open
+
+Sometimes there is no **Open Anyway** button to click, or clicking it changes nothing. That is not a broken download. When a file arrives from the internet macOS attaches a hidden "quarantine" label to it, and for an app without a paid Apple certificate macOS will sometimes refuse it outright rather than offer you the choice.
+
+One command removes that label:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Hash D Island.app"
+```
+
+Open **Terminal** (press ⌘Space, type `Terminal`, press Return), paste that line, press Return. It prints nothing — that means it worked. Now open the app normally.
+
+Run it **after** the app is already in Applications. If you drag the app somewhere else afterwards, you do not need to run it again.
+
+**What that command actually does,** because you should never paste something into a terminal on trust alone: `xattr` reads and edits the hidden labels macOS attaches to files. `com.apple.quarantine` is the one meaning "this was downloaded". The `-d` deletes that one label and `-r` applies it through the app's folder. It touches nothing else on your Mac, needs no password, and affects only this one app. You can see the label before removing it with `xattr "/Applications/Hash D Island.app"`.
 
 ### Which macOS
 

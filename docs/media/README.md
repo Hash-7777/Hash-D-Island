@@ -2,7 +2,7 @@
 
 | File | What it shows |
 | --- | --- |
-| `banner.png` | The banner the README opens on — the live strip beside the notch and the whole panel dropped below it, on a Mac. 2484 × 1460, which is 2x for a Retina display. |
+| `banner.png` | The banner the README opens on — the live strip beside the notch and the whole panel dropped below it, on a Mac. 2360 × 1592, which is 2x for a Retina display. |
 
 Keep the banner at 2x: the README renders it at `width="100%"`, and GitHub serves
 it at up to twice the column width on a Retina screen. A 1x banner is visibly
