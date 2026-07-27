@@ -94,7 +94,7 @@ All checks passed.
 
 ## ◦ Install
 
-1. Download `Hash D Island.app` from [Releases](https://github.com/Hash-7777/Hash-D-Island/releases), unzip, drag it into **Applications**.
+1. Download `Hash D Island 1.0.0.dmg` from [Releases](https://github.com/Hash-7777/Hash-D-Island/releases) and open it. Drag **Hash D Island** onto the **Applications** folder shown beside it, then eject the disk image.
 2. First launch, macOS says it cannot verify the developer. Click **Done**, then open **System Settings → Privacy & Security**, scroll to the bottom, and click **Open Anyway**. Once only.
 3. **Hover the notch.** No Dock icon, no menu-bar item — the notch is the whole interface. The gear beside it opens settings.
 
