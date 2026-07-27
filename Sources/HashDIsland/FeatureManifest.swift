@@ -8,6 +8,7 @@ import FeatureActivities
 import FeatureTimer
 import FeatureDownloads
 import FeatureAirPods
+import FeatureCall
 import FeatureStorage
 import FeatureCPU
 import FeatureMemory
@@ -41,6 +42,7 @@ enum FeatureManifest {
             NetworkFeature(),
             BatteryFeature(),
             AirPodsFeature(),
+            CallFeature(),
             ThermalFeature(),
             CPUFeature(),
             MemoryFeature(),

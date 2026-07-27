@@ -8,6 +8,7 @@ import FeatureTokens
 import FeatureBattery
 import FeatureDownloads
 import FeatureAirPods
+import FeatureCall
 import FeatureNetwork
 import FeatureThermal
 import FeatureStorage
@@ -1349,6 +1350,30 @@ MainActor.assumeIsolated {
 
     // The shipped defaults are the arrangement the app was actually tuned on,
     // not whatever fell out of the order things were written in.
+    // ── The microphone readout ───────────────────────────────────────────────
+    //
+    // This one asks the system a single boolean per audio process — "is this
+    // one running an input stream" — and never opens audio, so there is no
+    // microphone permission and nothing to listen with. The checks below cover
+    // the parts that can be checked without a call running.
+    check("a call under a minute reads as seconds", CallReader.elapsedText(42) == "0:42")
+    check("a minute is a minute", CallReader.elapsedText(60) == "1:00")
+    check("a long meeting reads in minutes", CallReader.elapsedText(2_705) == "45:05")
+    check("past an hour it grows an hours field", CallReader.elapsedText(3_661) == "1:01:01")
+    check("a negative duration cannot appear", CallReader.elapsedText(-5) == "0:00")
+    // Nothing is playing or recording during a checks run, and Apple's own
+    // dictation service holds an input stream open on an ordinary Mac — so a
+    // reader that counted every process would report a call right now. Only
+    // real applications count, which is what excludes it.
+    check(
+        "a system service holding the microphone is not a call",
+        CallReader.allListeners().allSatisfy { !$0.bundleIdentifier.isEmpty }
+    )
+    check(
+        "and every listener it does report is a named app",
+        CallReader.allListeners().allSatisfy { !$0.name.isEmpty }
+    )
+
     check("the accent everyone starts on is orange", AccentColor.default.id == "orange")
 
     // A graph with nothing to plot yet must still LOOK like a graph.
@@ -1379,6 +1404,10 @@ MainActor.assumeIsolated {
     check(
         "a fresh install shows the indicators in the arranged order",
         FeatureRegistry.defaultOrder == [
+            // The microphone leads. It is the only readout about something you
+            // might have forgotten was happening, and the one worth seeing
+            // before anything else on the panel.
+            "call",
             "media", "activities", "downloads",
             "network", "battery", "airpods",
             "tokens", "thermal", "memory", "cpu",

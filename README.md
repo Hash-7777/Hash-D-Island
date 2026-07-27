@@ -4,9 +4,9 @@
 
 # Hash D Island
 
-### Your notch, finally alive.
+### Hash made the Dynamic Island every Mac user deserves.
 
-**Apple gave you a notch. This gives you a reason to look at it.**
+**See the unseen.**
 
 What's playing, how fast your internet is, what your battery is doing, how hot the chip is running, what you have spent on AI today — all of it a glance away, and **none of it leaves your Mac**. No account. No telemetry. Not a single network request.
 
@@ -15,7 +15,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No network requests">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-464%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="464 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-471%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="471 automated checks passing">
   <img src="https://img.shields.io/badge/license-Apache%202.0-AEB7C8?style=flat-square&labelColor=0B0C10" alt="Apache 2.0 license">
 </p>
 
@@ -45,6 +45,8 @@ Swipe **down** on the notch to open it. Swipe **sideways** across the open panel
 
 **Now playing** — anything that plays. Spotify, Apple Music, TV, Podcasts, Anghami, VLC, a browser tab. Real artwork for all of it, a title that scrolls, a progress bar you can drag, and a volume slider.
 
+**Microphone** — the moment any app opens your microphone, a live dot and a running timer appear beside the notch, with that app's own icon: FaceTime, Zoom, Teams, a browser call, a voice memo. It asks macOS one yes-or-no question — *does this app have an input stream open* — and **never listens, records or transcribes**. It holds no microphone permission of its own, and could not use one.
+
 **Internet** — live upload and download, with the last half-minute graphed underneath.
 
 **Battery** — level, time left, time to full, adapter wattage, Low Power Mode. Capped at 80% for its health? It counts down to *that*, not to a full charge it will never reach.
@@ -73,7 +75,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours.
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 464 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 471 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks

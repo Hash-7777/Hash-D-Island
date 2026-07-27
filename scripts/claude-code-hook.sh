@@ -78,7 +78,11 @@ function run(argv) {
     subtitle = String(payload.message || '').slice(0, 120) || null;
     waitSeconds = 180;
   } else {
-    icon = 'checkmark.circle.fill';
+    // A tick is what every notification on the machine uses, which makes it
+    // the one symbol that says nothing about WHAT finished. Angle brackets are
+    // the universal mark for code, and on a black notch beside the word
+    // "Claude" they read instantly as a coding tool having finished its turn.
+    icon = 'chevron.left.forwardslash.chevron.right';
     title = 'Claude finished';
     // No subtitle. This carried the working folder's name, which on a glance
     // surface is noise: it is usually the folder you are already looking at,

@@ -34,7 +34,7 @@ public final class FeatureRegistry {
     ///
     /// Only a starting point — every one of them can be dragged anywhere.
     public static let defaultOrder: [String] = [
-        "media", "activities", "downloads",
+        "call", "media", "activities", "downloads",
         "network", "battery", "airpods",
         "tokens", "thermal", "memory", "cpu",
         "timer", "storage",
