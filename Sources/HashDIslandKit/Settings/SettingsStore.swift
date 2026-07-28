@@ -165,6 +165,8 @@ private struct SettingsDocument: Codable {
     var tokenScanInterval: TokenScanInterval?
     /// Hand-made position corrections, keyed by display.
     var adjustments: [String: IslandAdjustment]?
+    /// Which music services may be asked for a cover. Absent means all of them.
+    var artworkServices: [String: Bool]?
     /// Whether the user has seen what the indicators read and agreed to it.
     /// Optional because documents written before this existed have no opinion,
     /// and those are installs that already made their choices — they are read
@@ -238,6 +240,28 @@ public final class SettingsStore: ObservableObject {
     /// Position corrections per display. A display with no entry is automatic.
     @Published public var adjustments: [String: IslandAdjustment] = [:]
 
+    /// Which music services may be asked for a cover, by `settingKey`.
+    ///
+    /// Absent means yes. A service added in a later version is therefore on for
+    /// an existing install, which is the same rule the feature list follows —
+    /// the alternative is a new service that silently never works because a
+    /// saved document written before it existed has no opinion about it.
+    @Published public var artworkServices: [String: Bool] = [:]
+
+    public func isArtworkEnabled(_ service: ArtworkService) -> Bool {
+        artworkServices[service.settingKey] ?? true
+    }
+
+    public func setArtworkEnabled(_ service: ArtworkService, _ enabled: Bool) {
+        artworkServices[service.settingKey] = enabled
+    }
+
+    /// The set the download policy runs on. Kept in one place so the policy and
+    /// the switches can never disagree about what is allowed.
+    public var enabledArtworkServiceIDs: Set<String> {
+        Set(ArtworkService.all.filter(isArtworkEnabled).map(\.id))
+    }
+
     /// The correction for one display, or an untouched one.
     public func adjustment(for displayKey: String) -> IslandAdjustment {
         adjustments[displayKey] ?? IslandAdjustment()
@@ -309,6 +333,7 @@ public final class SettingsStore: ObservableObject {
             self.alerts = document.alerts ?? AlertSettings()
             self.tokenScanInterval = document.tokenScanInterval ?? SettingsStore.defaultTokenScanInterval
             self.adjustments = (document.adjustments ?? [:]).mapValues(\.clamped)
+            self.artworkServices = document.artworkServices ?? [:]
             self.isFirstRun = false
             // Absent in a document written before this existed, which is
             // exactly an install that predates the question — and one that
@@ -426,6 +451,7 @@ public final class SettingsStore: ObservableObject {
         canSwitchLowPowerMode = false
         canPressMediaKeys = false
         adjustments = [:]
+        artworkServices = [:]
 
         var rebuilt: [String: FeatureConfig] = [:]
         for (index, descriptor) in descriptors.enumerated() {
@@ -472,6 +498,7 @@ public final class SettingsStore: ObservableObject {
             alerts: alerts,
             tokenScanInterval: tokenScanInterval,
             adjustments: adjustments,
+            artworkServices: artworkServices,
             hasAcceptedReading: hasAcceptedReading
         )
         if let data = try? JSONEncoder().encode(document) {

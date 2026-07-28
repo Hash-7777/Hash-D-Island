@@ -419,7 +419,13 @@ struct NotchIslandView: View {
                 if let feature = liveFeature,
                    let view = feature.makeCompactTrailingView(context: context) { view }
             }
-            .padding(.leading, 18)
+            // 10, not 18. The artwork on the other side hugs the notch at 6, so
+            // an 18pt gap here made the two sides visibly unequal — the title
+            // floated away from the hardware while the picture sat against it,
+            // and the strip read as two separate things rather than one piece
+            // wrapped around the notch. Still clear of the notch's rounded
+            // corner, which is what the extra points were buying.
+            .padding(.leading, 10)
             .padding(.trailing, 12)
             // The trailing side is what actually overran: two features' titles
             // came to roughly twice the strip's whole budget, so the pill grew

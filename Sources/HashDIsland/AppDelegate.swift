@@ -29,6 +29,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.seed(features: registry.features)
 
         let context = FeatureContext(settings: settings)
+        // The download policy is a plain static because it is consulted from a
+        // URLSession queue. Seed it from the store at launch, and keep it in
+        // step, so a service switched off is switched off for the network and
+        // not merely in the window.
+        ArtworkPolicy.setEnabledServices(settings.enabledArtworkServiceIDs)
+        settings.$artworkServices
+            .sink { _ in
+                DispatchQueue.main.async {
+                    ArtworkPolicy.setEnabledServices(settings.enabledArtworkServiceIDs)
+                }
+            }
+            .store(in: &cancellables)
 
         // No menu-bar item: the island's gear button is the settings entry.
         let settingsWindow = SettingsWindowController(settings: settings, registry: registry)

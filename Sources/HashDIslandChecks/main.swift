@@ -392,6 +392,44 @@ MainActor.assumeIsolated {
     check("artwork refuses lookalike host", !ArtworkPolicy.isTrustedURL("https://evilscdn.co/a.jpg"))
     check("artwork refuses file scheme", !ArtworkPolicy.isTrustedURL("file:///etc/passwd"))
     check("artwork refuses garbage", !ArtworkPolicy.isTrustedURL("not a url"))
+    check("artwork allows Anghami covers", ArtworkPolicy.isTrustedURL("https://artwork.anghcdn.co/webp/?id=123&size=320"))
+    check("artwork refuses anghcdn lookalike", !ArtworkPolicy.isTrustedURL("https://evilanghcdn.co/a.jpg"))
+
+    // Each service is switchable on its own, and the switch has to reach the
+    // NETWORK, not just the window. A host stays refused while its service is
+    // off, and turning one off must not touch the others — that is the whole
+    // point of them being separate permissions to separate companies.
+    do {
+        let everything = ArtworkPolicy.enabledServices()
+        ArtworkPolicy.setEnabledServices(everything.subtracting([ArtworkService.anghami.id]))
+        check(
+            "a service switched off is refused",
+            !ArtworkPolicy.isTrustedURL("https://artwork.anghcdn.co/webp/?id=123")
+        )
+        check(
+            "switching one off leaves the others alone",
+            ArtworkPolicy.isTrustedURL("https://i.scdn.co/image/abc123")
+                && ArtworkPolicy.isTrustedURL("https://i.ytimg.com/vi/abc/hqdefault.jpg")
+        )
+        ArtworkPolicy.setEnabledServices([])
+        check(
+            "with every service off nothing is fetched at all",
+            ArtworkService.all.allSatisfy { service in
+                service.hosts.allSatisfy { !ArtworkPolicy.isTrustedURL("https://\($0)/x.jpg") }
+            }
+        )
+        ArtworkPolicy.setEnabledServices(everything)
+        check("switching them back on restores the allowlist", ArtworkPolicy.isTrustedURL("https://i.scdn.co/image/abc123"))
+    }
+
+    // A host nobody claims has no service, which is what makes "refused" the
+    // default rather than something each new host has to be added to.
+    check("an unclaimed host belongs to no service", ArtworkPolicy.service(forURL: "https://example.com/a.jpg") == nil)
+    check("Anghami's host is Anghami's", ArtworkPolicy.service(forURL: "https://artwork.anghcdn.co/x")?.id == ArtworkService.anghami.id)
+    check(
+        "every service id is distinct",
+        Set(ArtworkService.all.map(\.id)).count == ArtworkService.all.count
+    )
 
     // Playback commands. Play and pause are separate on purpose: a toggle sent
     // to a player that has released the now-playing session is accepted,

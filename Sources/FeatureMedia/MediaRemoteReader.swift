@@ -1,4 +1,5 @@
 import Foundation
+import HashDIslandKit
 
 /// Which app owns the current track — controls only exist for apps we can
 /// script (Spotify and Music); everything else is display-only.
@@ -95,29 +96,6 @@ extension NowPlaying: Equatable {
     }
 }
 
-/// Decides which artwork URLs the app is willing to download. Spotify's
-/// scripting interface hands us a URL string; we only ever fetch it when it is
-/// HTTPS and points at Spotify's own image CDN — never an arbitrary host, never
-/// a non-HTTPS scheme (a `file://` or `http://` URL is refused outright). This
-/// is the app's only network access, so the policy is deliberately narrow and
-/// covered by HashDIslandChecks.
-package enum ArtworkPolicy {
-    /// Hosts artwork may come from: Spotify's album-art CDNs and YouTube's
-    /// thumbnail server (for web videos).
-    private static let trustedSuffixes = ["scdn.co", "spotifycdn.com", "ytimg.com"]
-
-    package static func isTrustedURL(_ string: String) -> Bool {
-        guard let url = URL(string: string),
-              url.scheme?.lowercased() == "https",
-              let host = url.host?.lowercased()
-        else { return false }
-        return trustedSuffixes.contains { host == $0 || host.hasSuffix("." + $0) }
-    }
-
-    /// Album art is ~100 KB; refuse anything absurdly larger.
-    package static let maxArtworkBytes = 5_000_000
-}
-
 /// Reads system-wide "Now Playing" on all macOS versions — including 15.4+/26,
 /// where Apple locked the direct MediaRemote call behind an entitlement.
 ///
@@ -169,6 +147,7 @@ final class MediaRemoteReader {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
       let source = 'other', elapsed = null, duration = null, elapsedAt = null;
+      let artIdentifier = null;
 
       // What the app already holds. Artwork is expensive to produce — Apple
       // Music base64-encodes the whole image, Spotify costs an Apple Event —
@@ -202,6 +181,14 @@ final class MediaRemoteReader {
             const stamp = s('kMRMediaRemoteNowPlayingInfoTimestamp');
             if (stamp) { try { elapsedAt = stamp.getTime() / 1000; } catch (e) {} }
             duration = s('kMRMediaRemoteNowPlayingInfoDuration');
+            // macOS names the cover without handing it over. The bytes
+            // (kMRMediaRemoteNowPlayingInfoArtworkData) are withheld from
+            // anything lacking Apple's entitlement, which a signed app does not
+            // have — MEASURED: absent, while the MIME type and this identifier
+            // are both present beside it. The identifier belongs to whichever
+            // service is playing, so on its own it means nothing; paired with a
+            // browser tab that says which service that is, it is enough.
+            artIdentifier = s('kMRMediaRemoteNowPlayingInfoArtworkIdentifier');
           }
         }
       }
@@ -286,8 +273,33 @@ final class MediaRemoteReader {
         if (argv.length >= 2 && argv[0] === title) {
           if (argv[1]) artworkUrl = argv[1];
         } else {
-          try { artworkUrl = youtubeThumb(browserTabs(), title); } catch (e) {}
+          // The tab list is read ONCE and offered to each deriver in turn, so
+          // adding a service does not cost another sweep of every browser.
+          try {
+            const tabs = browserTabs();
+            artworkUrl = youtubeThumb(tabs, title) || anghamiArt(tabs, artIdentifier);
+          } catch (e) {}
         }
+      }
+
+      // Anghami runs as a single-page app: its tab address is
+      // play.anghami.com/home whatever is playing, so unlike YouTube there is
+      // nothing in the URL to derive a picture from. What there IS is the
+      // identifier macOS attaches to the cover it refuses to hand over, and
+      // that identifier is Anghami's own. The tab is what says the identifier
+      // belongs to THEM — without it this would be posting a stranger's number
+      // to their servers.
+      function anghamiArt(tabs, identifier) {
+        if (!identifier) return null;
+        const id = String(identifier);
+        if (!/^[0-9]+$/.test(id)) return null;
+        for (const t of tabs) {
+          const u = String(t.url || '');
+          if (/^https:\\/\\/([a-z0-9-]+\\.)*anghami\\.com\\//.test(u)) {
+            return 'https://artwork.anghcdn.co/webp/?id=' + id + '&size=320';
+          }
+        }
+        return null;
       }
 
       function browserTabs() {

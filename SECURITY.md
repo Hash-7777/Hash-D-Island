@@ -10,14 +10,36 @@ anything, anywhere.
 
 There is exactly **one** kind of network request the app can ever make:
 fetching the picture for what's playing — album art from Spotify's own image
-servers, or a web video's thumbnail from YouTube's thumbnail server. Those
-requests are HTTPS-only, restricted to exactly those hosts (`scdn.co`,
-`spotifycdn.com`, `ytimg.com`), and capped at 5 MB — any other URL, and any
-redirect that would leave those hosts, is refused outright (see `ArtworkPolicy`
-in `Sources/FeatureMedia/MediaRemoteReader.swift`, covered by the automated
-checks). The fetch uses an ephemeral session, so no artwork is ever written to
-disk. Nothing else in the app touches the network, and nothing about you is
-ever sent anywhere.
+servers, a web video's thumbnail from YouTube's thumbnail server, or an Anghami
+album cover from Anghami's own image servers. Those requests are HTTPS-only,
+restricted to exactly those hosts (`scdn.co`, `spotifycdn.com`, `ytimg.com`,
+`anghcdn.co`), and capped at 5 MB — any other URL, and any redirect that would
+leave those hosts, is refused outright (see `ArtworkPolicy` in
+`Sources/HashDIslandKit/App/ArtworkPolicy.swift`, covered by the automated
+checks).
+
+Each of the three services is a **separate switch**, under Settings → General →
+Cover art. They are separate because each is a request to a different company,
+and rolling them into one would mean allowing the service you use costs you
+requests to two you do not. Switching one off is enforced by the downloader
+itself: its hosts stop being trusted, so the request is refused rather than
+merely hidden. With all three off, the app makes no network requests at all.
+
+Anghami is reached differently from the other two, and it is worth saying how,
+because it is the only place the app uses an identifier it did not derive
+itself. Anghami runs as a single-page app, so its tab address is
+`play.anghami.com/home` whatever is playing — there is nothing in the URL to
+build a picture address from, the way there is for a YouTube video id. macOS
+knows the cover exists and publishes its type, size and an identifier, but
+withholds the image itself from any app without Apple's entitlement. That
+identifier is Anghami's own, so it is sent to Anghami's image server and
+nowhere else — and only when a browser tab open on an Anghami address confirms
+that Anghami is what is playing. Without that check the app would be posting a
+number it does not understand to a company it has no business telling.
+
+The fetch uses an ephemeral session, so no artwork is ever written to disk.
+Nothing else in the app touches the network, and nothing about you is ever sent
+anywhere.
 
 ## What it writes
 
@@ -106,7 +128,7 @@ as a privacy one.
   for this one" — so a track that has no web thumbnail does not cause a repeat
   scan. The tab list never leaves the helper subprocess: only the single
   matching thumbnail URL is returned to the app, and only its image (from
-  YouTube's thumbnail host) is fetched. Deny this and Now Playing simply shows
+  YouTube's or Anghami's image host) is fetched. Deny this and Now Playing simply shows
   a placeholder tile instead.
 - **Your Downloads folder** — macOS protects it, so the first time the download
   notice looks there, macOS asks. Deny it and every other feature keeps

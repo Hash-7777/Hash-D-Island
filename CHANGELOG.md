@@ -20,6 +20,11 @@ easier to read and easier to undo.
 - **The panel stays open while settings is open.** Whether it is held open is
   now decided by whether the settings window is actually on screen, rather than
   by a flag that something had to remember to set.
+- **The notch follows what you turned to last.** A playing Spotify claimed it
+  unconditionally, so starting something on the web while Spotify was still
+  going left the notch showing the track you had stopped listening to until
+  Spotify was stopped outright. Both Spotify and Music now claim it only when
+  the system either names their track or names nothing at all.
 - **A Mac with no battery no longer shows a battery.** On an iMac, Mac mini,
   Mac Studio or Mac Pro every part of that indicator is meaningless — no level,
   no time remaining, no adapter — and it drew anyway, dimmed, which reads as
@@ -52,9 +57,35 @@ easier to read and easier to undo.
 - Neither reset is one click away. The button is replaced in place by a cancel
   and a confirm, so a misplaced click cannot cost you an arrangement you spent
   time on.
+- **Cover art for Anghami in a browser.** macOS names the cover but withholds
+  the picture from any app without Apple's entitlement, and Anghami runs as a
+  single-page app so there is nothing in its address to build a picture from
+  the way there is for a YouTube video. What macOS does publish is Anghami's own
+  identifier, which their image server answers to — used only when a browser tab
+  open on Anghami confirms that is what is playing.
+- **A switch for each service's covers**, under General → Cover art: Spotify,
+  YouTube and Anghami, separately. Each is a request to a different company, so
+  allowing the one you use should not cost you requests to two you do not.
+  Switching one off is enforced by the downloader itself — its hosts stop being
+  trusted — rather than merely hiding the picture. With all three off the app
+  makes no network requests at all.
 
 ### Changed
 
+- **The permission switches moved from Alerts to General**, under a heading of
+  their own. An alert setting is about how something looks; these are about what
+  the app is allowed to do.
+- **Turning on browser control clears the screen first.** Both of the app's
+  windows sit above the ordinary level, so the Accessibility dialog opened
+  behind them — the switch was flipped, nothing appeared to happen, and the
+  thing waiting for an answer was underneath the window it was asked from.
+- **The scrolling title no longer looks smudged at its first letter.** The fade
+  that softens a glyph sliding out of view was applied whether or not anything
+  was moving, so the first character of every title sat under a permanent wash
+  of transparency. It now appears only once the title actually starts to move.
+- **The title sits closer to the notch.** It stood 18 points clear while the
+  artwork on the other side hugged at 6, so the two halves of the strip looked
+  unequal and read as two things rather than one wrapped around the notch.
 - **The opening window has one button.** There used to be a quieter "Choose what
   runs" beside it, which accepted just the same and then opened settings. Two
   buttons where one is the same answer wearing a different word read as a
@@ -70,7 +101,7 @@ easier to read and easier to undo.
 
 ### Verified
 
-- 522 automated checks, up from 493. The new ones cover both resets, what each
+- 531 automated checks, up from 493. The new ones cover both resets, what each
   leaves untouched, the two ways a reset could have failed silently, the
   top-of-screen hover fix — including one that fails if that fix is ever
   removed — and that a Mac still being read never has its battery indicator

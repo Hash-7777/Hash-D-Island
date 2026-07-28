@@ -15,7 +15,7 @@ What's playing, how fast your internet is, what your battery is doing, how hot t
   <img src="https://img.shields.io/badge/Apple%20Silicon-M--series-408CFF?style=flat-square&labelColor=0B0C10" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/network-artwork%20only-47D67A?style=flat-square&labelColor=0B0C10" alt="Network: artwork only">
   <img src="https://img.shields.io/badge/telemetry-none-47D67A?style=flat-square&labelColor=0B0C10" alt="No telemetry">
-  <img src="https://img.shields.io/badge/checks-522%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="522 automated checks passing">
+  <img src="https://img.shields.io/badge/checks-531%20passing-8FBAFF?style=flat-square&labelColor=0B0C10" alt="531 automated checks passing">
   <img src="https://img.shields.io/badge/license-GPL%20v3-AEB7C8?style=flat-square&labelColor=0B0C10" alt="GNU General Public License v3">
 </p>
 
@@ -69,7 +69,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours �
 
 **Every app is read, not a list of supported ones.** There is no hand-written support per player: macOS itself is asked what is playing, so a niche music app, a podcast player or something released next year shows its title, artist and position on day one, with no update from me.
 
-**One kind of network request, and only that one.** Fetching a cover — from Spotify's image hosts or YouTube's thumbnail host, over HTTPS, size-capped, refused if a redirect would leave them. Nothing else in the app touches the network, and nothing about you is ever sent anywhere. You can watch it with Little Snitch in about ten seconds.
+**One kind of network request, and only that one.** Fetching a cover — from Spotify's, YouTube's or Anghami's own image servers, over HTTPS, size-capped, refused if a redirect would leave them. Each of the three is a separate switch in Settings, so you can allow the one service you use and refuse the rest. Nothing else in the app touches the network, and nothing about you is ever sent anywhere. You can watch it with Little Snitch in about ten seconds.
 
 **Nothing while your Mac is locked.** The island leaves the screen the moment you lock it, and every indicator stops with it — not dimmed, not covered, gone. What the notch shows is a summary of your afternoon, and a locked Mac is exactly when somebody who is not you might be standing in front of it.
 
@@ -79,7 +79,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours �
 
 **One glance, then gone.** Something that just happened outranks something merely still true. A finished job takes the strip for a few seconds and hands it back to the music.
 
-**Verified, not asserted.** 522 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
+**Verified, not asserted.** 531 automated checks run before every push — the parsers, the geometry, the privacy rules, and the arithmetic behind every readout. Every commit is signed.
 
 ```
 $ swift run HashDIslandChecks
@@ -162,7 +162,7 @@ It also **holds no microphone permission and could not use one.** The microphone
 
 ### The one network request
 
-Fetching the cover for what's playing: HTTPS only, restricted to the image hosts that serve them, size-capped, and refused if a redirect would lead elsewhere. It uses a throwaway session, so not even an image cache lands on disk. **Nothing else in the app touches the network**, and nothing about you is ever sent anywhere. Watch it with Little Snitch in about ten seconds.
+Fetching the cover for what's playing: HTTPS only, restricted to the image servers of the three services that can be reached at all — **Spotify, YouTube and Anghami** — size-capped, and refused if a redirect would lead elsewhere. Each one is its own switch under **Settings → General → Cover art**; turn one off and its host is refused by the downloader itself, not merely hidden. It uses a throwaway session, so not even an image cache lands on disk. **Nothing else in the app touches the network**, and nothing about you is ever sent anywhere. Watch it with Little Snitch in about ten seconds.
 
 ### Terms
 

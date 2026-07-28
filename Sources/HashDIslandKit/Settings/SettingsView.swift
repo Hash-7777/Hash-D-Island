@@ -29,8 +29,10 @@ public final class SettingsRoute: ObservableObject {
     public init() {}
 
     /// Where the browser-control switch lives. Named here so a caller does not
-    /// have to know the page it happens to sit on today.
-    public static let browserControl = "alerts"
+    /// have to know the page it happens to sit on today — and it has moved
+    /// once already, from Alerts to General, which is exactly why the island
+    /// asks by name rather than naming a page itself.
+    public static let browserControl = "general"
 }
 
 /// The customization window.
@@ -315,6 +317,20 @@ public struct SettingsView: View {
             // something looks, and these are about what the app is allowed to
             // do, which is the first thing somebody looks for and the last
             // place they would think to find it.
+            // Each service is its own switch, because each is a request to a
+            // different company. Rolling them into one would mean somebody who
+            // wants covers for the service they use has to accept requests to
+            // the others as well.
+            SettingGroupLabel("Cover art")
+            SettingCard {
+                ForEach(Array(ArtworkService.all.enumerated()), id: \.element.id) { index, service in
+                    if index > 0 { SettingDivider() }
+                    SettingRow(service.name, detail: service.detail, stacked: true) {
+                        Toggle("", isOn: artworkBinding(service)).labelsHidden()
+                    }
+                }
+            }
+
             SettingGroupLabel("Permissions")
             SettingCard {
                 SettingRow(
@@ -792,7 +808,7 @@ public struct SettingsView: View {
                 // tile its credibility.
                 PrivacyLine(
                     "The one request it makes",
-                    "Fetching the cover for what's playing, over HTTPS, only from the image hosts that serve them, size-capped, and refused if a redirect would lead elsewhere. Nothing else touches the network, and nothing about you is ever sent anywhere."
+                    "Fetching the cover for what's playing, over HTTPS, only from the image servers of the services you allow on the General page, size-capped, and refused if a redirect would lead elsewhere. Nothing else touches the network, and nothing about you is ever sent anywhere."
                 )
                 SettingDivider()
                 PrivacyLine(
@@ -944,6 +960,19 @@ public struct SettingsView: View {
             return "macOS is waiting for you to allow this in System Settings."
         }
         return "Comes back every time you start your Mac."
+    }
+
+    /// One service's covers, on or off. Writing it also updates the policy the
+    /// downloader runs on, so the switch and what the network actually does can
+    /// never drift apart.
+    private func artworkBinding(_ service: ArtworkService) -> Binding<Bool> {
+        Binding(
+            get: { settings.isArtworkEnabled(service) },
+            set: { value in
+                settings.setArtworkEnabled(service, value)
+                ArtworkPolicy.setEnabledServices(settings.enabledArtworkServiceIDs)
+            }
+        )
     }
 
     /// Turning it on asks macOS for the permission at that moment, which is

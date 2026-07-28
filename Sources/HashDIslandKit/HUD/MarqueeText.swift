@@ -101,24 +101,41 @@ public struct MarqueeText: View {
                     }
                     .offset(x: -min(distance, span))
                     .animation(.easeOut(duration: 0.3), value: scrolls)
-                }
-                .frame(width: available, height: geo.size.height, alignment: .leading)
-                .clipped()
-                .mask(
-                    // Narrow fades: enough to soften glyphs entering/leaving,
-                    // never wide enough to make the title's start look
-                    // swallowed by the adjacent notch.
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: .black, location: 0.035),
-                            .init(color: .black, location: 0.965),
-                            .init(color: .clear, location: 1),
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                    .frame(width: available, height: geo.size.height, alignment: .leading)
+                    .clipped()
+                    // The fade at the START is applied only once the text has
+                    // actually begun to move.
+                    //
+                    // It exists to soften a glyph sliding out of view, and a
+                    // title that is standing still has no glyph doing that —
+                    // but the gradient did not know the difference, so the
+                    // first letter of every title sat under a permanent wash of
+                    // transparency. Against the black beside it that does not
+                    // read as a soft edge, it reads as a smudge on the first
+                    // letter: the one character the eye lands on first.
+                    //
+                    // The trailing fade is unconditional, because there is
+                    // always more title out to the right than there is room
+                    // for — that is why this view exists at all.
+                    .mask(
+                        LinearGradient(
+                            stops: distance > 0.5
+                                ? [
+                                    .init(color: .clear, location: 0),
+                                    .init(color: .black, location: 0.035),
+                                    .init(color: .black, location: 0.965),
+                                    .init(color: .clear, location: 1),
+                                ]
+                                : [
+                                    .init(color: .black, location: 0),
+                                    .init(color: .black, location: 0.965),
+                                    .init(color: .clear, location: 1),
+                                ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
+                }
             } else {
                 label
             }
