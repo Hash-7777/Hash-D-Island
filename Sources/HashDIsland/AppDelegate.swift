@@ -288,6 +288,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow?.owns(window) == true
         }
         controller.closeSettings = { [weak settingsWindow] in settingsWindow?.hide() }
+        // So a switch that is about to make macOS ask for something can clear
+        // the screen first. Both of this app's windows sit above the ordinary
+        // level, so a permission dialog opens behind them otherwise.
+        settingsWindow.onDismissAll = { [weak controller] in controller?.dismissAll() }
     }
 
     private func rebuildOverlay() {

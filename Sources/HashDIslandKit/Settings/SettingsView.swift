@@ -79,15 +79,21 @@ public struct SettingsView: View {
     /// itself.
     private let onClose: () -> Void
 
+    /// Puts this window and the panel away together, for the moment a switch is
+    /// about to make macOS ask for something.
+    private let onDismissAll: () -> Void
+
     public init(
         settings: SettingsStore,
         features: [FeatureDescriptor],
         route: SettingsRoute,
+        onDismissAll: @escaping () -> Void = {},
         onClose: @escaping () -> Void = {}
     ) {
         self.settings = settings
         self.features = features
         self.route = route
+        self.onDismissAll = onDismissAll
         self.onClose = onClose
     }
 
@@ -300,6 +306,33 @@ public struct SettingsView: View {
                     }
                     .labelsHidden()
                     .frame(width: 200)
+                }
+            }
+
+            // The two switches that hand the app a power it does not otherwise
+            // have. They sit here, together, rather than among the alert
+            // settings where they used to be — an alert setting is about how
+            // something looks, and these are about what the app is allowed to
+            // do, which is the first thing somebody looks for and the last
+            // place they would think to find it.
+            SettingGroupLabel("Permissions")
+            SettingCard {
+                SettingRow(
+                    "Control video in your browser",
+                    detail: "Needs Accessibility, so the buttons can press the media keys. Without it they still work for Spotify and Music.",
+                    stacked: true
+                ) {
+                    Toggle("", isOn: mediaKeysBinding).labelsHidden()
+                }
+
+                SettingDivider()
+
+                SettingRow(
+                    "Switch Low Power Mode from the panel",
+                    detail: "Switch it here instead of in System Settings. macOS asks for your password each time you use it.",
+                    stacked: true
+                ) {
+                    Toggle("", isOn: $settings.canSwitchLowPowerMode).labelsHidden()
                 }
             }
 
@@ -588,23 +621,6 @@ public struct SettingsView: View {
                     Toggle("", isOn: $settings.alerts.requestsWaitForYou).labelsHidden()
                 }
 
-                SettingDivider()
-
-                SettingRow(
-                    "Control video in your browser",
-                    detail: "Needs Accessibility, so the buttons can press the media keys. Without it they still work for Spotify and Music."
-                ) {
-                    Toggle("", isOn: mediaKeysBinding).labelsHidden()
-                }
-
-                SettingDivider()
-
-                SettingRow(
-                    "Switch Low Power Mode from the panel",
-                    detail: "Switch it here instead of in System Settings. macOS asks for your password each time."
-                ) {
-                    Toggle("", isOn: $settings.canSwitchLowPowerMode).labelsHidden()
-                }
             }
 
             Spacer(minLength: 0)
@@ -933,12 +949,26 @@ public struct SettingsView: View {
     /// Turning it on asks macOS for the permission at that moment, which is
     /// the only moment the request makes sense — an app that asks at launch for
     /// something it may never do is an app people say no to.
+    ///
+    /// The panel and this window go first, and that is not politeness. Both sit
+    /// above the ordinary window level, so the Accessibility dialog opened
+    /// BEHIND them: the switch was flipped, nothing appeared to happen, and the
+    /// thing waiting for an answer was underneath the window it was asked from.
+    ///
+    /// The short wait is for the same reason the opening window waits — asking
+    /// a window to close only starts a fade, and it is on screen throughout.
+    /// Long enough for both to be gone, short enough to read as one action.
     private var mediaKeysBinding: Binding<Bool> {
         Binding(
             get: { settings.canPressMediaKeys },
             set: { value in
                 settings.canPressMediaKeys = value
-                if value { MediaControl.requestPermission() }
+                if value {
+                    onDismissAll()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        MediaControl.requestPermission()
+                    }
+                }
             }
         )
     }

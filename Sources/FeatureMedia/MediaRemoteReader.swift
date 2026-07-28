@@ -206,21 +206,28 @@ final class MediaRemoteReader {
         }
       }
 
-      // A playing Spotify/Music always claims the slot (artwork, position,
-      // controls). A PAUSED one claims it only when nothing else is playing,
-      // so the panel can keep showing the track with a resume button.
+      // Spotify/Music claim the slot — artwork, position, working controls —
+      // but only when the SYSTEM agrees they are what is playing.
+      //
+      // A playing Spotify used to claim it unconditionally, and that is wrong
+      // whenever something else is playing too. Start a track on the web while
+      // Spotify is still going and macOS hands the session to the browser,
+      // correctly — but Spotify overwrote it anyway, so the notch showed the
+      // track you had stopped listening to and would not change until Spotify
+      // was stopped outright. Two players CAN both be playing; the system knows
+      // which one you turned to last, and that is the one to show.
+      //
+      // So both states now ask the same question: does the system either name
+      // this track, or name nothing at all? Claiming a PAUSED track still keeps
+      // its artwork and routes resume through Spotify's own scripting, which is
+      // what makes the play button work.
       try {
         const sp = Application('Spotify');
         if (sp.running()) {
           const st = String(sp.playerState());
           if (st === 'playing' || st === 'paused') {
             const spName = sp.currentTrack.name();
-            // Claim the slot when Spotify is playing, OR when it is paused and it
-            // is what's showing (nothing else is playing, or it's the same
-            // track). Claiming a PAUSED track keeps its artwork and lets the
-            // resume go through Spotify's own scripting instead of the generic
-            // media channel — so the play button actually resumes it.
-            if (st === 'playing' || !title || title === spName) {
+            if (!title || title === spName) {
               source = 'spotify';
               if (artIsCurrent(spName)) {
                 artUnchanged = true;
@@ -243,9 +250,9 @@ final class MediaRemoteReader {
           const st = String(mu.playerState());
           if (st === 'playing' || st === 'paused') {
             const muName = mu.currentTrack.name();
-            // Same rule as Spotify: a paused Music track keeps its slot (and its
-            // artwork + scripting control) when it's what's showing.
-            if (st === 'playing' || !title || title === muName) {
+            // Same rule as Spotify, for the same reason: claim the slot only
+            // when the system names this track or names nothing.
+            if (!title || title === muName) {
               source = 'music';
               elapsed = mu.playerPosition();
               duration = mu.currentTrack.duration();

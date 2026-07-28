@@ -818,6 +818,25 @@ public final class NotchWindowController {
         state.setExpanded(false)
     }
 
+    /// Put the panel and the settings window away together, deliberately.
+    ///
+    /// For the moment a setting is about to make macOS ask for something. The
+    /// app's own windows sit above the ordinary level, so a permission dialog
+    /// can open behind them — the user flips a switch, nothing appears to
+    /// happen, and the thing waiting for an answer is hidden by the window they
+    /// flipped it in.
+    ///
+    /// The order is the same one a click away uses, and for the same reason:
+    /// the pin is dropped and hover suppressed FIRST, synchronously, because
+    /// asking settings to close only starts a fade and the smallest movement of
+    /// the hand in that fifth of a second would otherwise reopen everything.
+    public func dismissAll() {
+        hoverSuppressedUntil = Date().addingTimeInterval(Self.hoverSuppression)
+        isPinnedOpen = false
+        closeSettings()
+        state.setExpanded(false)
+    }
+
     private func stopHoverTracking() {
         for monitor in [
             hoverMonitor, localHoverMonitor,

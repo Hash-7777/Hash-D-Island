@@ -35,6 +35,14 @@ public final class SettingsWindowController {
     /// the settings would be left hanging beside nothing.
     public var onVisibilityChange: (Bool) -> Void = { _ in }
 
+    /// Put this window AND the panel it belongs to away, together.
+    ///
+    /// Used when a setting is about to make macOS ask for something: the app's
+    /// windows sit above the ordinary level, so a permission dialog can open
+    /// behind them. Wired to the overlay, which is the only thing that can
+    /// close both.
+    public var onDismissAll: () -> Void = {}
+
     /// Wide enough for a full-width column of controls, narrow enough to sit
     /// beside the panel on a laptop display — there are only about 490 points
     /// to the right of the island on this size of screen, and a window that
@@ -193,9 +201,13 @@ public final class SettingsWindowController {
         window.level = .statusBar
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
 
-        let root = SettingsView(settings: settings, features: descriptors, route: route) { [weak self] in
-            self?.hide()
-        }
+        let root = SettingsView(
+            settings: settings,
+            features: descriptors,
+            route: route,
+            onDismissAll: { [weak self] in self?.onDismissAll() },
+            onClose: { [weak self] in self?.hide() }
+        )
         window.contentViewController = NSHostingController(rootView: root)
         return window
     }
