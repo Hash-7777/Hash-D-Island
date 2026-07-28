@@ -61,7 +61,7 @@ Swipe **down** on the notch to open it. Swipe **sideways** across the open panel
 
 **Timer**, **downloads**, **AirPods charge**, and **live activities** anything can post to.
 
-Switch any of them off, drag to reorder, restyle each one. The panel is yours.
+Switch any of them off, drag to reorder, restyle each one. The panel is yours — and if you go too far, one button puts the look back, and another puts everything back.
 
 ---
 
@@ -96,7 +96,7 @@ All checks passed.
 
 ## ◦ Install
 
-1. Download the disk image — `Hash.D.Island.1.0.0.dmg` — from [Releases](https://github.com/Hash-7777/Hash-D-Island/releases/latest) and open it. Drag **Hash D Island** onto the **Applications** folder shown beside it, then eject the disk image.
+1. Download the disk image — `Hash.D.Island.1.1.0.dmg` — from [Releases](https://github.com/Hash-7777/Hash-D-Island/releases/latest) and open it. Drag **Hash D Island** onto the **Applications** folder shown beside it, then eject the disk image.
 2. First launch, macOS says it cannot verify the developer. Click **Done**, then open **System Settings → Privacy & Security**, scroll to the bottom, and click **Open Anyway**. Once only.
 3. **Hover the notch.** No Dock icon, no menu-bar item — the notch is the whole interface. The gear beside it opens settings.
 
@@ -124,7 +124,7 @@ Run it **after** the app is already in Applications. If you drag the app somewhe
 
 On **Monterey**, everything works except Open at Login, which needs macOS 13 — and the app says so plainly rather than failing quietly. **Big Sur** is out: some of the drawing this relies on does not exist there.
 
-Any **Apple Silicon** Mac (M1 and later). Older releases get every feature, with a little longer per animation and one less heavy effect, so the motion stays smooth on the machines with the least to spare.
+Any **Apple Silicon** Mac (M1 and later). Every macOS release gets every feature; the older ones simply do without a little polish the newer ones added — live numbers cross-fade instead of rolling like an odometer, and the settings scrollbar shows in the system's usual way. Nothing is missing, and nothing is slower.
 
 > **Why the extra step?** It reads system-wide Now Playing and the real temperature sensors, which need Apple interfaces the App Store does not allow — so it ships straight from here. Everything it reads is spelled out in **[SECURITY.md](SECURITY.md)**.
 

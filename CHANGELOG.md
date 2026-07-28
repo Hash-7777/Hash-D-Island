@@ -2,6 +2,60 @@
 
 All notable changes to Hash D Island are recorded here.
 
+## 1.1.0 — the panel behaves
+
+Everything here is about the panel doing what you meant, and settings being
+easier to read and easier to undo.
+
+### Fixed
+
+- **One click now puts the panel and settings away together.** Clicking away
+  used to close the panel and leave the settings window sitting there, needing a
+  second click — and clicking *inside* settings dismissed the panel behind it.
+  All of it came from one mistake: the overlay was handed nothing where the
+  settings window should have been, so it could not see that window's position,
+  could not tell that a click had landed in it, and could not close it. It now
+  receives the window directly, and none of those three questions can be
+  answered wrongly again.
+- **The panel stays open while settings is open.** Whether it is held open is
+  now decided by whether the settings window is actually on screen, rather than
+  by a flag that something had to remember to set.
+- **Reaching the top of the screen no longer closes the panel.** Hovering the
+  notch opened it, and then pushing the cursor up into the bezel — still over
+  the notch — shut it again. The hover area ended exactly at the screen's top
+  edge, and an area does not include its own far edge, so the topmost row of
+  points over the notch counted as being away from it. The area now reaches a
+  little past that edge, where there is no screen for the cursor to be in. On a
+  display with no notch it does not, because the menu bar's own icons are there.
+
+### Added
+
+- **Reset appearance**, on the Appearance page: puts the colour, fill, motion,
+  rounding and separators back the way they arrived, and leaves every other page
+  alone.
+- **Reset all settings**, on the General page: puts the whole configuration back
+  — indicators and their order, the look, alerts, position corrections, battery
+  saver, both opt-ins, and open at login. Your consent to read is kept, so
+  nothing stops working and nothing has to be answered twice.
+- Neither reset is one click away. The button is replaced in place by a cancel
+  and a confirm, so a misplaced click cannot cost you an arrangement you spent
+  time on.
+
+### Changed
+
+- **Settings pages moved from a column down the left to a strip across the top.**
+  The column spent about a third of the window's width showing six words that
+  never change. The same six pages now cost a little height once, and every page
+  gets the window's full width — which is the crowding that showed on the busier
+  pages.
+
+### Verified
+
+- 519 automated checks, up from 493. The new ones cover both resets, what each
+  leaves untouched, the two ways a reset could have failed silently, and the
+  top-of-screen hover fix — including one that fails if that fix is ever
+  removed.
+
 ## 1.0.0 — first release
 
 The notch becomes a living surface: quiet when nothing is happening, alive the
