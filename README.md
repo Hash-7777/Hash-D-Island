@@ -73,7 +73,7 @@ Switch any of them off, drag to reorder, restyle each one. The panel is yours �
 
 **Nothing while your Mac is locked.** The island leaves the screen the moment you lock it, and every indicator stops with it — not dimmed, not covered, gone. What the notch shows is a summary of your afternoon, and a locked Mac is exactly when somebody who is not you might be standing in front of it.
 
-**Nothing runs until you have been asked.** On first launch the app has read nothing. A window lists what every indicator reads, and what it will never do, and not one of them starts until you accept — until then the app is in the same state as having everything switched off, not merely promising to be.
+**Nothing runs until you have been asked, and you can say no.** On first launch the app has read nothing. A window lists what every indicator reads, and what it will never do, and not one of them starts until you accept — until then the app is in the same state as having everything switched off, not merely promising to be. Refusing quits and takes the settings file with it, so saying no leaves your Mac as it was.
 
 **Off means off.** Switching an indicator off stops it *reading*, not just showing. A feature that is off opens no files, runs no subprocess, and can trigger none of the permission prompts.
 
@@ -140,7 +140,11 @@ No accounts. No analytics. No telemetry. No servers. The app writes no files —
 
 On a new install, Hash D Island has read nothing. Before a single indicator starts, a window names what each one reads and what it will never do, and **nothing begins until you accept**.
 
-That is stricter than a notice with an OK button. Until you answer, every feature is stopped rather than started, so the app is in the same state as having everything switched off — no file is opened, no command is run, and none of the requests below can even be triggered. Once it is running, every indicator can be switched off — and switching one off stops it reading, not just showing.
+That is stricter than a notice with an OK button. Until you answer, every feature is stopped rather than started, so the app is in the same state as having everything switched off — no file is opened, no command is run, and none of the requests below can even be triggered.
+
+**And there are two answers, not one.** *Refuse and quit* closes the app and removes its settings file, so a Mac that said no is left exactly as it was found. Open it again and it asks again. A window that offers a single button is not asking permission; it is standing in the doorway.
+
+Once it is running, every indicator can be switched off — and switching one off stops it reading, not just showing.
 
 ### Every permission macOS may show you
 

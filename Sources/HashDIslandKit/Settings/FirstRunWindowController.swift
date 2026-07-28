@@ -25,6 +25,11 @@ public final class FirstRunWindowController {
     /// first, then anything it triggered.
     public var onAccept: () -> Void = {}
 
+    /// Called when the user refuses, once this window has left the screen.
+    /// Whoever owns this quits the app — nothing has read anything, and there
+    /// is nothing to undo.
+    public var onDecline: () -> Void = {}
+
     public init(settings: SettingsStore) {
         self.settings = settings
     }
@@ -91,6 +96,10 @@ public final class FirstRunWindowController {
             onAccept: { [weak self] in
                 guard let self else { return }
                 self.hide(then: { [weak self] in self?.onAccept() })
+            },
+            onDecline: { [weak self] in
+                guard let self else { return }
+                self.hide(then: { [weak self] in self?.onDecline() })
             }
         )
         window.contentViewController = NSHostingController(rootView: root)

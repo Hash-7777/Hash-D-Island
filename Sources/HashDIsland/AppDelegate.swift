@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set for one programmatic open, so settings appears without dragging the
     /// panel open behind it. Cleared as soon as that open happens.
     private var opensSettingsAlone = false
+    /// Set when the opening window was refused, so the settings file is removed
+    /// again on the way out — see `forgetPreferences`.
+    private var declined = false
     private var power: PowerCoordinator?
     private var screenObserver: NSObjectProtocol?
     private var rebuildWork: DispatchWorkItem?
@@ -178,6 +181,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             firstRun.onAccept = { [weak self] in
                 self?.acceptReading()
             }
+            firstRun.onDecline = { [weak self] in
+                self?.declineReading()
+            }
             self.firstRunWindow = firstRun
             firstRun.show()
         } else if let page = Self.requestedSettingsPage() {
@@ -222,6 +228,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let registry, let context else { return }
         context.settings.hasAcceptedReading = true
         registry.syncRunning(context: context)
+    }
+
+    /// Say no, and mean it.
+    ///
+    /// Quitting is the whole answer. Nothing has read anything yet — that is
+    /// the point of the gate — so there is no reading to stop and no state to
+    /// unwind. Leaving the app running on a refusal would leave something in
+    /// the notch doing nothing, waiting to ask again.
+    ///
+    /// The preferences are removed on the way out, so refusing leaves the Mac
+    /// as it was found. It is a new install by definition (the window only
+    /// appears when nobody has answered), so the only thing in that file is
+    /// defaults nobody chose — and an app told no should not leave a file
+    /// behind to remember being told. Opening it again asks again, which is
+    /// the correct behaviour for somebody who changes their mind.
+    private func declineReading() {
+        registry?.stopAll()
+        declined = true
+        forgetPreferences()
+        NSApp.terminate(nil)
+    }
+
+    /// Wipe the app's stored settings.
+    ///
+    /// Called twice on a refusal, deliberately. The store saves on the next
+    /// runloop tick rather than immediately, so a write scheduled before the
+    /// refusal could land after the file was removed and quietly recreate the
+    /// very thing that was just deleted. Doing it again as the last act before
+    /// the process exits means the file is gone whatever the ordering was.
+    private func forgetPreferences() {
+        guard let domain = Bundle.main.bundleIdentifier else { return }
+        UserDefaults.standard.removePersistentDomain(forName: domain)
     }
 
     private func restartFeatures() {
@@ -320,6 +358,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Last chance to honour a refusal, after any coalesced save has had its
+        // turn. Nothing else may write preferences from here on.
+        if declined { forgetPreferences() }
         rebuildWork?.cancel()
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)

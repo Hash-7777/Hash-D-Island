@@ -159,9 +159,16 @@ This is stricter than it sounds, because it is not a notice with an OK button.
 Until the answer is yes, `FeatureRegistry.syncRunning` stops every feature
 rather than starting any, so the state before you accept is the same state as
 switching everything off — no file is opened, no subprocess runs, and none of
-the macOS permission prompts below can be triggered. Once it is running, every
-indicator can be switched off, and switching one off stops it reading rather
-than merely hiding it.
+the macOS permission prompts below can be triggered.
+
+There are **two** answers. *Refuse and quit* closes the app and removes its
+preferences file on the way out, so a Mac that declined is left exactly as it
+was found — no settings, no state, nothing remembering that it was asked.
+Opening the app again asks again. A consent window with only one button is not
+consent; it is a notice with a delay.
+
+Once it is running, every indicator can be switched off, and switching one off
+stops it reading rather than merely hiding it.
 
 It exists because of a fair criticism. Every indicator honoured its switch and
 none of them ever sent anything anywhere — but they all shipped **on**, and the

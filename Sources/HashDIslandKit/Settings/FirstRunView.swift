@@ -17,6 +17,7 @@ import SwiftUI
 struct FirstRunView: View {
     let accent: Color
     let onAccept: () -> Void
+    let onDecline: () -> Void
 
     /// The four that touch a file, run a subprocess, or can raise a macOS
     /// permission prompt. The rest — connection, battery, processor, memory,
@@ -165,17 +166,34 @@ struct FirstRunView: View {
         .padding(.top, 6)
     }
 
-    /// One way out, and it is the one that agrees.
+    /// Two answers, and they mean opposite things.
     ///
-    /// There used to be a quieter "Choose what runs" beside it, which accepted
-    /// as well and then opened settings. Two buttons where one of them is the
-    /// same answer wearing a different word is a question, and this window is
-    /// not asking one — it is stating what will be read and waiting to be
-    /// acknowledged. Everything is switchable the moment the app is running,
-    /// and switching one off stops it reading, so nothing is lost by deciding
-    /// afterwards.
+    /// This is not the pair that was here before. That one offered "Choose what
+    /// runs" beside "Start", and both of them agreed — one was the same answer
+    /// wearing a different word, which makes a statement look like a question.
+    /// It was removed for exactly that reason.
+    ///
+    /// A window that asks permission and offers only one button is not asking
+    /// anything either. It is telling somebody what is about to happen while
+    /// standing in the doorway, and the only way past it is to agree. So the
+    /// second button here is the one that was actually missing: **no**.
+    ///
+    /// Refusing quits, because there is no third state. The whole design of the
+    /// consent gate is that nothing reads anything until it is answered, so an
+    /// app left running on a refusal would be an app doing nothing at all,
+    /// sitting in the notch, waiting to be asked again. Quitting says what
+    /// happened.
     private var actions: some View {
         HStack(spacing: 12) {
+            Button("Refuse and quit") { onDecline() }
+                .buttonStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.62))
+                // Escape is what people press to get out of a window they did
+                // not ask for, and it should not be the one key that does
+                // nothing here.
+                .keyboardShortcut(.cancelAction)
+
             Spacer()
 
             Button("Start Hash D Island") { onAccept() }

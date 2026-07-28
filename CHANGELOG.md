@@ -47,6 +47,10 @@ easier to read and easier to undo.
 
 ### Added
 
+- **A way to say no.** The opening window now offers *Refuse and quit* beside
+  *Start*. Refusing closes the app and removes its settings file, so a Mac that
+  declined is left as it was found; opening it again asks again. Escape does the
+  same thing. A window that asks permission and offers one button is not asking.
 - **Reset appearance**, on the Appearance page: puts the colour, fill, motion,
   rounding and separators back the way they arrived, and leaves every other page
   alone.
