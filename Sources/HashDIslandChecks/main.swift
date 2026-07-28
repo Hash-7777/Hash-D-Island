@@ -392,8 +392,11 @@ MainActor.assumeIsolated {
     check("artwork refuses lookalike host", !ArtworkPolicy.isTrustedURL("https://evilscdn.co/a.jpg"))
     check("artwork refuses file scheme", !ArtworkPolicy.isTrustedURL("file:///etc/passwd"))
     check("artwork refuses garbage", !ArtworkPolicy.isTrustedURL("not a url"))
-    check("artwork allows Anghami covers", ArtworkPolicy.isTrustedURL("https://artwork.anghcdn.co/webp/?id=123&size=320"))
-    check("artwork refuses anghcdn lookalike", !ArtworkPolicy.isTrustedURL("https://evilanghcdn.co/a.jpg"))
+    // Withdrawn, and pinned as withdrawn. Anghami's covers were reachable but
+    // the identifier they hang on does not keep step with the track, so the
+    // picture shown was often the previous song's. Nothing may fetch from that
+    // host again without this check being deliberately deleted.
+    check("artwork refuses Anghami's host", !ArtworkPolicy.isTrustedURL("https://artwork.anghcdn.co/webp/?id=123&size=320"))
 
     // Each service is switchable on its own, and the switch has to reach the
     // NETWORK, not just the window. A host stays refused while its service is
@@ -401,15 +404,14 @@ MainActor.assumeIsolated {
     // point of them being separate permissions to separate companies.
     do {
         let everything = ArtworkPolicy.enabledServices()
-        ArtworkPolicy.setEnabledServices(everything.subtracting([ArtworkService.anghami.id]))
+        ArtworkPolicy.setEnabledServices(everything.subtracting([ArtworkService.youtube.id]))
         check(
             "a service switched off is refused",
-            !ArtworkPolicy.isTrustedURL("https://artwork.anghcdn.co/webp/?id=123")
+            !ArtworkPolicy.isTrustedURL("https://i.ytimg.com/vi/abc/hqdefault.jpg")
         )
         check(
             "switching one off leaves the others alone",
             ArtworkPolicy.isTrustedURL("https://i.scdn.co/image/abc123")
-                && ArtworkPolicy.isTrustedURL("https://i.ytimg.com/vi/abc/hqdefault.jpg")
         )
         ArtworkPolicy.setEnabledServices([])
         check(
@@ -425,7 +427,7 @@ MainActor.assumeIsolated {
     // A host nobody claims has no service, which is what makes "refused" the
     // default rather than something each new host has to be added to.
     check("an unclaimed host belongs to no service", ArtworkPolicy.service(forURL: "https://example.com/a.jpg") == nil)
-    check("Anghami's host is Anghami's", ArtworkPolicy.service(forURL: "https://artwork.anghcdn.co/x")?.id == ArtworkService.anghami.id)
+    check("YouTube's host is YouTube's", ArtworkPolicy.service(forURL: "https://i.ytimg.com/x")?.id == ArtworkService.youtube.id)
     check(
         "every service id is distinct",
         Set(ArtworkService.all.map(\.id)).count == ArtworkService.all.count

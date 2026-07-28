@@ -5,9 +5,9 @@ import Foundation
 ///
 /// A service rather than a bare list of hosts, because each one is switchable
 /// on its own. "This app may talk to Spotify's image servers" and "this app may
-/// talk to Anghami's" are different permissions, to different companies, and
+/// talk to YouTube's" are different permissions, to different companies, and
 /// rolling them into a single on/off would mean somebody who wants covers for
-/// the one service they use has to accept requests to two others they do not.
+/// the one service they use has to accept requests to another they do not.
 ///
 /// It lives in the core rather than beside the media reader because the
 /// settings window has to list these, and the core cannot depend on a feature.
@@ -43,15 +43,18 @@ public struct ArtworkService: Identifiable, Equatable, Sendable {
         hosts: ["ytimg.com"],
         detail: "Thumbnails for a video playing in your browser."
     )
-    public static let anghami = ArtworkService(
-        id: "anghami",
-        name: "Anghami",
-        hosts: ["anghcdn.co"],
-        detail: "Album covers for Anghami in your browser, from Anghami's own image servers."
-    )
-
     /// Every service, in the order the settings window lists them.
-    public static let all: [ArtworkService] = [.spotify, .youtube, .anghami]
+    ///
+    /// Anghami was here and has been removed, which is worth recording so it is
+    /// not attempted again the same way. Its covers ARE reachable: macOS
+    /// publishes an artwork identifier beside the image it withholds, and
+    /// Anghami's CDN answers to it. But that identifier does not keep step with
+    /// the track — it goes stale across a change and is sometimes missing
+    /// entirely — so what it produced was often the previous song's cover,
+    /// shown with total confidence. A blank tile is honest; a confident wrong
+    /// answer about what you are listening to is not, and no amount of
+    /// coverage is worth being wrong in the place people look first.
+    public static let all: [ArtworkService] = [.spotify, .youtube]
 
     /// Where this service's on/off switch is stored.
     public var settingKey: String { "artwork.\(id)" }

@@ -57,18 +57,17 @@ easier to read and easier to undo.
 - Neither reset is one click away. The button is replaced in place by a cancel
   and a confirm, so a misplaced click cannot cost you an arrangement you spent
   time on.
-- **Cover art for Anghami in a browser.** macOS names the cover but withholds
-  the picture from any app without Apple's entitlement, and Anghami runs as a
-  single-page app so there is nothing in its address to build a picture from
-  the way there is for a YouTube video. What macOS does publish is Anghami's own
-  identifier, which their image server answers to — used only when a browser tab
-  open on Anghami confirms that is what is playing.
-- **A switch for each service's covers**, under General → Cover art: Spotify,
-  YouTube and Anghami, separately. Each is a request to a different company, so
-  allowing the one you use should not cost you requests to two you do not.
-  Switching one off is enforced by the downloader itself — its hosts stop being
-  trusted — rather than merely hiding the picture. With all three off the app
-  makes no network requests at all.
+- **A switch for each service's covers**, under General → Cover art: Spotify and
+  YouTube, separately. Each is a request to a different company, so allowing the
+  one you use should not cost you requests to another you do not. Switching one
+  off is enforced by the downloader itself — its hosts stop being trusted —
+  rather than merely hiding the picture. With both off the app makes no network
+  requests at all.
+- Covers for other web players are still not shown, and that is deliberate.
+  Anghami was built and withdrawn before release: its covers are reachable, but
+  the identifier they hang on does not keep step with the track, so the picture
+  was frequently the previous song's. A blank tile is honest; a confident wrong
+  answer about what you are listening to is not.
 
 ### Changed
 
@@ -101,7 +100,7 @@ easier to read and easier to undo.
 
 ### Verified
 
-- 531 automated checks, up from 493. The new ones cover both resets, what each
+- 530 automated checks, up from 493. The new ones cover both resets, what each
   leaves untouched, the two ways a reset could have failed silently, the
   top-of-screen hover fix — including one that fails if that fix is ever
   removed — and that a Mac still being read never has its battery indicator

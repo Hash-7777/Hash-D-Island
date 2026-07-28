@@ -147,7 +147,6 @@ final class MediaRemoteReader {
       ObjC.import('Foundation');
       let title = null, artist = null, playing = false, artworkUrl = null, artwork = null;
       let source = 'other', elapsed = null, duration = null, elapsedAt = null;
-      let artIdentifier = null;
 
       // What the app already holds. Artwork is expensive to produce — Apple
       // Music base64-encodes the whole image, Spotify costs an Apple Event —
@@ -181,14 +180,6 @@ final class MediaRemoteReader {
             const stamp = s('kMRMediaRemoteNowPlayingInfoTimestamp');
             if (stamp) { try { elapsedAt = stamp.getTime() / 1000; } catch (e) {} }
             duration = s('kMRMediaRemoteNowPlayingInfoDuration');
-            // macOS names the cover without handing it over. The bytes
-            // (kMRMediaRemoteNowPlayingInfoArtworkData) are withheld from
-            // anything lacking Apple's entitlement, which a signed app does not
-            // have — MEASURED: absent, while the MIME type and this identifier
-            // are both present beside it. The identifier belongs to whichever
-            // service is playing, so on its own it means nothing; paired with a
-            // browser tab that says which service that is, it is enough.
-            artIdentifier = s('kMRMediaRemoteNowPlayingInfoArtworkIdentifier');
           }
         }
       }
@@ -273,34 +264,27 @@ final class MediaRemoteReader {
         if (argv.length >= 2 && argv[0] === title) {
           if (argv[1]) artworkUrl = argv[1];
         } else {
-          // The tab list is read ONCE and offered to each deriver in turn, so
-          // adding a service does not cost another sweep of every browser.
-          try {
-            const tabs = browserTabs();
-            artworkUrl = youtubeThumb(tabs, title) || anghamiArt(tabs, artIdentifier);
-          } catch (e) {}
+          try { artworkUrl = youtubeThumb(browserTabs(), title); } catch (e) {}
         }
       }
 
-      // Anghami runs as a single-page app: its tab address is
-      // play.anghami.com/home whatever is playing, so unlike YouTube there is
-      // nothing in the URL to derive a picture from. What there IS is the
-      // identifier macOS attaches to the cover it refuses to hand over, and
-      // that identifier is Anghami's own. The tab is what says the identifier
-      // belongs to THEM — without it this would be posting a stranger's number
-      // to their servers.
-      function anghamiArt(tabs, identifier) {
-        if (!identifier) return null;
-        const id = String(identifier);
-        if (!/^[0-9]+$/.test(id)) return null;
-        for (const t of tabs) {
-          const u = String(t.url || '');
-          if (/^https:\\/\\/([a-z0-9-]+\\.)*anghami\\.com\\//.test(u)) {
-            return 'https://artwork.anghcdn.co/webp/?id=' + id + '&size=320';
-          }
-        }
-        return null;
-      }
+      // A web player other than YouTube gets NO cover, deliberately.
+      //
+      // Anghami was tried and withdrawn. macOS publishes an artwork identifier
+      // beside the image it refuses to hand over, and Anghami's own CDN answers
+      // to it — a request built that way returned the right picture for the
+      // track that was playing when it was measured. What that measurement did
+      // not show, because it was read as an album-scoped id rather than an
+      // unreliable one, is that the identifier does NOT keep step with the
+      // track: it goes stale across a change and is sometimes absent
+      // altogether. So the cover shown was frequently the cover of a song that
+      // had already finished.
+      //
+      // A wrong cover is worse than no cover. It is not a gap the eye forgives
+      // — it is the app stating something false about what you are listening
+      // to, confidently, in the place you look first. The blank tile says "not
+      // known", which is true, and nothing here will claim otherwise until
+      // there is an identifier that actually tracks the song.
 
       function browserTabs() {
         const found = [];

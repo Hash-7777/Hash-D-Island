@@ -808,7 +808,7 @@ public struct SettingsView: View {
                 // tile its credibility.
                 PrivacyLine(
                     "The one request it makes",
-                    "Fetching the cover for what's playing, over HTTPS, only from the image servers of the services you allow on the General page, size-capped, and refused if a redirect would lead elsewhere. Nothing else touches the network, and nothing about you is ever sent anywhere."
+                    "Fetching the cover for what's playing, over HTTPS, only from the image servers of the services you allow on the General page, size-capped, and refused if a redirect would lead elsewhere. Turn both off and nothing touches the network at all. Nothing about you is ever sent anywhere."
                 )
                 SettingDivider()
                 PrivacyLine(
