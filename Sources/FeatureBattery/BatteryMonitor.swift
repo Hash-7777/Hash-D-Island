@@ -113,6 +113,33 @@ public final class BatteryMonitor: ObservableObject {
     @Published public private(set) var isCharging: Bool = false
     @Published public private(set) var minutesRemaining: Int?
     @Published public private(set) var hasBattery: Bool = false
+
+    /// Whether a reading has been taken at all yet.
+    ///
+    /// Kept apart from `hasBattery` because the two are different claims and
+    /// only one of them justifies hiding the indicator. `hasBattery` starts
+    /// false, so reading a bare false as "this Mac has no battery" would hide
+    /// the row on EVERY Mac for the instant before the first reading lands, and
+    /// then pop it back in.
+    @Published public private(set) var hasSampled: Bool = false
+
+    /// True only once a reading has actually been taken AND it found no
+    /// battery — an iMac, a Mac mini, a Mac Studio, a Mac Pro.
+    ///
+    /// The app is for Macs, not only for MacBooks, and on a desktop every part
+    /// of this indicator is meaningless: no level, no time remaining, no time
+    /// to full, no adapter. It showed anyway, dimmed, which reads as broken
+    /// rather than as not applicable. So the whole indicator stands down, the
+    /// same way AirPods does when nothing is connected.
+    public var isUnavailable: Bool {
+        Self.isUnavailable(hasSampled: hasSampled, hasBattery: hasBattery)
+    }
+
+    /// The rule on its own, so the checks can prove it never hides the
+    /// indicator on a Mac that simply has not been read yet.
+    package static func isUnavailable(hasSampled: Bool, hasBattery: Bool) -> Bool {
+        hasSampled && !hasBattery
+    }
     /// A short-lived announcement for the compact strip; nil when idle.
     @Published public private(set) var event: BatteryEvent?
     /// What the battery is doing — charging, held, full, or on its own.
@@ -600,9 +627,14 @@ public final class BatteryMonitor: ObservableObject {
             if minutesRemaining != newRemaining { minutesRemaining = newRemaining }
             if minutesToFull != newToFull { minutesToFull = newToFull }
             if !hasBattery { hasBattery = true }
+            if !hasSampled { hasSampled = true }
             return
         }
 
+        // The power-source API answered and listed no battery. That is a real
+        // answer — this is a Mac without one — as opposed to the guard above,
+        // where the API itself failed and nothing can be concluded.
+        if !hasSampled { hasSampled = true }
         if hasBattery { hasBattery = false }
     }
 }

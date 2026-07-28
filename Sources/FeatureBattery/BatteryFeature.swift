@@ -34,21 +34,30 @@ public final class BatteryFeature: NotchFeature {
     public func start(context: FeatureContext) { monitor.start(presence: context.presence) }
     public func stop() { monitor.stop() }
 
+    // A Mac with no battery shows nothing at all here rather than a dimmed
+    // readout of a battery it does not have. See `BatteryMonitor.isUnavailable`.
+    // Answered when the panel is built, which is right for this question: a
+    // desktop Mac never grows a battery, and a laptop never loses one.
+
     public func makeView(context: FeatureContext) -> AnyView {
+        guard !monitor.isUnavailable else { return AnyView(EmptyView()) }
         let style = BatteryStyle(rawValue: context.settings.style(for: id)) ?? .iconAndPercent
         return AnyView(BatteryView(monitor: monitor, theme: context.theme, style: style))
     }
 
     public func makeCompactLeadingView(context: FeatureContext) -> AnyView? {
-        AnyView(BatteryEventIconView(monitor: monitor, theme: context.theme))
+        guard !monitor.isUnavailable else { return nil }
+        return AnyView(BatteryEventIconView(monitor: monitor, theme: context.theme))
     }
 
     public func makeCompactTrailingView(context: FeatureContext) -> AnyView? {
-        AnyView(BatteryEventTextView(monitor: monitor, theme: context.theme))
+        guard !monitor.isUnavailable else { return nil }
+        return AnyView(BatteryEventTextView(monitor: monitor, theme: context.theme))
     }
 
     public func makeExpandedView(context: FeatureContext) -> AnyView? {
-        AnyView(BatteryDetailView(
+        guard !monitor.isUnavailable else { return nil }
+        return AnyView(BatteryDetailView(
             monitor: monitor,
             settings: context.settings,
             theme: context.theme,

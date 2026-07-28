@@ -20,6 +20,18 @@ easier to read and easier to undo.
 - **The panel stays open while settings is open.** Whether it is held open is
   now decided by whether the settings window is actually on screen, rather than
   by a flag that something had to remember to set.
+- **A Mac with no battery no longer shows a battery.** On an iMac, Mac mini,
+  Mac Studio or Mac Pro every part of that indicator is meaningless — no level,
+  no time remaining, no adapter — and it drew anyway, dimmed, which reads as
+  broken rather than as not applicable. It now stands down entirely, the same
+  way AirPods does when nothing is connected. A laptop is unaffected, including
+  in the moment before the first reading lands.
+- **The opening window now leaves the screen before macOS asks anything.**
+  Accepting starts the indicators, and starting them is what makes macOS raise
+  its own prompt for the Downloads folder — so that prompt used to appear on top
+  of the window that had just asked for permission itself, two consent dialogs
+  stacked with the second seeming to answer the first. The window goes first
+  now, then anything it triggered.
 - **Reaching the top of the screen no longer closes the panel.** Hovering the
   notch opened it, and then pushing the cursor up into the bezel — still over
   the notch — shut it again. The hover area ended exactly at the screen's top
@@ -43,6 +55,13 @@ easier to read and easier to undo.
 
 ### Changed
 
+- **The opening window has one button.** There used to be a quieter "Choose what
+  runs" beside it, which accepted just the same and then opened settings. Two
+  buttons where one is the same answer wearing a different word read as a
+  question, and that window is not asking one — it states what will be read and
+  waits to be acknowledged. Everything is switchable the moment the app is
+  running, and switching one off stops it reading, so nothing is lost by
+  deciding afterwards.
 - **Settings pages moved from a column down the left to a strip across the top.**
   The column spent about a third of the window's width showing six words that
   never change. The same six pages now cost a little height once, and every page
@@ -51,10 +70,13 @@ easier to read and easier to undo.
 
 ### Verified
 
-- 519 automated checks, up from 493. The new ones cover both resets, what each
-  leaves untouched, the two ways a reset could have failed silently, and the
+- 522 automated checks, up from 493. The new ones cover both resets, what each
+  leaves untouched, the two ways a reset could have failed silently, the
   top-of-screen hover fix — including one that fails if that fix is ever
-  removed.
+  removed — and that a Mac still being read never has its battery indicator
+  hidden by mistake.
+- Every line of this release compiles against the package's macOS 12 deployment
+  target, so nothing added here is unavailable on Monterey.
 
 ## 1.0.0 — first release
 

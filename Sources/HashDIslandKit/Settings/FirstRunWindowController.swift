@@ -13,12 +13,17 @@ public final class FirstRunWindowController {
     private let settings: SettingsStore
     private var window: FirstRunPanelWindow?
 
-    /// Called when the user accepts. Whoever owns this starts the features.
+    /// Called when the user accepts, and only once this window has actually
+    /// left the screen. Whoever owns this starts the features.
+    ///
+    /// The order matters and it used to be wrong. Accepting starts the
+    /// indicators, and starting them is what makes macOS raise its own
+    /// permission prompt for the Downloads folder — so calling back while this
+    /// window was still fading put a system prompt on top of the window that
+    /// had just asked for permission itself. Two consent dialogs stacked on each
+    /// other, the second one appearing to answer the first. The window goes
+    /// first, then anything it triggered.
     public var onAccept: () -> Void = {}
-    /// Called when the user would rather pick first. Accepts as well — the
-    /// reading has still been agreed to — and then opens settings so they can
-    /// switch things off before they run.
-    public var onChoose: () -> Void = {}
 
     public init(settings: SettingsStore) {
         self.settings = settings
@@ -41,14 +46,29 @@ public final class FirstRunWindowController {
         }
     }
 
-    public func hide() {
-        guard let window, window.isVisible else { return }
+    /// Fade it out, and run `completion` once it is genuinely off screen.
+    ///
+    /// Not merely once it has been asked to go: the fade takes 0.16s and the
+    /// window is on screen for every millisecond of it. Anything that puts up
+    /// another window has to wait for this one to be gone, or it lands on top
+    /// of it.
+    public func hide(then completion: @escaping () -> Void = {}) {
+        guard let window, window.isVisible else {
+            completion()
+            return
+        }
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.16
             context.allowsImplicitAnimation = true
             window.animator().alphaValue = 0
-        }, completionHandler: { [weak window] in
-            window?.orderOut(nil)
+        }, completionHandler: {
+            // AppKit runs this on the main thread, but the closure is typed
+            // Sendable so the compiler cannot know that. Same pattern as the
+            // settings window's own fade.
+            MainActor.assumeIsolated {
+                window.orderOut(nil)
+                completion()
+            }
         })
     }
 
@@ -69,12 +89,8 @@ public final class FirstRunWindowController {
         let root = FirstRunView(
             accent: settings.accent.color,
             onAccept: { [weak self] in
-                self?.hide()
-                self?.onAccept()
-            },
-            onChoose: { [weak self] in
-                self?.hide()
-                self?.onChoose()
+                guard let self else { return }
+                self.hide(then: { [weak self] in self?.onAccept() })
             }
         )
         window.contentViewController = NSHostingController(rootView: root)

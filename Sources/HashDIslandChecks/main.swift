@@ -2773,6 +2773,33 @@ do {
     check("the strip and the panel are never on screen together", !bothEverShown)
 }
 
+// ── A Mac is not always a MacBook ────────────────────────────────────────────
+//
+// An iMac, a Mac mini, a Mac Studio and a Mac Pro have no battery, and every
+// part of that indicator is meaningless on one: no level, no time remaining, no
+// time to full, no adapter. It drew anyway, dimmed, which reads as broken
+// rather than as not applicable.
+//
+// The trap is the obvious version of the fix. `hasBattery` starts false and
+// only becomes true once a reading lands, so hiding on "not hasBattery" would
+// hide the indicator on EVERY Mac for the instant before the first reading —
+// and then pop it in. So the question is asked of two facts, not one: a reading
+// has been taken, AND it found nothing.
+MainActor.assumeIsolated {
+    check(
+        "a Mac that has been read and has no battery hides the indicator",
+        BatteryMonitor.isUnavailable(hasSampled: true, hasBattery: false)
+    )
+    check(
+        "a Mac not yet read keeps it, whatever hasBattery happens to say",
+        !BatteryMonitor.isUnavailable(hasSampled: false, hasBattery: false)
+    )
+    check(
+        "a laptop keeps its battery indicator",
+        !BatteryMonitor.isUnavailable(hasSampled: true, hasBattery: true)
+    )
+}
+
 // ── The bezel is still the notch ─────────────────────────────────────────────
 //
 // Hovering the notch opened the panel, and then pushing the cursor up against

@@ -17,7 +17,6 @@ import SwiftUI
 struct FirstRunView: View {
     let accent: Color
     let onAccept: () -> Void
-    let onChoose: () -> Void
 
     /// The four that touch a file, run a subprocess, or can raise a macOS
     /// permission prompt. The rest — connection, battery, processor, memory,
@@ -166,13 +165,17 @@ struct FirstRunView: View {
         .padding(.top, 6)
     }
 
+    /// One way out, and it is the one that agrees.
+    ///
+    /// There used to be a quieter "Choose what runs" beside it, which accepted
+    /// as well and then opened settings. Two buttons where one of them is the
+    /// same answer wearing a different word is a question, and this window is
+    /// not asking one — it is stating what will be read and waiting to be
+    /// acknowledged. Everything is switchable the moment the app is running,
+    /// and switching one off stops it reading, so nothing is lost by deciding
+    /// afterwards.
     private var actions: some View {
         HStack(spacing: 12) {
-            Button("Choose what runs") { onChoose() }
-                .buttonStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.62))
-
             Spacer()
 
             Button("Start Hash D Island") { onAccept() }

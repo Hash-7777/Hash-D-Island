@@ -160,16 +160,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // place to decide it.
         if !settings.hasAcceptedReading {
             let firstRun = FirstRunWindowController(settings: settings)
+            // Called only once that window is off screen, which is what keeps
+            // macOS's own Downloads prompt from landing on top of it — starting
+            // the indicators is what raises that prompt.
             firstRun.onAccept = { [weak self] in
                 self?.acceptReading()
-            }
-            firstRun.onChoose = { [weak self] in
-                // Still consent — they have read the same list — but they want
-                // to switch things off before they run. So the features are
-                // started and settings is opened on the page that holds the
-                // switches, where anything unwanted stops it reading again.
-                self?.acceptReading()
-                self?.openSettings(at: "indicators")
             }
             self.firstRunWindow = firstRun
             firstRun.show()
